@@ -1,3 +1,9 @@
+---
+name: hosts
+last_updated: 2026-09-19
+id: 01M2YGPF6QM3YGDKFDVGP3BR7W
+---
+
 # Host contracts
 
 What Claude Code, Pi, and Codex actually load, verified on this machine against

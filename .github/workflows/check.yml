@@ -43,6 +43,7 @@ jobs:
       - run: python3 workflow/scripts/check-frontmatter-test.py
       - run: python3 workflow/scripts/check-isolation-test.py
       - run: python3 workflow/scripts/check-isolation.py workflow
+      - run: python3 workflow/scripts/check-frontmatter.py docs/internal
 
   site:
     runs-on: ubuntu-latest
