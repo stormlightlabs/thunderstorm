@@ -34,7 +34,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? "github" : "list",
   use: {
-    baseURL: "http://localhost:4321",
+    baseURL: "http://localhost:4322",
     trace: "on-first-retry",
     launchOptions: executablePath ? { executablePath } : {},
   },
@@ -45,10 +45,13 @@ export default defineConfig({
     },
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
+  // Its own port, and never a server it did not start. Reusing whatever sat on
+  // 4321 meant a local `astro dev` answered the suite, so the assertions ran
+  // against unbuilt pages and the build's link validation never ran at all.
   webServer: {
-    command: "pnpm build && pnpm preview --port 4321",
-    url: "http://localhost:4321",
-    reuseExistingServer: !process.env.CI,
+    command: "pnpm build && pnpm preview --port 4322 --ignore-lock",
+    url: "http://localhost:4322",
+    reuseExistingServer: false,
     timeout: 180_000,
   },
 });

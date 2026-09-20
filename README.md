@@ -21,7 +21,7 @@ claude plugin install thunderstorm@stormlightlabs
 ```
 
 Or `/plugin marketplace add` and `/plugin install` from inside a session.
-Claude Code is the only harness with a payload today; `docs/start/install.md`
+Claude Code is the only harness with a payload today; `docs/src/content/docs/start/install.md`
 says what stays with your repository, and what Codex and Pi are still waiting
 on.
 
@@ -47,21 +47,26 @@ skill.
 
 A skill is an instruction. When an agent ignores one, nothing records that it
 happened, which is how a review protocol contradicted itself across seven files
-with CI green throughout. `tstorm` holds the parts that have to be true:
+with CI green throughout. `tstorm` is where the parts that have to be true are
+going to live.
 
-- board reads and writes against GitHub Projects
-- commit and pull request shape
-- document identity, so an issue can cite the document it came from
-- worktree isolation, so two workers cannot take each other's commits
-- prose, checked against a catalogue of writing tells
+Today it renders payloads:
 
 ```sh
 go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
+tstorm render --target claude
+tstorm version
 ```
 
-The checks call it by name, so it needs to be on `PATH`. Homebrew is the other
-route once [#19](https://github.com/stormlightlabs/thunderstorm/issues/19)
-lands; nothing is released yet.
+That is the whole binary. The checks a run depends on — commit and pull
+request shape, document identity, worktree isolation — are Python scripts the
+payload installs, which the skills call by path;
+[#16](https://github.com/stormlightlabs/thunderstorm/issues/16) ports them
+here, and board writes and the prose check follow in
+[#15](https://github.com/stormlightlabs/thunderstorm/issues/15) and
+[#12](https://github.com/stormlightlabs/thunderstorm/issues/12). Nothing is
+released, so `go install` builds from source; Homebrew arrives with
+[#19](https://github.com/stormlightlabs/thunderstorm/issues/19).
 
 Each harness reads skills from its own directory, names commands its own way,
 and means its own thing by a subagent. The workflow is written once under
@@ -94,6 +99,7 @@ fixture used and the versions it was checked against.
 
 ```text
 AGENTS.md       gates, commit shape, and where things live (CLAUDE.md links to it)
+.githooks/      commit-msg, checking the shape before a message lands
 CHANGELOG.md    what has landed
 TODO.md         what is left
 cmd/tstorm      entry point

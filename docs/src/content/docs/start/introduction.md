@@ -15,9 +15,10 @@ starts every run, and merging is left to a person as well.
 ## What gets installed
 
 The skills describe each stage of the loop, along with the commands that start
-them. `tstorm` is a separate binary carrying the checks: commit message shape,
-document identity, worktree isolation, and prose quality. Each supported agent
-receives a payload shaped to what it can load, which the
+them, and the payload carries the check scripts they call: commit message
+shape, document identity, worktree isolation. `tstorm` is a separate binary,
+and today it is what builds those payloads rather than what runs the checks.
+Each supported agent receives a payload shaped to what it can load, which the
 [harness reference](/reference/harnesses/) describes.
 
 ## Why it is packaged

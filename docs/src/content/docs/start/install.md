@@ -33,8 +33,9 @@ gap are named in the failure.
 
 ## The checks
 
-The checks the skills call run from the installed payload, and `tstorm` is
-called by name, so it needs to be on your `PATH`:
+The checks the skills call are Python scripts inside the installed payload, so
+they need `python3`. `tstorm` itself is what builds a payload, and you need it
+only to render one:
 
 ```sh
 go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
@@ -81,13 +82,16 @@ rules the review sequence is a convention an agent can skip.
 ### Your board
 
 The `github-board` and `triage` skills read and write a GitHub Projects board.
-The project, its status field, and the labels the skills expect are yours to
-create, and the examples in those skills are written against `<owner>/<repo>`
-for you to fill in.
+The board, its `Todo`/`In Progress`/`Done` status field, and the labels are
+yours to create. Name the board's number and owner in your `AGENTS.md`, beside
+the gates: the skills are written against `<project>`, `<owner>` and
+`<owner>/<repo>`, and take all three from what your repository says.
 
 ### Your model assignments
 
 Which model runs which role is a decision per organization, not per package.
-`docs/internal/models.md` in this repository records the rule the loop depends
-on — an implementer and a reviewer never share a run — and what a harness must
-provide before it can carry a role.
+One rule travels with the loop whatever you decide: an implementer and the
+reviewer reading its work never share a model within a run, because a model
+reviewing its own diff inherits the gap that produced the defect. The
+[harness reference](/reference/harnesses/) covers what an agent must provide
+before it can carry a role at all.

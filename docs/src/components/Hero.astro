@@ -15,13 +15,14 @@ const PAGE_TITLE_ID = "_top";
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero || {};
 
+// Claude Code is the only harness with a payload. Codex and Pi have nowhere
+// to put a command and Pi has no subagents, so the renderer refuses to build
+// for them; offering an install command here would be offering a fiction.
 const installs = [
-  { label: "Claude Code", code: "/plugin marketplace add stormlightlabs/thunderstorm" },
   {
-    label: "Codex",
-    code: "codex plugin marketplace add stormlightlabs/thunderstorm\ncodex plugin add thunderstorm@stormlightlabs",
+    label: "Claude Code",
+    code: "claude plugin marketplace add stormlightlabs/thunderstorm\nclaude plugin install thunderstorm@stormlightlabs",
   },
-  { label: "Pi", code: "pi install git:github.com/stormlightlabs/thunderstorm" },
 ];
 
 const stages: [string, string][] = [
@@ -125,7 +126,7 @@ const stages: [string, string][] = [
   }
 
   .label {
-    margin: 1.25rem 0 0;
+    margin: 1rem 0 0;
     font-size: var(--sl-text-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -133,7 +134,7 @@ const stages: [string, string][] = [
   }
 
   .stages {
-    margin: 0.5rem 0 0;
+    margin: 0.35rem 0 0;
     border-top: 1px solid var(--sl-color-hairline);
   }
 
@@ -142,7 +143,7 @@ const stages: [string, string][] = [
     grid-template-columns: 7rem 1fr;
     gap: 0.75rem;
     align-items: baseline;
-    padding: 0.25rem 0.1rem;
+    padding: 0.2rem 0.1rem;
     border-bottom: 1px solid var(--sl-color-hairline);
   }
 

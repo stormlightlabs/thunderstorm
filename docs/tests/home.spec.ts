@@ -10,17 +10,20 @@ test.describe("home page", () => {
     await expect(page.getByText("An Agent Agnostic Loop Harness")).toBeVisible();
   });
 
-  test("offers an install command for each harness", async ({ page }) => {
-    for (const label of ["Claude Code", "Codex", "Pi"]) {
-      await expect(page.getByRole("tab", { name: label })).toBeVisible();
-    }
-    await expect(page.getByText("/plugin marketplace add stormlightlabs/thunderstorm")).toBeVisible();
+  test("offers the install commands for the one harness that has a payload", async ({ page }) => {
+    await expect(page.getByRole("tab", { name: "Claude Code" })).toBeVisible();
+    await expect(page.getByText("claude plugin marketplace add stormlightlabs/thunderstorm")).toBeVisible();
+    await expect(page.getByText("claude plugin install thunderstorm@stormlightlabs")).toBeVisible();
   });
 
-  test("switching a tab shows that harness's command", async ({ page }) => {
-    await page.getByRole("tab", { name: "Pi" }).click();
-    await expect(page.getByText("pi install git:github.com/stormlightlabs/thunderstorm")).toBeVisible();
-    await expect(page.getByText("/plugin marketplace add stormlightlabs/thunderstorm")).toBeHidden();
+  // The renderer refuses to build a Codex or Pi payload, so the page must not
+  // offer a command that installs nothing.
+  test("offers nothing for the harnesses that have no payload", async ({ page }) => {
+    for (const label of ["Codex", "Pi", "Cursor"]) {
+      await expect(page.getByRole("tab", { name: label })).toHaveCount(0);
+    }
+    await expect(page.getByText("pi install git:")).toHaveCount(0);
+    await expect(page.getByText("codex plugin")).toHaveCount(0);
   });
 
   test("lists every stage", async ({ page }) => {

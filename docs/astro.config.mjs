@@ -12,7 +12,7 @@ export default defineConfig({
       components: { Hero: "./src/components/Hero.astro" },
       title: "thunderstorm",
       description:
-        "An installable development loop for Claude Code, Pi, Codex, and Cursor: one set of skills, one board, and the checks that hold them together.",
+        "An installable development loop for Claude Code: one set of skills, one board, and the checks that hold them together. Codex and Pi are next.",
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/stormlightlabs/thunderstorm" },
       ],
