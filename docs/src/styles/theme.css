@@ -1,0 +1,65 @@
+/*
+ * Black and blue in the dark, white and blue in the light.
+ *
+ * Starlight builds its whole surface out of the gray ramp and the three accent
+ * steps below, so setting those is enough; the handful of explicit overrides at
+ * the end are the places where the default ramp reads too warm against a blue
+ * accent. Dark is the default here, and light is defined under the attribute
+ * Starlight stamps on the root when a reader picks it.
+ */
+
+:root {
+  --sl-font: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sl-font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+
+  /* Blue, held at one hue so the accent never drifts between steps. */
+  --sl-color-accent-low: #0e2a52;
+  --sl-color-accent: #2f6fe4;
+  --sl-color-accent-high: #a9c8ff;
+
+  /* Near-black through to near-white, cooled toward the accent. */
+  --sl-color-white: #f4f7fb;
+  --sl-color-gray-1: #e2e8f2;
+  --sl-color-gray-2: #b9c2d2;
+  --sl-color-gray-3: #7f8b9e;
+  --sl-color-gray-4: #4c576a;
+  --sl-color-gray-5: #2c3444;
+  --sl-color-gray-6: #1b2230;
+  --sl-color-gray-7: #121824;
+  --sl-color-black: #05070d;
+
+  --sl-color-bg: var(--sl-color-black);
+  --sl-color-bg-nav: #080b13;
+  --sl-color-bg-sidebar: #080b13;
+  --sl-color-bg-inline-code: var(--sl-color-gray-6);
+  --sl-color-hairline: var(--sl-color-gray-6);
+  --sl-color-hairline-shade: var(--sl-color-gray-7);
+}
+
+:root[data-theme="light"] {
+  --sl-color-accent-low: #d7e4ff;
+  --sl-color-accent: #1a56c4;
+  --sl-color-accent-high: #0d2d6b;
+
+  --sl-color-white: #05070d;
+  --sl-color-gray-1: #121824;
+  --sl-color-gray-2: #2c3444;
+  --sl-color-gray-3: #5b6678;
+  --sl-color-gray-4: #8b95a6;
+  --sl-color-gray-5: #c5cdda;
+  --sl-color-gray-6: #e4e9f1;
+  --sl-color-gray-7: #f2f5fa;
+  --sl-color-black: #ffffff;
+
+  --sl-color-bg: #ffffff;
+  --sl-color-bg-nav: #ffffff;
+  --sl-color-bg-sidebar: #f7f9fc;
+  --sl-color-bg-inline-code: var(--sl-color-gray-6);
+  --sl-color-hairline: var(--sl-color-gray-5);
+  --sl-color-hairline-shade: var(--sl-color-gray-6);
+}
+
+/* Geist's headings carry their weight at a tighter track than the default. */
+:where(h1, h2, h3, h4, h5, h6) {
+  letter-spacing: -0.018em;
+}

@@ -15,10 +15,14 @@ export default defineConfig({
       social: [
         { icon: "github", label: "GitHub", href: "https://github.com/stormlightlabs/thunderstorm" },
       ],
-      customCss: ["@fontsource-variable/ibm-plex-sans", "@fontsource-variable/literata"],
+      customCss: [
+        "@fontsource-variable/geist",
+        "@fontsource-variable/geist-mono",
+        "./src/styles/theme.css",
+      ],
       sidebar: [
-        { label: "Start here", autogenerate: { directory: "start" } },
-        { label: "Reference", autogenerate: { directory: "reference" } },
+        { label: "Start here", items: [{ autogenerate: { directory: "start" } }] },
+        { label: "Reference", items: [{ autogenerate: { directory: "reference" } }] },
       ],
     }),
   ],
