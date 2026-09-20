@@ -1,0 +1,105 @@
+---
+/**
+ * The home page below the hero: how it installs, then what it puts in your
+ * hands. The install tabs make the agent-agnostic claim concrete, and the
+ * command list is the part worth reading, since it shows the loop has stages
+ * rather than one button.
+ */
+import { Code, Tabs, TabItem } from "@astrojs/starlight/components";
+
+const installs = [
+  { label: "Claude Code", code: "/plugin marketplace add stormlightlabs/thunderstorm" },
+  {
+    label: "Codex",
+    code: "codex plugin marketplace add stormlightlabs/thunderstorm\ncodex plugin add thunderstorm@stormlightlabs",
+  },
+  { label: "Pi", code: "pi install git:github.com/stormlightlabs/thunderstorm" },
+];
+
+const stages = [
+  ["/r-d", "Rubber-duck a design before any code exists"],
+  ["/spec-ify", "Turn an idea into a spec when issues need a decision first"],
+  ["/decomp", "Cut an idea or spec into issues and their sub-issues"],
+  ["/triage", "Rank the board into a dispatch plan"],
+  ["/storm", "Run one loop over an issue and its sub-issues"],
+  ["/impl", "Work one issue on its own branch and open a pull request"],
+  ["/rev", "Standard review pass"],
+  ["/adv-rev", "Adversarial review pass"],
+  ["/edit", "Address the findings a pass returned"],
+];
+---
+
+<div class="home-block">
+  <Tabs>
+    {installs.map(({ label, code }) => (
+      <TabItem label={label}>
+        <Code code={code} lang="sh" />
+      </TabItem>
+    ))}
+  </Tabs>
+</div>
+
+<div class="home-block">
+  <h2>Nine stages, one board</h2>
+  <p class="home-lede">
+    Each stage is a skill the agent loads and a command you type. A run moves an
+    issue across a GitHub Projects board and stops at a pull request.
+  </p>
+  <dl class="stages">
+    {stages.map(([name, what]) => (
+      <div class="stage">
+        <dt><code>{name}</code></dt>
+        <dd>{what}</dd>
+      </div>
+    ))}
+  </dl>
+</div>
+
+<style>
+  .home-block {
+    max-width: 52rem;
+    margin: 2.5rem auto 0;
+    text-align: left;
+  }
+  .home-block h2 {
+    font-size: 1.35rem;
+    margin-bottom: 0.4rem;
+  }
+  .home-lede {
+    color: var(--sl-color-gray-3);
+    margin-top: 0;
+  }
+  .stages {
+    display: grid;
+    gap: 0;
+    margin: 1.25rem 0 0;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+  .stage {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: 1rem;
+    align-items: baseline;
+    padding: 0.55rem 0.25rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+  .stage dt code {
+    font-family: var(--sl-font-mono);
+    font-size: 0.9rem;
+    color: var(--sl-color-accent-high);
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  .stage dd {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.95rem;
+  }
+  @media (max-width: 40rem) {
+    .stage {
+      grid-template-columns: 1fr;
+      gap: 0.15rem;
+    }
+  }
+</style>
