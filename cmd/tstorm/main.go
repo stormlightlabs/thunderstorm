@@ -16,9 +16,11 @@ import (
 
 func main() {
 	// NotifyContext, with nothing reading the context, replaced SIGINT's
-	// default with nothing at all and made Ctrl-C a no-op. A render is short
-	// and writes through a staging directory, so the default is right: die,
-	// and leave the previous payload where it is.
+	// default with nothing at all and made Ctrl-C a no-op. A render is short,
+	// so the default is right: die. A render killed part way leaves a staging
+	// directory beside the destination, which the next render ignores; killed
+	// inside the rename that swaps the payload in, it can leave the previous
+	// payload under a .tstorm-previous- name to move back by hand.
 	ctx := context.Background()
 
 	// cobra is told to stay silent so that one place decides how an error

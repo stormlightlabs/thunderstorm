@@ -62,12 +62,17 @@ The command bodies are written once and rendered per harness, because the
 layer that names a skill and passes an argument is the layer that is not
 portable. One source, three filenames.
 
-| Harness     | Where a command lands       | What you type |
-| ----------- | --------------------------- | ------------- |
-| Claude Code | `commands/` in the payload  | `/storm 26`   |
-| Pi          | `prompts/` in the package   | `/storm 26`   |
-| Codex       | `~/.codex/prompts/`         | `/storm 26`   |
-| Cursor      | `.cursor/commands/`         | `/storm 26`   |
+| Harness     | Where a command lands      | Installs today |
+| ----------- | -------------------------- | -------------- |
+| Claude Code | `commands/` in the payload | yes            |
+| Pi          | `prompts/` in the package  | no             |
+| Codex       | `~/.codex/prompts/`        | no             |
+| Cursor      | `.cursor/commands/`        | no             |
+
+Claude Code is the only one where `/storm 26` works, because it is the only
+one with a payload. The other three render their commands and stop on the
+review fan-out, which is #8. The rest of this section is what will be true
+when they do install, and what to check when you are the one making it true.
 
 Pi reads prompt templates from a package's `prompts/` directory, and its
 format is the one already written: `description` and `argument-hint` in the

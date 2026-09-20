@@ -22,10 +22,11 @@ details thunderstorm` lists them and what they cost a session.
 
 ## Codex and Pi
 
-Neither installs yet. Codex reads prompts from `~/.codex/prompts`, which a
-plugin does not write, and Pi packages extensions and skills but not prompts,
-so the commands have nowhere to go on either. Pi has no subagents at all, so
-the review fan-out has nothing to dispatch with.
+Neither installs yet, and commands are no longer the reason. Both render now:
+Pi reads a package's `prompts/`, and Codex reads `~/.codex/prompts`, which the
+payload carries for you to copy. What stops both is the review fan-out. Codex
+dispatches a skill carrying its own sidecar rather than an agent file, and Pi
+has no subagents at all.
 
 `tstorm render --target codex` stops and says so rather than building a payload
 that installs and then skips half the loop. The issues that would close each

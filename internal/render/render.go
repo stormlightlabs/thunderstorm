@@ -129,6 +129,13 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 		}
 		p.Files = append(p.Files, extras...)
 	}
+	// The marker lists one path per line, so a path carrying a newline would
+	// split into two entries and every later render would refuse the payload.
+	for _, f := range p.Files {
+		if strings.ContainsAny(f.Path, "\n\r") {
+			return nil, fmt.Errorf("payload path %q carries a newline", f.Path)
+		}
+	}
 	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 	p.Files = append(p.Files, File{Path: marker, Body: p.markerBody()})
 	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
@@ -196,6 +203,11 @@ func (p *Payload) destination(a Artifact, dir, name, src string) string {
 	return path.Join(dir, name)
 }
 
+// executable reports whether a mode carries any execute bit, which is the
+// whole of what git stores and therefore the whole of what a payload promises.
+// A zero mode is a file the renderer generated, which is never executable.
+func executable(mode fs.FileMode) bool { return mode&0o111 != 0 }
+
 func readSource(root, src string) ([]byte, fs.FileMode, error) {
 	full := filepath.Join(root, filepath.FromSlash(src))
 	body, err := os.ReadFile(full)
@@ -226,7 +238,10 @@ func (p *Payload) Write(dir string) error {
 		return err
 	}
 
-	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-")
+	// A sibling of the destination, so the rename that swaps it in stays on
+	// one filesystem. A render killed outright leaves one behind; it is named
+	// so it is recognisable, and no later render reads it.
+	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-staging-")
 	if err != nil {
 		return err
 	}
@@ -251,8 +266,14 @@ func (p *Payload) Write(dir string) error {
 		}
 	}
 
-	previous := dir + ".tstorm-previous"
-	os.RemoveAll(previous)
+	previous, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-previous-")
+	if err != nil {
+		return err
+	}
+	// MkdirTemp made the directory; rename needs the name free.
+	if err := os.Remove(previous); err != nil {
+		return err
+	}
 	swapped := false
 	if err := os.Rename(dir, previous); err == nil {
 		swapped = true
@@ -353,12 +374,15 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 		if err != nil {
 			return nil, err
 		}
-		want := f.Mode
-		if want == 0 {
-			want = 0o644
-		}
-		if info.Mode().Perm() != want.Perm() {
-			out = append(out, fmt.Sprintf("mode %04o, want %04o: %s", info.Mode().Perm(), want.Perm(), f.Path))
+		// Only the executable bit. Git records nothing else, so a clone made
+		// under a umask of 027 hands every file 0640 and a check comparing
+		// full permissions fails on a payload nobody touched.
+		if executable(info.Mode()) != executable(f.Mode) {
+			want := "not executable"
+			if executable(f.Mode) {
+				want = "executable"
+			}
+			out = append(out, fmt.Sprintf("mode %04o, want %s: %s", info.Mode().Perm(), want, f.Path))
 		}
 	}
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {

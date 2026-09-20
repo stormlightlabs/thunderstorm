@@ -230,21 +230,43 @@ func TestAMissingCapabilityStopsTheRender(t *testing.T) {
 }
 
 // Commands render wherever a harness has somewhere to read one. Pi and Codex
-// both do; what stops them is the review fan-out, not the command layer.
+// both do; what stops those payloads is the review fan-out, not the command
+// layer, so this renders one rather than reading the target table back.
 func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
-	for _, name := range []string{"claude", "codex", "pi"} {
+	const commandOnly = `
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]}`
+
+	want := map[string]string{
+		"claude": "commands/revise.md",
+		"codex":  "prompts/revise.md",
+		"pi":     "prompts/revise.md",
+	}
+	for name, wantPath := range want {
 		t.Run(name, func(t *testing.T) {
-			target, err := Lookup(name)
+			p, _, err := planFor(t, name, commandOnly)
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("%s cannot carry a command: %v", name, err)
 			}
-			if !target.provides[CapCommands] {
-				t.Errorf("%s does not provide commands", name)
-			}
-			if dir := target.dirs[KindCommand]; dir == "" {
-				t.Errorf("%s has nowhere to put a command", name)
+			body(t, p, wantPath)
+			if alias := strings.Replace(wantPath, "revise", "edit", 1); len(body(t, p, alias)) == 0 {
+				t.Errorf("%s got no alias file", name)
 			}
 		})
+	}
+}
+
+// A name becomes a path inside the payload.
+func TestANameThatEscapesThePayloadIsRejected(t *testing.T) {
+	for _, bad := range []string{`"../../escape"`, `"sub/dir"`, `".."`} {
+		artifact := `{"kind": "command", "name": ` + bad + `, "source": "commands/revise.md", "requires": ["commands"]}`
+		if _, err := Load(fixture(t, artifact)); err == nil {
+			t.Errorf("name %s was accepted", bad)
+		}
+	}
+	aliased := `{"kind": "command", "name": "revise", "source": "commands/revise.md",
+	             "aliases": ["../../escape"], "requires": ["commands"]}`
+	if _, err := Load(fixture(t, aliased)); err == nil {
+		t.Error("an alias escaping the payload was accepted")
 	}
 }
 

@@ -16,9 +16,11 @@ and `codex-cli` 0.146.0.
 | Checks   | hooks               | hooks                               | an extension                     |
 
 The table is where each agent *would* read a payload, not a claim that one
-exists. Only Claude Code has one: a command has nowhere to go on Codex or Pi,
-and Pi has no subagents to dispatch the review passes with, so the renderer
-refuses to build for either rather than installing half a loop.
+exists. Only Claude Code has one. Commands reach all three now, rendered into
+`prompts/` for Codex and Pi; what stops those payloads is the review fan-out,
+which Codex dispatches from a skill carrying its own sidecar and Pi does not
+dispatch at all. The renderer refuses to build for either rather than
+installing a loop with its review passes missing.
 
 `.agents/skills/` is read by both Codex and Pi, so one directory serves them
 together. Claude Code reads only `.claude/skills/`, which is why each agent gets

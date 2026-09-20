@@ -146,6 +146,13 @@ func (m Manifest) validate(root string) error {
 		case len(a.Aliases) > 0 && a.Kind != KindCommand:
 			return fmt.Errorf("artifact %q is a %s; only a command carries aliases", a.Name, a.Kind)
 		}
+		// Every name becomes a path inside the payload, so a name carrying a
+		// separator or a dot segment writes outside it.
+		for _, n := range a.Names() {
+			if n == "" || n != path.Base(n) || n == "." || n == ".." || strings.ContainsAny(n, `/\`+"\n") {
+				return fmt.Errorf("artifact %q: %q is not a usable file name", a.Name, n)
+			}
+		}
 		for _, c := range a.Requires {
 			if !slices.Contains(capabilities, c) {
 				return fmt.Errorf("artifact %q requires unknown capability %q", a.Name, c)

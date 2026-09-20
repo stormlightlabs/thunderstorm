@@ -15,9 +15,10 @@ const PAGE_TITLE_ID = "_top";
 const { data } = Astro.locals.starlightRoute.entry;
 const { title = data.title, tagline, actions = [] } = data.hero || {};
 
-// Claude Code is the only harness with a payload. Codex and Pi have nowhere
-// to put a command and Pi has no subagents, so the renderer refuses to build
-// for them; offering an install command here would be offering a fiction.
+// Claude Code is the only harness with a payload. Codex and Pi render their
+// commands now but not the review fan-out, so the renderer still refuses to
+// build for them, and an install command here would be one that installs
+// nothing.
 const installs = [
   {
     label: "Claude Code",
