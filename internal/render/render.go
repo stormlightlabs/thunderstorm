@@ -10,13 +10,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"sort"
 	"strings"
 )
 
-// marker names the file every payload carries. It is what tells a later render
-// that the directory is one tstorm wrote and may prune, rather than somebody's
-// work that happens to sit at the path they passed to --out.
+// marker names the file every payload carries: the target on the first line,
+// then every path the render wrote. A later render replaces a directory only
+// when the marker names its target and the directory holds nothing the marker
+// does not. Naming the target alone was not enough, because the committed
+// payload carries a marker and travels with any copy of it.
 const marker = ".tstorm-payload"
 
 // The source names two directories it cannot spell itself. rootToken is the
@@ -128,9 +129,24 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 		}
 		p.Files = append(p.Files, extras...)
 	}
-	p.Files = append(p.Files, File{Path: marker, Body: []byte(t.Name + "\n")})
+	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
+	p.Files = append(p.Files, File{Path: marker, Body: p.markerBody()})
 	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 	return p, nil
+}
+
+// markerBody is the target and everything the render writes, one per line.
+func (p *Payload) markerBody() []byte {
+	var b strings.Builder
+	b.WriteString(p.Target.Name)
+	b.WriteString("\n")
+	for _, f := range p.Files {
+		if f.Path != marker {
+			b.WriteString(f.Path)
+			b.WriteString("\n")
+		}
+	}
+	return []byte(b.String())
 }
 
 // render copies one artifact into payload files, substituting the resource
@@ -197,17 +213,27 @@ func readSource(root, src string) ([]byte, fs.FileMode, error) {
 	return body, mode, nil
 }
 
-// Write puts the payload at dir, removing whatever an earlier render left
-// there and no longer produces. It refuses a directory that holds anything
-// other than a payload.
+// Write puts the payload at dir.
+//
+// It builds the whole tree beside dir and swaps it in, so a render either
+// replaces the payload or leaves the previous one untouched. Nothing is
+// deleted file by file: an earlier version of this wrote each file in place
+// and then removed whatever it had not written, which deleted a git
+// repository that happened to hold a marker file.
 func (p *Payload) Write(dir string) error {
-	if err := p.claim(dir); err != nil {
+	dir, err := p.claim(dir)
+	if err != nil {
 		return err
 	}
-	keep := map[string]bool{}
+
+	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(staging)
+
 	for _, f := range p.Files {
-		keep[f.Path] = true
-		dest := filepath.Join(dir, filepath.FromSlash(f.Path))
+		dest := filepath.Join(staging, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return err
 		}
@@ -218,79 +244,88 @@ func (p *Payload) Write(dir string) error {
 		if err := os.WriteFile(dest, f.Body, mode); err != nil {
 			return err
 		}
+		// WriteFile applies the mode only when it creates the file, and a
+		// staged file is always new, but an inherited umask still narrows it.
+		if err := os.Chmod(dest, mode); err != nil {
+			return err
+		}
 	}
-	return prune(dir, keep)
+
+	previous := dir + ".tstorm-previous"
+	os.RemoveAll(previous)
+	swapped := false
+	if err := os.Rename(dir, previous); err == nil {
+		swapped = true
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	if err := os.Rename(staging, dir); err != nil {
+		if swapped {
+			os.Rename(previous, dir)
+		}
+		return err
+	}
+	return os.RemoveAll(previous)
 }
 
-// claim reports whether dir is safe to write a payload into: empty, absent, or
-// already carrying this target's marker.
-func (p *Payload) claim(dir string) error {
+// claim decides whether dir may be replaced, and returns the path to replace.
+//
+// A payload is written into an empty or absent directory, or over a directory
+// whose marker names this target and accounts for everything in it. A file the
+// marker does not list means the directory is somebody's work, whatever it is
+// called, and the render stops rather than replacing it.
+func (p *Payload) claim(dir string) (string, error) {
+	resolved, err := filepath.EvalSymlinks(dir)
+	if err == nil {
+		dir = resolved
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return "", err
+	}
+
 	entries, err := os.ReadDir(dir)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return os.MkdirAll(dir, 0o755)
+		return dir, os.MkdirAll(dir, 0o755)
 	case err != nil:
-		return err
+		return "", err
 	case len(entries) == 0:
-		return nil
+		return dir, nil
 	}
-	if _, err := os.Stat(filepath.Join(dir, marker)); err != nil {
-		return fmt.Errorf("%s holds files tstorm did not render; remove it or choose another --out", dir)
-	}
-	return nil
-}
 
-func prune(dir string, keep map[string]bool) error {
-	var stale []string
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+	held, err := os.ReadFile(filepath.Join(dir, marker))
+	if err != nil {
+		return "", fmt.Errorf("%s holds files tstorm did not render; remove it or choose another --out", dir)
+	}
+	lines := strings.Split(strings.TrimSpace(string(held)), "\n")
+	if name := strings.TrimSpace(lines[0]); name != p.Target.Name {
+		return "", fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
+	}
+	owned := map[string]bool{marker: true}
+	for _, path := range lines[1:] {
+		owned[strings.TrimSpace(path)] = true
+	}
+
+	var foreign string
+	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() || foreign != "" {
 			return err
 		}
-		rel, err := filepath.Rel(dir, p)
+		rel, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
-		if !keep[filepath.ToSlash(rel)] {
-			stale = append(stale, p)
+		if slash := filepath.ToSlash(rel); !owned[slash] {
+			foreign = slash
 		}
 		return nil
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
-	for _, f := range stale {
-		if err := os.Remove(f); err != nil {
-			return err
-		}
+	if foreign != "" {
+		return "", fmt.Errorf("%s holds %s, which no render wrote; remove it or choose another --out", dir, foreign)
 	}
-	return removeEmptyDirs(dir)
-}
-
-func removeEmptyDirs(dir string) error {
-	var dirs []string
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
-		if err == nil && d.IsDir() && p != dir {
-			dirs = append(dirs, p)
-		}
-		return err
-	})
-	if err != nil {
-		return err
-	}
-	// Deepest first, so a directory emptied by the pass also goes.
-	sort.Sort(sort.Reverse(sort.StringSlice(dirs)))
-	for _, d := range dirs {
-		entries, err := os.ReadDir(d)
-		if err != nil {
-			return err
-		}
-		if len(entries) == 0 {
-			if err := os.Remove(d); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
+	return dir, nil
 }
 
 // Diff reports how the payload at dir differs from this one, so a check can
@@ -301,14 +336,29 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 	seen := map[string]bool{}
 	for _, f := range p.Files {
 		seen[f.Path] = true
-		body, err := os.ReadFile(filepath.Join(dir, filepath.FromSlash(f.Path)))
+		full := filepath.Join(dir, filepath.FromSlash(f.Path))
+		body, err := os.ReadFile(full)
 		switch {
 		case errors.Is(err, fs.ErrNotExist):
 			out = append(out, "missing: "+f.Path)
+			continue
 		case err != nil:
 			return nil, err
 		case !bytes.Equal(body, f.Body):
 			out = append(out, "stale: "+f.Path)
+		}
+		// A check that reads only bytes certifies a script whose executable
+		// bit a checkout dropped, and the skills invoke those by path.
+		info, err := os.Stat(full)
+		if err != nil {
+			return nil, err
+		}
+		want := f.Mode
+		if want == 0 {
+			want = 0o644
+		}
+		if info.Mode().Perm() != want.Perm() {
+			out = append(out, fmt.Sprintf("mode %04o, want %04o: %s", info.Mode().Perm(), want.Perm(), f.Path))
 		}
 	}
 	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {

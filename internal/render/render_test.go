@@ -3,6 +3,7 @@ package render
 import (
 	"encoding/json"
 	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -21,7 +22,14 @@ func fixture(t *testing.T, artifacts string) string {
 		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+		mode := fs.FileMode(0o644)
+		if strings.HasSuffix(rel, ".py") || strings.HasSuffix(rel, ".sh") {
+			mode = 0o755
+		}
+		if err := os.WriteFile(full, []byte(body), mode); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Chmod(full, mode); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -232,7 +240,53 @@ func TestCursorReportsAnUnverifiedContract(t *testing.T) {
 	}
 }
 
-func TestWriteThenPruneRemovesWhatTheSourceDropped(t *testing.T) {
+func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
+	root := fixture(t, allArtifacts)
+	m, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claude, _ := Lookup("claude")
+	full, err := Plan(m, claude, root)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if err := full.Write(out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	dropped := filepath.Join(out, "agents", "reviewer.md")
+	if _, err := os.Stat(dropped); err != nil {
+		t.Fatalf("the first render did not write the agent: %v", err)
+	}
+
+	// The same source with one artifact gone, which is what dropping a skill
+	// or an agent from the manifest looks like.
+	fewer := m
+	fewer.Artifacts = nil
+	for _, a := range m.Artifacts {
+		if a.Kind != KindAgent {
+			fewer.Artifacts = append(fewer.Artifacts, a)
+		}
+	}
+	next, err := Plan(fewer, claude, root)
+	if err != nil {
+		t.Fatalf("plan without the agent: %v", err)
+	}
+	if err := next.Write(out); err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	if _, err := os.Stat(dropped); err == nil {
+		t.Error("an artifact the source dropped survived the render")
+	}
+	if diff, err := next.Diff(out); err != nil || len(diff) > 0 {
+		t.Errorf("payload differs from what was written: %v (%v)", diff, err)
+	}
+}
+
+// Anything the marker does not account for is somebody's work, whatever the
+// directory is called.
+func TestWriteRefusesADirectoryHoldingSomethingNoRenderWrote(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
@@ -241,23 +295,52 @@ func TestWriteThenPruneRemovesWhatTheSourceDropped(t *testing.T) {
 	if err := p.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	stale := filepath.Join(out, "commands", "gone.md")
-	if err := os.WriteFile(stale, []byte("left over\n"), 0o644); err != nil {
+	notes := filepath.Join(out, "notes.md")
+	if err := os.WriteFile(notes, []byte("mine\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.Write(out); err != nil {
-		t.Fatalf("second write: %v", err)
+	err = p.Write(out)
+	if err == nil {
+		t.Fatal("rendered over a directory holding a file no render wrote")
 	}
-	if _, err := os.Stat(stale); err == nil {
-		t.Error("a file the source no longer produces survived the render")
+	if !strings.Contains(err.Error(), "notes.md") {
+		t.Errorf("the refusal does not name the file: %v", err)
 	}
-	if diff, err := p.Diff(out); err != nil || len(diff) > 0 {
-		t.Errorf("payload differs from what was written: %v (%v)", diff, err)
+	if _, err := os.Stat(notes); err != nil {
+		t.Errorf("the refusal deleted the file anyway: %v", err)
 	}
 }
 
-// --out is a path a person types, so a render refuses to prune a directory it
-// cannot show it wrote.
+// The marker names a target. Trusting its presence alone let a render delete
+// any directory that happened to hold a file by that name, including one
+// carried along by a copy of the committed payload.
+func TestWriteRefusesADirectoryHoldingAnotherTargetsPayload(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := t.TempDir()
+	keep := filepath.Join(out, "thesis.txt")
+	if err := os.WriteFile(keep, []byte("mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(out, marker), []byte("pi\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err = p.Write(out)
+	if err == nil {
+		t.Fatal("rendered over a directory carrying another target's marker")
+	}
+	if !strings.Contains(err.Error(), "pi") {
+		t.Errorf("the refusal does not say what the directory holds: %v", err)
+	}
+	if _, err := os.Stat(keep); err != nil {
+		t.Errorf("the refusal deleted a file anyway: %v", err)
+	}
+}
+
+// --out is a path a person types, so a render refuses to replace a directory
+// it cannot show it wrote.
 func TestWriteRefusesADirectoryItDidNotRender(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
@@ -272,6 +355,100 @@ func TestWriteRefusesADirectoryItDidNotRender(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(out, "notes.md")); err != nil {
 		t.Errorf("the refusal still removed a file: %v", err)
+	}
+}
+
+// A render that cannot finish leaves the previous payload whole, rather than
+// a tree half of one version and half of another.
+func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
+	p, root, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if err := p.Write(out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	before := string(body(t, p, "agents/reviewer.md"))
+
+	second, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claude, _ := Lookup("claude")
+	next, err := Plan(second, claude, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// One file the staging directory cannot hold: a path under a name that is
+	// already a file there.
+	next.Files = append(next.Files, File{Path: "agents/reviewer.md/nested", Body: []byte("x")})
+	if err := next.Write(out); err == nil {
+		t.Fatal("a payload that cannot be staged was written anyway")
+	}
+	got, err := os.ReadFile(filepath.Join(out, "agents", "reviewer.md"))
+	if err != nil {
+		t.Fatalf("the previous payload did not survive: %v", err)
+	}
+	if string(got) != before {
+		t.Error("the previous payload was replaced by a partial render")
+	}
+}
+
+// A symlinked --out was unlinked and then reported missing, which destroyed
+// the link and left the render half done.
+func TestWriteFollowsASymlinkedOut(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	base := t.TempDir()
+	real := filepath.Join(base, "real")
+	if err := os.MkdirAll(real, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(base, "link")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	if err := p.Write(link); err != nil {
+		t.Fatalf("write through a symlink: %v", err)
+	}
+	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the symlink did not survive the render: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(real, "settings.json")); err != nil {
+		t.Errorf("the payload did not land in the directory the link points at: %v", err)
+	}
+}
+
+// The skills invoke the scripts by path, so an executable bit that drifted is
+// a broken payload that a bytes-only check would certify as correct.
+func TestCheckReportsAnExecutableBitThatDrifted(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if err := p.Write(out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	script := filepath.Join(out, "scripts", "check.py")
+	if err := os.Chmod(script, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	diff, err := p.Diff(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff) != 1 || !strings.Contains(diff[0], "scripts/check.py") {
+		t.Fatalf("a dropped executable bit went unreported: %v", diff)
+	}
+	if err := p.Write(out); err != nil {
+		t.Fatalf("re-render: %v", err)
+	}
+	if diff, _ := p.Diff(out); len(diff) > 0 {
+		t.Errorf("a re-render did not repair the mode: %v", diff)
 	}
 }
 
