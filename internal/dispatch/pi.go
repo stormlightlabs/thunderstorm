@@ -127,9 +127,8 @@ func Run(ctx context.Context, req Request) (Result, error) {
 	// dispatch would add one to the socket directory. Asking the running
 	// server where the file is beats re-deriving the rule tmux uses to choose
 	// it.
-	if socket := socketPath(tmux, name); socket != "" {
-		defer os.Remove(socket)
-	}
+	socket := socketPath(tmux, name)
+	defer removeSocket(socket, name)
 
 	if err := wait(ctx, tmux, name, req.Timeout); err != nil {
 		return res, fmt.Errorf("%w; the transcript so far is %s", err, filepath.Join(out, "events.jsonl"))
@@ -295,6 +294,24 @@ func socketPath(tmux, name string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(out))
+}
+
+// removeSocket uses the path reported by a live server when it has one. A
+// short session can exit before socketPath asks, so the fallback finds the
+// named socket in tmux's socket directory.
+func removeSocket(socket, name string) {
+	if socket != "" {
+		_ = os.Remove(socket)
+		return
+	}
+	root := os.Getenv("TMUX_TMPDIR")
+	if root == "" {
+		root = "/tmp"
+	}
+	matches, _ := filepath.Glob(filepath.Join(root, "tmux-*", name))
+	for _, match := range matches {
+		_ = os.Remove(match)
+	}
 }
 
 func readStatus(path string) (int, error) {

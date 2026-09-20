@@ -276,6 +276,23 @@ func TestRunDrivesAPane(t *testing.T) {
 	}
 }
 
+func TestRemoveSocketFindsOneLeftByAShortSession(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("TMUX_TMPDIR", root)
+	socket := filepath.Join(root, "tmux-1001", "tstorm-pass")
+	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(socket, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	removeSocket("", "tstorm-pass")
+	if _, err := os.Stat(socket); !os.IsNotExist(err) {
+		t.Errorf("socket remains after cleanup: %v", err)
+	}
+}
+
 // TestRunRefusesASecondTranscript keeps one run's evidence from being written
 // over by the next.
 func TestRunRefusesASecondTranscript(t *testing.T) {
