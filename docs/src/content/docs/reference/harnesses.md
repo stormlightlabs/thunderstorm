@@ -7,19 +7,20 @@ Each agent loads skills from a different directory and dispatches work its own
 way. What follows was verified on 2026-09-19 against Claude Code, `pi` 0.85.1,
 and `codex-cli` 0.146.0.
 
-|          | Claude Code         | Codex                               | Pi                               |
-| -------- | ------------------- | ----------------------------------- | -------------------------------- |
-| Payload  | plugin              | copied into Codex's resource roots  | Pi package                       |
-| Skills   | `.claude/skills/`   | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
-| Commands | `.claude/commands/` | `~/.codex/prompts/`                 | `.pi/prompts/`                   |
-| Dispatch | subagents           | custom agents                       | a session per tmux pane          |
-| Checks   | hooks               | hooks                               | an extension                     |
-| Merging  | deny rules          | a forbidden execpolicy rule         | extension blocks the prefixes    |
+|          | Claude Code         | Codex                         | Pi                               |
+| -------- | ------------------- | ----------------------------- | -------------------------------- |
+| Payload  | plugin              | marketplace plugin            | Pi package                       |
+| Skills   | `.claude/skills/`   | plugin skills                 | `.agents/skills/`, `.pi/skills/` |
+| Commands | `.claude/commands/` | `$thunderstorm:<skill>`       | `.pi/prompts/`                   |
+| Dispatch | subagents           | built-in agents with roles    | a session per tmux pane          |
+| Checks   | hooks               | plugin hook                   | an extension                     |
+| Merging  | deny rules          | hook blocks the prefixes      | extension blocks the prefixes    |
 
 The renderer builds all three payloads from the same skills, commands, role
-definitions, and scripts. Codex role definitions become `.toml` custom agents.
-Pi carries the Markdown definitions for reference while `tstorm dispatch` uses
-the same definitions embedded in the binary.
+definitions, and scripts. Codex packages the role definitions as TOML, and the
+orchestrator passes their instructions to built-in agents. Pi carries the
+Markdown definitions for reference while `tstorm dispatch` uses the same
+definitions embedded in the binary.
 
 `.agents/skills/` is read by both Codex and Pi, so one directory serves them
 together. Claude Code reads only `.claude/skills/`, which is why each agent gets
@@ -42,17 +43,18 @@ Pi has no subagent mechanism. A worker there is a separate `pi` session running
 in a tmux pane, given its model, thinking level, and tool list as command-line
 arguments.
 
-Codex loads each role from `.codex/agents/*.toml`. Reviewer roles run read-only;
-implementer and reviser roles may write in their worktree.
+The Codex orchestrator reads each packaged role and starts a built-in agent with
+those instructions. Reviewer roles run read-only; implementer and reviser roles
+may write in their worktree.
 
 ## Only a human merges
 
 The loop denies four commands: `gh pr merge`, `gh pr review`, `git push` and
 `git merge`. Claude Code takes them as written, one deny rule each. Codex
-checks a command against execution-policy rules, so the same four arrive as a
-`prefix_rule` apiece, decided `forbidden`, which blocks the command without a
-prompt. Pi's package extension intercepts its `bash` tool and blocks the same
-prefixes. Pi still leaves process isolation to the operating system or a
+loads a `PreToolUse` hook from the enabled plugin and denies matching shell
+commands. An optional execpolicy file applies the same policy when the plugin
+is disabled. Pi's package extension intercepts its `bash` tool and blocks the
+same prefixes. Pi still leaves process isolation to the operating system or a
 container.
 
 [Install](/start/install/#the-deny-rules) explains what each harness loads.

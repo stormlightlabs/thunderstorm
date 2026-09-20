@@ -53,9 +53,9 @@ this branch: commands render into `prompts/` for Codex and Pi. Codex agents and
 the Pi package now render too.
 
 Both harnesses now have payloads. Pi installs the repository as a package.
-Codex's payload is copied into its skill, prompt, agent, and rule directories;
-its portable plugin manifest is ready for a Codex marketplace entry once the
-repository can carry a second marketplace beside Claude Code's.
+Codex installs from the repository's marketplace, either for the user or from
+a trusted project's configuration. The project can override the user's enabled
+state.
 
 [#8] is done on this branch: `tstorm dispatch` starts a Pi session in a tmux
 pane for a role and hands the run its report. The Pi package carries the check
@@ -63,9 +63,9 @@ scripts and sets their installed path through its extension. [#16] still moves
 those checks into the binary so they no longer need Python or copied scripts.
 
 [#9] is done on this branch: the manifest names the four denied commands and
-each target writes its own harness's spelling of them. Codex gets execpolicy
-rules, checked with `codex execpolicy check`; Pi's package extension blocks the
-same prefixes before its `bash` tool runs.
+each target writes its own harness's spelling of them. Codex's enabled plugin
+blocks them with a `PreToolUse` hook and also carries optional execpolicy rules;
+Pi's package extension blocks the same prefixes before its `bash` tool runs.
 
 [#13] costs less than it looked. Cursor reads `.agents/skills/`, the same
 directory the Codex and Pi payloads need, so its skills cost a target in the

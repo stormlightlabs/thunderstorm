@@ -21,21 +21,61 @@ details thunderstorm` lists them and what they cost a session.
 
 ## Codex
 
-Render the payload, then copy its resources into the directories Codex reads:
+### Enable it everywhere
 
 ```sh
-go run ./cmd/tstorm render --target codex
-mkdir -p ~/.codex/thunderstorm ~/.codex/skills ~/.codex/prompts ~/.codex/agents ~/.codex/rules
-cp -R payloads/codex/. ~/.codex/thunderstorm/
-cp -R payloads/codex/skills/. ~/.codex/skills/
-cp payloads/codex/prompts/*.md ~/.codex/prompts/
-cp payloads/codex/agents/*.toml ~/.codex/agents/
-cp payloads/codex/rules/*.rules ~/.codex/rules/
+codex plugin marketplace add stormlightlabs/thunderstorm
+codex plugin add thunderstorm@stormlightlabs
 ```
 
-The first copy gives the installed skills a fixed path to their scripts. The
-other four put each resource where Codex discovers it. Start a new Codex
-session after copying them.
+Start a new session, review the plugin hook, and allow it before running the
+workflow. The hook blocks the four merge, review, and push command prefixes
+while the plugin is enabled.
+
+Invoke a skill with its plugin-qualified name:
+
+```text
+$thunderstorm:thunderstorm Run issue 123
+$thunderstorm:implement Work issue 456
+```
+
+### Enable it only in one project
+
+Add this to the trusted project's `.codex/config.toml`:
+
+```toml
+[marketplaces.stormlightlabs]
+source_type = "git"
+source = "https://github.com/stormlightlabs/thunderstorm.git"
+
+[plugins."thunderstorm@stormlightlabs"]
+enabled = true
+```
+
+Codex loads the marketplace and enables the plugin only while it works in that
+project. Commit the file when every Codex user on the project should get the
+workflow.
+
+### Install it globally and choose projects
+
+Register and install the plugin with the two global commands above. Then set
+the user-level default in `~/.codex/config.toml`:
+
+```toml
+[plugins."thunderstorm@stormlightlabs"]
+enabled = false
+```
+
+Turn it on in each trusted project's `.codex/config.toml`:
+
+```toml
+[plugins."thunderstorm@stormlightlabs"]
+enabled = true
+```
+
+Project configuration overrides user configuration. Use `/plugins` to inspect
+the installed plugin, or remove it with `codex plugin remove
+thunderstorm@stormlightlabs`.
 
 ## Pi
 
@@ -80,9 +120,9 @@ names none leaves an agent to guess.
 
 ### The deny rules
 
-Claude Code and Codex do not install permission rules with a plugin. Their
-payloads carry files for you to copy into the settings each harness reads. Pi
-loads its command gate from the package extension.
+Claude Code carries a settings file for the repository to merge. Codex loads a
+`PreToolUse` hook from the enabled plugin. Pi loads its command gate from the
+package extension.
 
 Claude Code reads them as one rule per command. Merge the payload's
 `settings.json` into your repository's `.claude/settings.json`:
@@ -104,8 +144,8 @@ A bare `git push` is denied because pushing goes through `push-verified.sh`,
 which compares the remote ref to what it is about to overwrite. Without these
 rules the review sequence is a convention an agent can skip.
 
-Codex checks a command against execution-policy rules, so its payload carries
-`rules/thunderstorm.rules`, one rule per command:
+The Codex payload also carries `rules/thunderstorm.rules`, one execution-policy
+rule per command:
 
 ```starlark
 prefix_rule(
@@ -115,9 +155,9 @@ prefix_rule(
 )
 ```
 
-Put the file in `~/.codex/rules/`, or in `.codex/rules/` of a project Codex
-trusts. A `forbidden` rule blocks the command without a prompt. To see what
-any command gets:
+Copy that file into `~/.codex/rules/` or a trusted project's `.codex/rules/`
+only when the policy should remain active while the plugin is disabled. A
+`forbidden` rule blocks the command without a prompt. To inspect a command:
 
 ```sh
 codex execpolicy check --rules ~/.codex/rules/thunderstorm.rules -- gh pr merge 12

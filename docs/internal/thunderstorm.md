@@ -253,7 +253,7 @@ failure the whole review sequence exists to prevent.
 
 How much of that is a check depends on the harness. The manifest names the
 four commands and the renderer writes each harness's own spelling of them:
-deny rules for Claude Code, forbidden execpolicy rules for Codex, and a Pi
+deny rules for Claude Code, a `PreToolUse` plugin hook for Codex, and a Pi
 extension that blocks the same prefixes before its `bash` tool runs.
 [hosts.md](hosts.md#permissions) has what each one enforces.
 
@@ -267,7 +267,7 @@ not, and [models.md](models.md) names the harnesses the loop will run at all.
 | Harness             | A pass is                                                        |
 | ------------------- | ---------------------------------------------------------------- |
 | Claude Code         | a subagent the harness provisions from a definition under `agents/` |
-| Codex               | a custom agent, forked with `fork_turns` so the dispatch picks the model |
+| Codex               | a built-in agent given the packaged role and a chosen model       |
 | Pi                  | `tstorm dispatch`: one pi session in a detached tmux pane         |
 | OpenCode Go, Cursor | nothing. Both are unsupported, with the reason in `models.md`     |
 
@@ -391,9 +391,9 @@ and the directory does not.
 
 Role definitions live in `.claude/agents/`: `implementer`, `reviewer`,
 `adversarial-reviewer`, and `reviser`, one per role the run dispatches. Claude
-Code reads them as subagent definitions. Codex receives them as custom-agent
-TOML files. The Pi package carries a reference copy, while `tstorm dispatch`
-reads the definitions embedded in the binary.
+Code reads them as subagent definitions. Codex packages them as TOML and passes
+their instructions to built-in agents. The Pi package carries a reference
+copy, while `tstorm dispatch` reads the definitions embedded in the binary.
 
 Each definition's `tools:` line is an allowlist, so a role reaches GitHub only
 through the tools it names. A cloud run is the case that exposes this: the

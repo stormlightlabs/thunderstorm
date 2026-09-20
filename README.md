@@ -21,15 +21,27 @@ claude plugin install thunderstorm@stormlightlabs
 ```
 
 Or `/plugin marketplace add` and `/plugin install` from inside a session.
-Codex and Pi use their own payloads; the
-[install guide](docs/src/content/docs/start/install.md) has the commands and
-the files that stay with your repository.
+For Codex:
+
+```sh
+codex plugin marketplace add stormlightlabs/thunderstorm
+codex plugin add thunderstorm@stormlightlabs
+```
+
+For Pi:
+
+```sh
+pi install git:github.com/stormlightlabs/thunderstorm
+```
+
+The [install guide](docs/src/content/docs/start/install.md) also covers
+project-scoped Codex setup and per-project enablement.
 
 ## The stages
 
-Each stage is a skill the agent loads and a command you type. Most carry a
-short alias and a spelled-out one, so `/decomp` and `/decompose` reach the same
-skill.
+Each stage is a skill the agent loads. Claude Code and Pi expose the commands
+below. Codex invokes the installed skill as `$thunderstorm:<skill>`; for
+example, `$thunderstorm:thunderstorm Run issue 123` starts the full loop.
 
 | Command | What it does |
 | --- | --- |
@@ -93,9 +105,9 @@ skips the review fan-out is worse than no payload.
 
 | | Claude Code | Codex | Pi |
 | --- | --- | --- | --- |
-| Skills | `.claude/skills/` | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
-| Dispatch | subagents | custom agents | a session per tmux pane |
-| Checks | hooks | hooks | an extension |
+| Skills | `.claude/skills/` | plugin skills | `.agents/skills/`, `.pi/skills/` |
+| Dispatch | subagents | built-in agents with packaged roles | a session per tmux pane |
+| Checks | hooks | a plugin hook | an extension |
 
 `docs/internal/hosts.md` records how each row was verified, including the
 fixture used and the versions it was checked against.

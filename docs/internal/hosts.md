@@ -50,12 +50,12 @@ accept it.
 
 Skills are the portable part. The rest varies, but less than it first appears.
 
-| Resource  | Claude Code             | Pi                   | Codex                   |
-| --------- | ----------------------- | -------------------- | ----------------------- |
-| Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`, or a package's `prompts/` | `~/.codex/prompts/*.md` |
-| Subagents | `.claude/agents/*.md`   | none; tmux instead   | `.codex/agents/*.toml`  |
-| Hooks     | `.claude/settings.json` | extensions (TS/JS)   | `hooks.json`            |
-| Themes    | none                    | `.pi/themes/*.json`  | `config.toml`           |
+| Resource  | Claude Code             | Pi                   | Codex                         |
+| --------- | ----------------------- | -------------------- | ----------------------------- |
+| Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`, or a package's `prompts/` | plugin-qualified skills |
+| Subagents | `.claude/agents/*.md`   | none; tmux instead   | built-in agents with role text |
+| Hooks     | `.claude/settings.json` | extensions (TS/JS)   | plugin `hooks.json`           |
+| Themes    | none                    | `.pi/themes/*.json`  | `config.toml`                 |
 
 Pi's project resource roots are `.pi/{extensions,skills,prompts,themes}` and its
 user roots are `~/.pi/agent/{extensions,skills,prompts,themes}`. Codex prompts
@@ -71,12 +71,10 @@ template format is the one Claude Code already uses: `description` and
 `$ARGUMENTS` in the body, alongside `$1` and `${1:-default}`. So a command
 body crosses to Pi untranslated.
 
-Whether a Codex plugin can ship prompts is still open. A plugin carrying a
-`prompts/` directory installs, and the whole directory is copied into
-`~/.codex/plugins/cache/...`, but nothing here shows Codex reading it, and
-the official `linear` plugin declares only `skills`, `apps` and `mcpServers`.
-Treat `~/.codex/prompts` as the install target until a session proves
-otherwise.
+Codex custom prompts are deprecated and live only under `~/.codex/prompts`.
+Plugins expose their skills instead: `$thunderstorm:thunderstorm` invokes the
+full loop. The rendered `prompts/` directory remains a compatibility artifact;
+the marketplace install does not depend on it.
 
 ## Dispatch
 
@@ -103,12 +101,12 @@ model is therefore not merely a convention on Codex; a dispatch that forgets
 `fork_turns` silently violates it. `default_subagent_model` and
 `default_subagent_reasoning_effort` in `config.toml` set the fallback.
 
-Codex loads custom agents from `.codex/agents/*.toml` in a trusted project or
-`~/.codex/agents/*.toml` for one person. Each file names the agent, describes
-when to use it, and supplies its developer instructions. It may also set the
-model, reasoning effort, sandbox, MCP servers, and skill configuration. The
-renderer converts the shared Markdown role definitions to this format and
-uses a read-only sandbox for roles without `Write` or `Edit`.
+Codex can load custom agents from `.codex/agents/*.toml` in a trusted project
+or `~/.codex/agents/*.toml` for one person. Thunderstorm does not install its
+roles there because those agents would remain active when the plugin was off.
+The renderer packages the roles as TOML instead. The orchestrator reads each
+role and passes its developer instructions to a built-in agent. Roles without
+`Write` or `Edit` specify a read-only sandbox.
 
 Pi has no built-in subagent mechanism. Thunderstorm starts one session per tmux
 pane through `tstorm dispatch`. A reviewer dispatch completed here on
@@ -183,13 +181,13 @@ A `settings.json` in a payload is read by nothing. The same install reported
 ## Permissions
 
 Only a human merges, and each host enforces that rule differently. Claude Code
-and Codex need a settings file copied by hand. Pi loads its command gate from
-the installed package.
+needs a repository setting. Codex and Pi load their command gates from the
+installed package.
 
 | Host        | What stops a command                    | Where it lives           |
 | ----------- | --------------------------------------- | ------------------------ |
 | Claude Code | a deny rule per command prefix          | `.claude/settings.json`  |
-| Codex       | a forbidden execpolicy rule per command | `~/.codex/rules/*.rules` |
+| Codex       | a plugin `PreToolUse` hook               | the installed plugin    |
 | Pi          | a package extension blocks each prefix  | the installed package    |
 | Cursor      | unverified                              | —                        |
 
@@ -198,13 +196,14 @@ The workflow manifest names four commands: `gh pr merge`, `gh pr review`,
 written, one `Bash(<prefix>:*)` rule each. The renderer translates, so the
 manifest carries no host's spelling.
 
-Codex checks a command against execution-policy rules: Starlark `.rules`
-files of `prefix_rule` entries, each matching a command and the arguments
-that follow it and returning `allow`, `prompt` or `forbidden`. The most
-restrictive decision wins where several match, and `forbidden` blocks without
-a prompt. Codex reads `rules/` in every active config layer, which for one
-person is `~/.codex/rules/` and for a project Codex trusts is
-`<repo>/.codex/rules/`.
+The Codex plugin registers a synchronous `PreToolUse` hook for `Bash`. The hook
+reads `tool_input.command` and returns `permissionDecision = "deny"` for a
+matching prefix. Codex asks the user to trust a plugin hook before it runs.
+
+The payload also includes Starlark execpolicy rules for users who want the
+same commands blocked while the plugin is disabled. Codex reads `rules/` in
+every active config layer: `~/.codex/rules/` for one person and
+`<repo>/.codex/rules/` for a trusted project.
 
 `codex execpolicy check --rules <file> -- <command>` reports what a command
 gets, and is how the rendered file was checked against `codex-cli` 0.146.0 on
@@ -258,24 +257,19 @@ All three use artifacts from this repository:
 # Claude Code
 /plugin marketplace add stormlightlabs/thunderstorm
 
-# Codex, after rendering this checkout
-mkdir -p ~/.codex/thunderstorm ~/.codex/skills ~/.codex/prompts ~/.codex/agents ~/.codex/rules
-cp -R payloads/codex/. ~/.codex/thunderstorm/
-cp -R payloads/codex/skills/. ~/.codex/skills/
-cp payloads/codex/prompts/*.md ~/.codex/prompts/
-cp payloads/codex/agents/*.toml ~/.codex/agents/
-cp payloads/codex/rules/*.rules ~/.codex/rules/
+# Codex
+codex plugin marketplace add stormlightlabs/thunderstorm
+codex plugin add thunderstorm@stormlightlabs
 
 # Pi
 pi install git:github.com/stormlightlabs/thunderstorm
 ```
 
-Codex can install a plugin from a marketplace, but this repository's existing
-marketplace entry points at the Claude Code payload. Until it publishes a
-separate Codex entry, copying the rendered resources is the working install
-path. Pi installs from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and
-`-l` installs into the project's own `.pi/settings.json` rather than the
-user's.
+Codex reads `.agents/plugins/marketplace.json` from this repository. A trusted
+project can also declare the Git marketplace and enable the plugin in its own
+`.codex/config.toml`, without adding the marketplace to the user's config. Pi
+installs from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and `-l`
+installs into the project's own `.pi/settings.json` rather than the user's.
 
 ## Cursor
 

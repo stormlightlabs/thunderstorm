@@ -58,15 +58,14 @@ where it stops and asks.
 
 ### On each harness
 
-The command bodies are written once and rendered per harness, because the
-layer that names a skill and passes an argument is the layer that is not
-portable. One source, three filenames.
+Claude Code and Pi load the rendered command files. Codex custom prompts are
+deprecated, so its marketplace plugin exposes the skills directly.
 
 | Harness     | Where a command lands      | Installs today |
 | ----------- | -------------------------- | -------------- |
 | Claude Code | `commands/` in the payload | yes            |
 | Pi          | `prompts/` in the package  | yes            |
-| Codex       | `~/.codex/prompts/`        | copied         |
+| Codex       | `$thunderstorm:<skill>`     | plugin         |
 | Cursor      | `.cursor/commands/`        | no             |
 
 Pi reads prompt templates from a package's `prompts/` directory, and its
@@ -74,20 +73,22 @@ format is the one already written: `description` and `argument-hint` in the
 frontmatter, `$ARGUMENTS` in the body, filename as the command name. Nothing
 had to be translated.
 
-Codex reads prompts and custom agents from user or project directories rather
-than from the portable plugin manifest. The payload carries both for copying:
+On Codex, qualify the skill with the plugin name and state the argument in the
+request:
 
-```sh
-cp <payload>/prompts/*.md ~/.codex/prompts/
-cp <payload>/agents/*.toml ~/.codex/agents/
+```text
+$thunderstorm:thunderstorm Run issue 75
+$thunderstorm:implement Work issue 81
 ```
+
+The orchestrator reads the packaged TOML role and passes its instructions to a
+built-in Codex agent. Installing the plugin does not add persistent custom
+agents to `~/.codex/agents/`.
 
 Cursor's `.cursor/commands/` is documented but unexercised here. Cursor is
 retiring commands in favour of skills, so check before relying on it.
 
-Where a harness has no command mechanism, name the skill in the prompt
-instead. "Use the triage skill" does what `/triage` does, because the command
-body is one line that says the same thing. That is the fallback, not the plan.
+Where a harness has no command mechanism, name the skill in the prompt.
 
 ## What a run does
 
