@@ -9,6 +9,7 @@ export default defineConfig({
   integrations: [
     starlight({
       plugins: [linksValidator(), llmsTxt()],
+      components: { Hero: "./src/components/Hero.astro" },
       title: "thunderstorm",
       description:
         "An installable development loop for Claude Code, Pi, Codex, and Cursor: one set of skills, one board, and the checks that hold them together.",

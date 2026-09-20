@@ -29,14 +29,16 @@ pi install git:github.com/stormlightlabs/thunderstorm
 
 ## The stages
 
-Each stage is a skill the agent loads and a command you type.
+Each stage is a skill the agent loads and a command you type. Most carry a
+short alias and a spelled-out one, so `/decomp` and `/decompose` reach the same
+skill.
 
 | Command | What it does |
 | --- | --- |
 | `/r-d` | Rubber-duck a design before any code exists |
 | `/spec-ify` | Turn an idea into a spec when issues need a decision first |
 | `/decomp` | Cut an idea or spec into issues and their sub-issues |
-| `/triage` | Rank the board into a dispatch plan |
+| `/forecast`, `/triage` | Rank the board into a dispatch plan |
 | `/storm` | Run one loop over an issue and its sub-issues |
 | `/impl` | Work one issue on its own branch and open a pull request |
 | `/rev` | Standard review pass |
@@ -88,3 +90,7 @@ docs/internal/  working documents, not published
 The binary is early: `tstorm version` is the only command implemented so far,
 and the rest of the surface is on the board under the **Thunderstorm** track of
 [project 13](https://github.com/orgs/stormlightlabs/projects/13).
+
+## License
+
+Apache-2.0. See [LICENSE](./LICENSE).

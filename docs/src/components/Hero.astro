@@ -1,0 +1,193 @@
+---
+/**
+ * Starlight's Hero, overridden so the home page carries the install commands
+ * beside the title instead of under it.
+ *
+ * The stock Hero reserves its second column for an image. There is no image
+ * worth putting there, and what a reader wants in the first few seconds is the
+ * command for their own agent, so the column holds that and the stage list.
+ *
+ * Both columns are sized to sit inside one viewport on a desktop. Below the
+ * breakpoint the grid collapses and the height constraint is dropped, because
+ * a phone should scroll rather than compress.
+ */
+import { Code, LinkButton, TabItem, Tabs } from "@astrojs/starlight/components";
+
+const PAGE_TITLE_ID = "_top";
+const { data } = Astro.locals.starlightRoute.entry;
+const { title = data.title, tagline, actions = [] } = data.hero || {};
+
+const installs = [
+  { label: "Claude Code", code: "/plugin marketplace add stormlightlabs/thunderstorm" },
+  {
+    label: "Codex",
+    code: "codex plugin marketplace add stormlightlabs/thunderstorm\ncodex plugin add thunderstorm@stormlightlabs",
+  },
+  { label: "Pi", code: "pi install git:github.com/stormlightlabs/thunderstorm" },
+];
+
+const stages: [string, string][] = [
+  ["/r-d", "Rubber-duck a design"],
+  ["/spec-ify", "Turn an idea into a spec"],
+  ["/decomp", "Cut it into issues and sub-issues"],
+  ["/forecast", "Rank the board into a dispatch plan"],
+  ["/storm", "Run the loop over an issue"],
+  ["/impl", "Work one issue, open a pull request"],
+  ["/rev", "Standard review pass"],
+  ["/adv-rev", "Adversarial review pass"],
+  ["/edit", "Address what a pass returned"],
+];
+---
+
+<div class="hero">
+  <div class="copy">
+    <h1 id={PAGE_TITLE_ID} data-page-title set:html={title} />
+    {tagline && <p class="tagline" set:html={tagline} />}
+    {
+      actions.length > 0 && (
+        <div class="actions">
+          {actions.map(({ icon, link: href, text, variant }) => (
+            <LinkButton {href} {variant} icon={icon?.name}>
+              {text}
+            </LinkButton>
+          ))}
+        </div>
+      )
+    }
+  </div>
+
+  <div class="panel">
+    <div class="install">
+      <Tabs>
+        {installs.map(({ label, code }) => (
+          <TabItem label={label}>
+            <Code code={code} lang="sh" />
+          </TabItem>
+        ))}
+      </Tabs>
+    </div>
+
+    <p class="label">The stages</p>
+    <dl class="stages">
+      {stages.map(([name, what]) => (
+        <div class="stage">
+          <dt>{name}</dt>
+          <dd>{what}</dd>
+        </div>
+      ))}
+    </dl>
+  </div>
+</div>
+
+<style>
+  .hero {
+    display: grid;
+    grid-template-columns: 100%;
+    gap: 2.5rem;
+    padding-block: 2rem;
+    text-align: center;
+  }
+
+  .copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  h1 {
+    font-size: clamp(var(--sl-text-3xl), calc(0.25rem + 5vw), var(--sl-text-5xl));
+    line-height: var(--sl-line-height-headings);
+    font-weight: 600;
+    color: var(--sl-color-white);
+    margin: 0;
+  }
+
+  .tagline {
+    font-size: clamp(var(--sl-text-base), calc(0.0625rem + 1.5vw), var(--sl-text-xl));
+    color: var(--sl-color-gray-2);
+    max-width: 34ch;
+    margin: 0;
+  }
+
+  .actions {
+    display: flex;
+    gap: 0.75rem 1.25rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .panel {
+    text-align: start;
+    min-width: 0;
+  }
+
+  .install :global(.starlight-tabs) {
+    margin-top: 0;
+  }
+
+  .label {
+    margin: 1.5rem 0 0;
+    font-size: var(--sl-text-xs);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--sl-color-gray-3);
+  }
+
+  .stages {
+    margin: 0.5rem 0 0;
+    border-top: 1px solid var(--sl-color-hairline);
+  }
+
+  .stage {
+    display: grid;
+    grid-template-columns: 7rem 1fr;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.35rem 0.1rem;
+    border-bottom: 1px solid var(--sl-color-hairline);
+  }
+
+  .stage dt {
+    font-family: var(--sl-font-mono);
+    font-size: 0.85rem;
+    color: var(--sl-color-accent-high);
+  }
+
+  .stage dd {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--sl-color-gray-2);
+  }
+
+  @media (max-width: 30rem) {
+    .stage {
+      grid-template-columns: 1fr;
+      gap: 0.1rem;
+    }
+  }
+
+  /*
+   * One screen, but only where there is a screen's worth of width to split.
+   * svh rather than vh so a mobile browser's collapsing chrome cannot push the
+   * actions under the fold.
+   */
+  @media (min-width: 62rem) {
+    .hero {
+      grid-template-columns: 5fr 6fr;
+      gap: 4rem;
+      align-items: center;
+      text-align: start;
+      min-height: calc(100svh - var(--sl-nav-height) - 4rem);
+      padding-block: 1rem;
+    }
+
+    .copy {
+      align-items: flex-start;
+    }
+
+    .actions {
+      justify-content: flex-start;
+    }
+  }
+</style>
