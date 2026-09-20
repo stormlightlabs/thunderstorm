@@ -85,10 +85,33 @@ merges to `edge`.
 
 ## Prose
 
-Documentation, commit bodies, issue text and skill bodies are all written for a
-human reader. `workflow/skills/writing-docs/` is the standard, and it catalogues
-the tells to avoid. Keep implementation detail out of anything a user reads, and
-keep planning vocabulary out of everything.
+Everything written here is read by a person, so everything written here gets a
+deslop pass before it lands. That covers documentation, commit messages, pull
+request titles and bodies, issue text, review and edit comments, and the
+replies a session writes back. A commit message is communication: it is read
+far more often than the diff it describes.
+
+`workflow/skills/writing-docs/` is the standard and
+`workflow/skills/writing-docs/references/tells.md` is the catalogue. Read the
+catalogue and check the draft against it before committing, opening, or
+posting. The pass is not optional because the text is short, internal, or
+written by an agent.
+
+`check-commit-message.py` does not do this. It checks the type, the subject
+length, the blank line, and the column limit, and it will pass a message full
+of tells; a clean run from it means the shape is right and nothing more.
+
+What the pass looks for, in the catalogue's terms: bold-first bullets used as a
+template, ceremonial endings, the same point restated at three levels, a
+recurring three-part rhythm, negative reframes, self-answered questions,
+standalone fragments for emphasis, manufactured stakes, promotional adjectives
+in place of a named property, and the reserved words — bounded, contract,
+boundary, invariant, guarantee, safe, minimal — used loosely.
+
+Two rules that are about accuracy rather than style. Quote a file only after
+opening it, since a characterisation repeated from a summary is how a phrase
+nothing says ends up in a commit message. And keep implementation detail and
+planning vocabulary out of anything a user reads.
 
 ## Where things live
 

@@ -9,8 +9,13 @@ Write for the person reading `git log` in a year with no memory of this work.
 They are skimming for one change among hundreds. Every line you add is a line
 they read before they find it.
 
-Use the `writing-docs` skill for the prose. Everything here is in addition to
-it.
+Use the `writing-docs` skill for the prose, and check the draft against its
+tells catalogue before you commit or open anything. A commit message, a pull
+request body and a review comment are all read by a person, so all three get
+that pass. `check-commit-message.py` checks shape, not prose: it will pass a
+message full of tells.
+
+Everything here is in addition to that.
 
 ## Length
 
