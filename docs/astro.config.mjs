@@ -16,8 +16,9 @@ export default defineConfig({
         { icon: "github", label: "GitHub", href: "https://github.com/stormlightlabs/thunderstorm" },
       ],
       customCss: [
-        "@fontsource-variable/geist",
-        "@fontsource-variable/geist-mono",
+        "@fontsource-variable/google-sans",
+        "@fontsource-variable/inter",
+        "@fontsource-variable/google-sans-code",
         "./src/styles/theme.css",
       ],
       sidebar: [

@@ -9,8 +9,10 @@
  */
 
 :root {
-  --sl-font: "Geist Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --sl-font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  --sl-font: "Inter Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --sl-font-mono: "Google Sans Code Variable", ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  /* Display face, used for headings and the site title only. */
+  --tstorm-font-display: "Google Sans Variable", "Inter Variable", ui-sans-serif, system-ui, sans-serif;
 
   /* Blue, held at one hue so the accent never drifts between steps. */
   --sl-color-accent-low: #0e2a52;
@@ -59,7 +61,9 @@
   --sl-color-hairline-shade: var(--sl-color-gray-6);
 }
 
-/* Geist's headings carry their weight at a tighter track than the default. */
-:where(h1, h2, h3, h4, h5, h6) {
-  letter-spacing: -0.018em;
+/* Display face for headings and the site title; Inter carries body text. */
+:where(h1, h2, h3, h4, h5, h6),
+.site-title {
+  font-family: var(--tstorm-font-display);
+  letter-spacing: -0.016em;
 }
