@@ -1,0 +1,318 @@
+{
+  "name": "thunderstorm",
+  "version": "0.1.0",
+  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "author": {
+    "name": "Stormlight Labs",
+    "url": "https://github.com/stormlightlabs"
+  },
+  "policy": {
+    "deny": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr review:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)"
+    ],
+    "allow": [
+      "Bash({{ROOT}}/scripts/check-commit-message.py:*)",
+      "Bash({{ROOT}}/scripts/push-verified.sh:*)",
+      "Bash({{ROOT}}/scripts/ulid.py:*)",
+      "Bash(git add:*)",
+      "Bash(git branch --list:*)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch -m:*)",
+      "Bash(git branch -vv)",
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git diff:*)",
+      "Bash(git fetch:*)",
+      "Bash(git log:*)",
+      "Bash(git rev-parse:*)",
+      "Bash(git show:*)",
+      "Bash(git status:*)",
+      "Bash(git switch:*)",
+      "Bash(git worktree add:*)",
+      "Bash(git worktree list:*)",
+      "Bash(git worktree prune)",
+      "Bash(git worktree remove:*)",
+      "Bash(rg:*)"
+    ]
+  },
+  "artifacts": [
+    {
+      "kind": "skill",
+      "name": "commits-and-prs",
+      "source": "skills/commits-and-prs",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "decompose",
+      "source": "skills/decompose",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "github-board",
+      "source": "skills/github-board",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "implement",
+      "source": "skills/implement",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "review",
+      "source": "skills/review",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "revise",
+      "source": "skills/revise",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "rubber-duck",
+      "source": "skills/rubber-duck",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "specify",
+      "source": "skills/specify",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "thunderstorm",
+      "source": "skills/thunderstorm",
+      "requires": [
+        "skills",
+        "subagents"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "triage",
+      "source": "skills/triage",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "worktree",
+      "source": "skills/worktree",
+      "requires": [
+        "skills",
+        "subagents"
+      ]
+    },
+    {
+      "kind": "skill",
+      "name": "writing-docs",
+      "source": "skills/writing-docs",
+      "requires": [
+        "skills"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "adv-rev",
+      "source": "commands/adv-rev.md",
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "decompose",
+      "source": "commands/decompose.md",
+      "aliases": [
+        "decomp"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "implement",
+      "source": "commands/implement.md",
+      "aliases": [
+        "impl"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "rev",
+      "source": "commands/rev.md",
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "revise",
+      "source": "commands/revise.md",
+      "aliases": [
+        "edit"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "rubber-duck",
+      "source": "commands/rubber-duck.md",
+      "aliases": [
+        "r-d"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "specify",
+      "source": "commands/specify.md",
+      "aliases": [
+        "spec-ify"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "thunderstorm",
+      "source": "commands/thunderstorm.md",
+      "aliases": [
+        "storm"
+      ],
+      "requires": [
+        "commands",
+        "subagents"
+      ]
+    },
+    {
+      "kind": "command",
+      "name": "triage",
+      "source": "commands/triage.md",
+      "aliases": [
+        "forecast"
+      ],
+      "requires": [
+        "commands"
+      ]
+    },
+    {
+      "kind": "agent",
+      "name": "adversarial-reviewer",
+      "source": "agents/adversarial-reviewer.md",
+      "requires": [
+        "subagents"
+      ]
+    },
+    {
+      "kind": "agent",
+      "name": "implementer",
+      "source": "agents/implementer.md",
+      "requires": [
+        "subagents"
+      ]
+    },
+    {
+      "kind": "agent",
+      "name": "reviewer",
+      "source": "agents/reviewer.md",
+      "requires": [
+        "subagents"
+      ]
+    },
+    {
+      "kind": "agent",
+      "name": "reviser",
+      "source": "agents/reviser.md",
+      "requires": [
+        "subagents"
+      ]
+    },
+    {
+      "kind": "hook",
+      "name": "session-start.sh",
+      "source": "hooks/session-start.sh",
+      "requires": [
+        "hooks"
+      ],
+      "event": "SessionStart",
+      "matcher": "startup",
+      "timeout": 1200
+    },
+    {
+      "kind": "script",
+      "name": "check-commit-message.py",
+      "source": "scripts/check-commit-message.py",
+      "requires": [
+        "scripts"
+      ]
+    },
+    {
+      "kind": "script",
+      "name": "check-frontmatter.py",
+      "source": "scripts/check-frontmatter.py",
+      "requires": [
+        "scripts"
+      ]
+    },
+    {
+      "kind": "script",
+      "name": "check-isolation.py",
+      "source": "scripts/check-isolation.py",
+      "requires": [
+        "scripts"
+      ]
+    },
+    {
+      "kind": "script",
+      "name": "push-verified.sh",
+      "source": "scripts/push-verified.sh",
+      "requires": [
+        "scripts"
+      ]
+    },
+    {
+      "kind": "script",
+      "name": "ulid.py",
+      "source": "scripts/ulid.py",
+      "requires": [
+        "scripts"
+      ]
+    }
+  ]
+}

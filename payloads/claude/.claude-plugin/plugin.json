@@ -1,0 +1,9 @@
+{
+  "author": {
+    "name": "Stormlight Labs",
+    "url": "https://github.com/stormlightlabs"
+  },
+  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "name": "thunderstorm",
+  "version": "0.1.0"
+}

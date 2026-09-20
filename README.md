@@ -65,6 +65,22 @@ Hooks installed with the payload call it by name, so it needs to be on `PATH`.
 Released builds will also ship through Homebrew, `.deb`, `.rpm`, `.apk`, and
 the NUR.
 
+Each harness reads skills from its own directory, names commands its own way,
+and means its own thing by a subagent. The workflow is written once under
+`workflow/`, and `tstorm render` builds one payload per harness from it:
+
+```sh
+tstorm render --target claude          # writes payloads/claude
+tstorm render --target claude --check  # does the committed payload still match?
+```
+
+A path that differs between harnesses is written `{{ROOT}}` in the source, and
+the render substitutes the resource directory the reader will actually have.
+The manifest beside the source says what each artifact is and which harness
+capabilities it needs. An artifact that needs one the target does not provide
+stops the render and names the gap, because a payload that installs and then
+skips the review fan-out is worse than no payload.
+
 ## Harness support
 
 | | Claude Code | Codex | Pi |
@@ -81,15 +97,20 @@ fixture used and the versions it was checked against.
 ```text
 cmd/tstorm      entry point
 internal/       tstorm source
+workflow/       the skills, commands, agents, hooks and scripts, written once
+payloads/       what `tstorm render` builds from them, one directory per harness
 docs/           the published site
 docs/internal/  working documents, not published
 ```
 
 ## Status
 
-The binary is early: `tstorm version` is the only command implemented so far,
-and the rest of the surface is on the board under the **Thunderstorm** track of
-[project 13](https://github.com/orgs/stormlightlabs/projects/13).
+The binary is early: `tstorm render` and `tstorm version` are what exist, and
+the rest of the surface is on the board under the **Thunderstorm** track of
+[project 13](https://github.com/orgs/stormlightlabs/projects/13). Only the
+Claude Code payload renders today. Codex and Pi have no place to put a command,
+and Pi has no subagents, so the render stops and names the issue that would
+close each gap.
 
 ## License
 

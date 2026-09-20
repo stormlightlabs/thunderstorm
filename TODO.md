@@ -6,35 +6,31 @@ itself is the **Thunderstorm** track of [project
 
 ## Before anything else
 
-The workflow source is not in this repository. Skills, commands, and agent
-definitions still live in `trps/.claude/` and `thndrs/.claude/`, so there is
-nothing here to render, package, or install.
-
-Take the `trps` copy. It already carries the Projects V2 migration that
-`docs/internal/thunderstorm.md` still describes as labels, and the two copies
-have drifted, so reconciling them is part of the move.
-
-This has no issue yet. It belongs under [#17] or as a sibling, and it is a few
-hours of moving files and settling the differences.
+The workflow source moved in under [#17] and lives at `workflow/`. It is the
+`trps` copy, which carries the Projects V2 migration that
+`docs/internal/thunderstorm.md` still describes as labels. Settling that
+description, and folding in what `thndrs` has and `trps` does not, is still
+open and still has no issue.
 
 ## 1. Render and install
 
-| Issue |                                                      |
-| ----- | ---------------------------------------------------- |
-| [#10] | Say what a harness must provide to carry a role      |
-| [#17] | `tstorm render`: one source, one payload per harness |
-| [#1]  | Thunderstorm is copied, not installed                |
+| Issue |                                       |
+| ----- | ------------------------------------- |
+| [#1]  | Thunderstorm is copied, not installed |
 
-Write [#10] first. The capability list decides what the manifest has to express,
-and deciding it after the renderer exists means writing the renderer twice. The
-material for it is already in `docs/internal/hosts.md`.
+[#10] and [#17] are done. `docs/internal/models.md` states what a harness must
+provide before it can carry a role, and `tstorm render --target claude` builds
+the Claude Code payload from `workflow/`.
 
-Then [#17], targeting Claude Code alone. It is the harness you use every day, so
-each change can be checked the moment it lands.
+Two things [#17] did not settle. `thndrs` had drifted from `trps`, and its
+extras did not come along: the `release` command and skill, `sync-labels.py`
+and `tui-capture.sh` are still only there. And Codex and Pi render nothing yet,
+because neither has a place for a command ([#7]) and Pi has no subagents
+([#8]); the render stops and says so rather than shipping half a workflow.
 
-With a payload to install, [#1] puts it onto `trps`; confirm `/decomp` and
-`/impl` work there. At that point the repository does the thing it was created
-for, and everything after widens or hardens it.
+Next is [#1], which puts the payload onto `trps`; confirm `/decomp` and `/impl`
+work there. At that point the repository does the thing it was created for, and
+everything after widens or hardens it.
 
 ## 2. The checks
 

@@ -55,3 +55,23 @@ func TestOutputToABufferIsPlain(t *testing.T) {
 		t.Errorf("escape sequence written to a non-terminal: %q", stdout)
 	}
 }
+
+func TestRenderNeedsATarget(t *testing.T) {
+	_, _, err := run(t, "render")
+	if err == nil {
+		t.Fatal("render without --target returned nil, want an error")
+	}
+	if !strings.Contains(err.Error(), "target") {
+		t.Errorf("error does not name the missing flag: %v", err)
+	}
+}
+
+func TestRenderRejectsAnUnknownTarget(t *testing.T) {
+	_, _, err := run(t, "render", "--target", "emacs")
+	if err == nil {
+		t.Fatal("an unknown target returned nil, want an error")
+	}
+	if !strings.Contains(err.Error(), "claude") {
+		t.Errorf("error does not list the targets that exist: %v", err)
+	}
+}
