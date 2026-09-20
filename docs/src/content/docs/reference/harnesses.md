@@ -12,7 +12,7 @@ and `codex-cli` 0.146.0.
 | Payload  | plugin              | marketplace plugin            | Pi package                       |
 | Skills   | `.claude/skills/`   | plugin skills                 | `.agents/skills/`, `.pi/skills/` |
 | Commands | `.claude/commands/` | `$thunderstorm:<skill>`       | `.pi/prompts/`                   |
-| Dispatch | subagents           | built-in agents with roles    | a session per tmux pane          |
+| Dispatch | subagents           | built-in agents with roles    | a session per multiplexer tab    |
 | Checks   | hooks               | plugin hook                   | an extension                     |
 | Merging  | deny rules          | hook blocks the prefixes      | extension blocks the prefixes    |
 
@@ -40,8 +40,9 @@ creates a git worktree for each worker and tells it where to go before any work
 starts.
 
 Pi has no subagent mechanism. A worker there is a separate `pi` session running
-in a tmux pane, given its model, thinking level, and tool list as command-line
-arguments.
+in a tmux window or Zellij tab, given its provider, model, thinking level, and
+tool list as command-line arguments. `--multiplexer auto` uses the session that
+contains Pi; an explicit flag chooses one in a nested setup.
 
 The Codex orchestrator reads each packaged role and starts a built-in agent with
 those instructions. Reviewer roles run read-only; implementer and reviser roles

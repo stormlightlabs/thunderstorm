@@ -22,18 +22,24 @@ import (
 // rejected here rather than at the far end of a tmux pane, where the only
 // evidence would be a session that exited before it started.
 var thinkingLevels = []string{"off", "minimal", "low", "medium", "high", "xhigh", "max"}
+var multiplexers = []string{"auto", "tmux", "zellij"}
 
 // ThinkingLevels lists the levels for help text and error messages.
 func ThinkingLevels() string { return strings.Join(thinkingLevels, ", ") }
 
+// Multiplexers lists the terminal multiplexers dispatch can drive.
+func Multiplexers() string { return strings.Join(multiplexers, ", ") }
+
 // Request is one dispatch: a role, the directory it works in, and the model
 // it runs.
 type Request struct {
-	Role     Role
-	Worktree string
-	Model    string
-	Thinking string
-	Task     string
+	Role        Role
+	Worktree    string
+	Provider    string
+	Model       string
+	Thinking    string
+	Multiplexer string
+	Task        string
 	// Out holds the transcript. Empty means a new directory under the system
 	// temporary directory, which the Result names.
 	Out     string
@@ -47,12 +53,13 @@ type Result struct {
 	// Model is what the transcript says answered, which is not always what
 	// the request asked for. models.md wants the run's evidence, not its
 	// intent.
-	Model    string
-	Thinking string
-	Status   int
-	Report   string
-	Out      string
-	Session  string
+	Model       string
+	Thinking    string
+	Status      int
+	Report      string
+	Out         string
+	Session     string
+	Multiplexer string
 	// Untranslated names the tools the definition allows that pi has no
 	// equivalent for.
 	Untranslated []string
@@ -62,26 +69,20 @@ type Result struct {
 // carry. tmux reads a colon and a full stop as target syntax.
 var unsafeName = regexp.MustCompile(`[^A-Za-z0-9_-]+`)
 
-// Run starts the role in a detached tmux session and waits for it to finish.
+// Run starts the role in a multiplexer tab and waits for it to finish.
 //
-// tmux rather than a child process because the session has to outlive the
-// thing that started it: a dropped connection, a compacted context or a killed
-// orchestrator leaves the pane running and the transcript accumulating, and an
-// operator can attach to watch. Detached rather than interactive because
-// nothing is there to answer a prompt.
-//
-// Each run gets a server of its own. A shared server hands every later session
-// the environment of whichever client started it, so a second dispatch would
-// run with the first one's PATH and credentials and say nothing about it.
+// Inside tmux or Zellij, dispatch adds a tab to the current session so the
+// operator can watch and control the worker. Outside either one, auto retains
+// the older detached-tmux behavior so the worker can outlive its caller.
 func Run(ctx context.Context, req Request) (Result, error) {
 	var res Result
 	if err := req.validate(); err != nil {
 		return res, err
 	}
 
-	tmux, err := exec.LookPath("tmux")
+	multiplexer, err := selectMultiplexer(req.Multiplexer)
 	if err != nil {
-		return res, fmt.Errorf("tmux is how a role runs on Pi, and it is not installed: %w", err)
+		return res, err
 	}
 	pi, err := exec.LookPath("pi")
 	if err != nil {
@@ -92,7 +93,14 @@ func Run(ctx context.Context, req Request) (Result, error) {
 	if err != nil {
 		return res, err
 	}
-	res = Result{Role: req.Role.Name, Model: req.Model, Thinking: req.Thinking, Out: out}
+	requestedModel := req.Model
+	if req.Provider != "" {
+		requestedModel = req.Provider + "/" + requestedModel
+	}
+	res = Result{
+		Role: req.Role.Name, Model: requestedModel, Thinking: req.Thinking,
+		Out: out, Multiplexer: multiplexer,
+	}
 	_, res.Untranslated = PiTools(req.Role.ClaudeTools)
 
 	system := filepath.Join(out, "system.md")
@@ -116,21 +124,7 @@ func Run(ctx context.Context, req Request) (Result, error) {
 
 	name := unsafeName.ReplaceAllString("tstorm-"+filepath.Base(out), "-")
 	res.Session = name
-	start := exec.CommandContext(ctx, tmux, "-L", name, "new-session", "-d",
-		"-s", name, "-c", req.Worktree, "/bin/sh "+shellQuote(script))
-	if output, err := start.CombinedOutput(); err != nil {
-		return res, fmt.Errorf("tmux could not start the %s session: %w: %s",
-			req.Role.Name, err, strings.TrimSpace(string(output)))
-	}
-
-	// tmux leaves its socket file behind when the server exits, so every
-	// dispatch would add one to the socket directory. Asking the running
-	// server where the file is beats re-deriving the rule tmux uses to choose
-	// it.
-	socket := socketPath(tmux, name)
-	defer removeSocket(socket, name)
-
-	if err := wait(ctx, tmux, name, req.Timeout); err != nil {
+	if err := runInMultiplexer(ctx, multiplexer, name, script, out, req); err != nil {
 		return res, fmt.Errorf("%w; the transcript so far is %s", err, filepath.Join(out, "events.jsonl"))
 	}
 
@@ -161,6 +155,8 @@ func (r Request) validate() error {
 		return errors.New("no role")
 	case r.Model == "":
 		return errors.New("no model; a session that names none inherits one and records nothing")
+	case r.Multiplexer != "" && !slices.Contains(multiplexers, r.Multiplexer):
+		return fmt.Errorf("unknown multiplexer %q; try one of %s", r.Multiplexer, Multiplexers())
 	case !slices.Contains(thinkingLevels, r.Thinking):
 		return fmt.Errorf("pi has no thinking level %q; try one of %s", r.Thinking, ThinkingLevels())
 	case strings.TrimSpace(r.Task) == "":
@@ -208,7 +204,11 @@ func SystemPrompt(r Request) string {
 	b.WriteString(r.Role.Prompt)
 	b.WriteString("\n\n## This dispatch\n\n")
 	fmt.Fprintf(&b, "You are the `%s` of a thunderstorm run. You are running on pi as\n", r.Role.Name)
-	fmt.Fprintf(&b, "`%s` at reasoning level `%s`, in `%s`.\n", r.Model, r.Thinking, r.Worktree)
+	model := r.Model
+	if r.Provider != "" {
+		model = r.Provider + "/" + model
+	}
+	fmt.Fprintf(&b, "`%s` at reasoning level `%s`, in `%s`.\n", model, r.Thinking, r.Worktree)
 	b.WriteString("\nName that model and that level where your role says to name them, and\n")
 	b.WriteString("stay in that directory: it is yours, and the rest of the checkout is\n")
 	b.WriteString("somebody else's.\n\nThis session has no GitHub MCP tools. Reach GitHub through `gh`.\n")
@@ -223,18 +223,23 @@ func SystemPrompt(r Request) string {
 // answer it loads none of the skills the role is told to use.
 func piArgv(pi string, r Request, out, system string) []string {
 	allow, _ := PiTools(r.Role.ClaudeTools)
-	return []string{
+	args := []string{
 		pi,
 		"--mode", "json",
 		"--print",
 		"--approve",
 		"--session-dir", filepath.Join(out, "sessions"),
+	}
+	if r.Provider != "" {
+		args = append(args, "--provider", r.Provider)
+	}
+	return append(args,
 		"--model", r.Model,
 		"--thinking", r.Thinking,
 		"--tools", strings.Join(allow, ","),
 		"--append-system-prompt", system,
 		"--", r.Task,
-	}
+	)
 }
 
 // runScript redirects the session's output and records its exit status. A run
@@ -261,7 +266,120 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
-// wait blocks until the session is gone.
+func selectMultiplexer(requested string) (string, error) {
+	if requested == "" {
+		requested = "auto"
+	}
+	if requested != "auto" {
+		if requested == "zellij" && os.Getenv("ZELLIJ") == "" {
+			return "", errors.New("zellij dispatch needs Pi to be running inside Zellij")
+		}
+		if _, err := exec.LookPath(requested); err != nil {
+			return "", fmt.Errorf("%s is not installed: %w", requested, err)
+		}
+		return requested, nil
+	}
+	if os.Getenv("ZELLIJ") != "" {
+		if _, err := exec.LookPath("zellij"); err != nil {
+			return "", fmt.Errorf("Pi is running inside Zellij, but zellij is not on PATH: %w", err)
+		}
+		return "zellij", nil
+	}
+	if os.Getenv("TMUX") != "" {
+		if _, err := exec.LookPath("tmux"); err != nil {
+			return "", fmt.Errorf("Pi is running inside tmux, but tmux is not on PATH: %w", err)
+		}
+		return "tmux", nil
+	}
+	if _, err := exec.LookPath("tmux"); err == nil {
+		return "tmux", nil
+	}
+	return "", errors.New("dispatch needs tmux or Zellij; run Pi inside one of them")
+}
+
+func runInMultiplexer(ctx context.Context, multiplexer, name, script, out string, req Request) error {
+	if multiplexer == "zellij" {
+		return runInZellij(ctx, name, script, out, req)
+	}
+	return runInTmux(ctx, name, script, req)
+}
+
+func runInTmux(ctx context.Context, name, script string, req Request) error {
+	tmux, err := exec.LookPath("tmux")
+	if err != nil {
+		return fmt.Errorf("tmux is not installed: %w", err)
+	}
+	if os.Getenv("TMUX") != "" {
+		start := exec.CommandContext(ctx, tmux, "new-window", "-d", "-P", "-F", "#{pane_id}",
+			"-n", name, "-c", req.Worktree, "/bin/sh "+shellQuote(script))
+		output, err := start.CombinedOutput()
+		if err != nil {
+			return fmt.Errorf("tmux could not open the %s tab: %w: %s",
+				req.Role.Name, err, strings.TrimSpace(string(output)))
+		}
+		pane := strings.TrimSpace(string(output))
+		return waitForTmuxPane(ctx, tmux, pane, req.Timeout)
+	}
+
+	start := exec.CommandContext(ctx, tmux, "-L", name, "new-session", "-d",
+		"-s", name, "-c", req.Worktree, "/bin/sh "+shellQuote(script))
+	if output, err := start.CombinedOutput(); err != nil {
+		return fmt.Errorf("tmux could not start the %s session: %w: %s",
+			req.Role.Name, err, strings.TrimSpace(string(output)))
+	}
+	socket := socketPath(tmux, name)
+	defer removeSocket(socket, name)
+	return wait(ctx, tmux, name, req.Timeout)
+}
+
+func waitForTmuxPane(ctx context.Context, tmux, pane string, timeout time.Duration) error {
+	return poll(ctx, timeout, func() bool {
+		return exec.Command(tmux, "display-message", "-p", "-t", pane, "#{pane_id}").Run() != nil
+	}, func() { _ = exec.Command(tmux, "kill-pane", "-t", pane).Run() })
+}
+
+func runInZellij(ctx context.Context, name, script, out string, req Request) error {
+	zellij, err := exec.LookPath("zellij")
+	if err != nil {
+		return fmt.Errorf("zellij is not installed: %w", err)
+	}
+	start := exec.CommandContext(ctx, zellij, "action", "new-tab", "--no-focus", "--close-on-exit",
+		"--name", name, "--cwd", req.Worktree, "--", "/bin/sh", script)
+	output, err := start.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("zellij could not open the %s tab: %w: %s",
+			req.Role.Name, err, strings.TrimSpace(string(output)))
+	}
+	tab := strings.TrimSpace(string(output))
+	status := filepath.Join(out, "status")
+	return poll(ctx, req.Timeout, func() bool {
+		_, err := os.Stat(status)
+		return err == nil
+	}, func() { _ = exec.Command(zellij, "action", "close-tab-by-id", tab).Run() })
+}
+
+func poll(ctx context.Context, timeout time.Duration, done func() bool, cancel func()) error {
+	deadline := time.Now().Add(timeout)
+	ticker := time.NewTicker(200 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if done() {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			cancel()
+			return fmt.Errorf("the session was still running after %s and was killed", timeout)
+		}
+		select {
+		case <-ctx.Done():
+			cancel()
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+
+// wait blocks until the detached tmux session is gone.
 //
 // Asking tmux whether the session still exists covers a pane that finished and
 // a pane that was killed with one question. tmux wait-for would be woken only

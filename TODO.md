@@ -41,7 +41,7 @@ skill, `sync-labels.py`, and `tui-capture.sh`. Neither has an issue.
 
 | Issue |                                             |
 | ----- | ------------------------------------------- |
-| [#8]  | Dispatch on Pi is tmux panes, not subagents |
+| [#8]  | Dispatch on Pi uses multiplexer tabs, not built-in subagents |
 | [#9]  | Merge denial is a Claude Code setting only  |
 | [#13] | Nothing in the loop reaches Cursor          |
 
@@ -58,8 +58,9 @@ a trusted project's configuration. The project can override the user's enabled
 state.
 
 [#8] is done on this branch: `tstorm dispatch` starts a Pi session in a tmux
-pane for a role and hands the run its report. The Pi package carries the check
-scripts and sets their installed path through its extension. [#16] still moves
+window or Zellij tab for a role and hands the run its report. The Pi package
+carries the check scripts and sets their installed path through its extension.
+[#16] still moves
 those checks into the binary so they no longer need Python or copied scripts.
 
 [#9] is done on this branch: the manifest names the four denied commands and

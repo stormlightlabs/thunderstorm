@@ -268,15 +268,15 @@ not, and [models.md](models.md) names the harnesses the loop will run at all.
 | ------------------- | ---------------------------------------------------------------- |
 | Claude Code         | a subagent the harness provisions from a definition under `agents/` |
 | Codex               | a built-in agent given the packaged role and a chosen model       |
-| Pi                  | `tstorm dispatch`: one pi session in a detached tmux pane         |
+| Pi                  | `tstorm dispatch`: one pi session in a tmux or Zellij tab         |
 | OpenCode Go, Cursor | nothing. Both are unsupported, with the reason in `models.md`     |
 
-Pi ships no subagents, and the tmux route means it does not need to gain any.
-`tstorm dispatch --role <role> --worktree <dir> --model <id>` starts the
-session, waits for the pane, and prints the role's report for the next pass to
-read. Beside the report it leaves a directory holding the command it ran, the
-event stream and the exit status, which is what `models.md` asks for as
-evidence of the model a pass used.
+Pi ships no subagents, so `tstorm` drives a multiplexer instead.
+`tstorm dispatch --role <role> --worktree <dir> --model <id>` opens a tmux
+window or Zellij tab, waits for the pane, and prints the role's report for the
+next pass to read. Beside the report it leaves a directory holding the command
+it ran, the event stream and the exit status, which is what `models.md` asks for
+as evidence of the model a pass used.
 
 A definition's `tools:` line is a Claude Code allowlist, so what a role may
 reach on Pi is that list translated into pi's `--tools`, under

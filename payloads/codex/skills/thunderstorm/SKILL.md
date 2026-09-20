@@ -101,8 +101,15 @@ Pi has no subagent mechanism, so start the session yourself:
 
 ```sh
 tstorm dispatch --role implementer --worktree <dir> \
-  --model <model> --thinking <level> -- '<issue number, criteria, ownership>'
+  --provider <provider> --model <model> --thinking <level> \
+  -- '<issue number, criteria, ownership>'
 ```
+
+`--provider` may be omitted when the model is written as `provider/model`.
+Use provider and model IDs from `pi --list-models`; this includes providers the
+operator added to Pi's `models.json`. The default `--multiplexer auto` opens a
+new tab in the Zellij or tmux session running Pi. `--multiplexer tmux` and
+`--multiplexer zellij` select one when the environment is nested.
 
 It prints the role's report, which is what the next pass is handed, and names
 the directory holding the transcript. A non-zero exit is an escalation: read

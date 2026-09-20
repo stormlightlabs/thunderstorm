@@ -53,7 +53,7 @@ Skills are the portable part. The rest varies, but less than it first appears.
 | Resource  | Claude Code             | Pi                   | Codex                         |
 | --------- | ----------------------- | -------------------- | ----------------------------- |
 | Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`, or a package's `prompts/` | plugin-qualified skills |
-| Subagents | `.claude/agents/*.md`   | none; tmux instead   | built-in agents with role text |
+| Subagents | `.claude/agents/*.md`   | tmux or Zellij tabs  | built-in agents with role text |
 | Hooks     | `.claude/settings.json` | extensions (TS/JS)   | plugin `hooks.json`           |
 | Themes    | none                    | `.pi/themes/*.json`  | `config.toml`                 |
 
@@ -108,10 +108,15 @@ The renderer packages the roles as TOML instead. The orchestrator reads each
 role and passes its developer instructions to a built-in agent. Roles without
 `Write` or `Edit` specify a read-only sandbox.
 
-Pi has no built-in subagent mechanism. Thunderstorm starts one session per tmux
-pane through `tstorm dispatch`. A reviewer dispatch completed here on
-2026-09-19, exit 0, in a directory of its own, answering from a file it found
-there. The command the pane runs is
+Pi has no built-in subagent mechanism. Its bundled subagent extension example
+starts child `pi` processes and streams them into a tool result; it does not
+open multiplexer tabs. Thunderstorm keeps dispatch in `tstorm` because a tab
+must remain visible and controllable even if the orchestrator stops.
+
+Thunderstorm starts one session per tmux window or Zellij tab through
+`tstorm dispatch`. A reviewer dispatch completed
+here on 2026-09-19, exit 0, in a directory of its own, answering from a file it
+found there. The command the pane runs is
 
 ```sh
 pi --mode json --print --approve --session-dir <out>/sessions \
@@ -121,12 +126,12 @@ pi --mode json --print --approve --session-dir <out>/sessions \
 ```
 
 with stdout redirected to `<out>/events.jsonl` and the shell's exit status
-written to `<out>/status` before the pane ends. Completion is `tmux has-session`
-asked every 200ms until it fails. `tmux wait-for` is woken only by a pane that
-reached the end of its script, so a pane killed from outside would hold the run
-open until the timeout. Each dispatch gets a tmux server of its own, because a
-shared server hands every later session the environment of whichever client
-started the server.
+written to `<out>/status` before the pane ends. Inside tmux, dispatch opens a
+window and asks every 200ms whether its pane still exists. Inside Zellij, it
+opens a tab and waits for the status file. Cancellation or the 30-minute default
+timeout closes that pane or tab. Outside a multiplexer, `auto` starts a detached
+tmux server, preserving the original behavior for scripts and noninteractive
+callers.
 
 Per-role tool limits are `--tools` and `--exclude-tools` rather than a
 subagent's allowlist, and `internal/dispatch/tools.go` holds the translation
@@ -150,7 +155,7 @@ finding still reports where it came from, and `events.jsonl` records the
 provider and model that answered. `$PI_MODEL` and `$PI_REASONING_LEVEL` reach
 only the commands pi's bash tool runs, not the session's own environment.
 
-Codex can drive tmux the same way, since it has a shell and background
+Codex can drive a multiplexer the same way, since it has a shell and background
 terminals, but it has no reason to: `spawn_agent` is the better route there.
 
 ## Hooks
@@ -268,8 +273,10 @@ pi install git:github.com/stormlightlabs/thunderstorm
 Codex reads `.agents/plugins/marketplace.json` from this repository. A trusted
 project can also declare the Git marketplace and enable the plugin in its own
 `.codex/config.toml`, without adding the marketplace to the user's config. Pi
-installs from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and `-l`
-installs into the project's own `.pi/settings.json` rather than the user's.
+installs from `npm:`, `git:`, an HTTPS or SSH URL, or a local path. Add `-l`
+to install into the project's `.pi/settings.json` rather than the user's. Its
+provider catalogue remains Pi configuration: built-ins and `models.json`
+entries both work because dispatch passes provider and model IDs to Pi.
 
 ## Cursor
 

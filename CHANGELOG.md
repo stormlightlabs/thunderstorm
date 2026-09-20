@@ -31,8 +31,9 @@ Nothing is released yet, and no version is tagged. Everything below is on
 - `/forecast` as a second name for `/triage`, which describes what the stage
   produces rather than how a hospital sorts casualties.
 - `tstorm dispatch --role <role> --worktree <dir> --model <id>` runs one role
-  as a pi session in a tmux pane and prints its report. The transcript
-  directory holds the command, the event stream and the exit status ([#8]).
+  as a Pi session in a tmux window or Zellij tab and prints its report. Provider,
+  model, reasoning level, and multiplexer are configurable. The transcript
+  directory holds the command, event stream, and exit status ([#8]).
 - `docs/internal/models.md` states what a harness must provide before it can
   carry a role ([#10]).
 
@@ -52,7 +53,7 @@ Nothing is released yet, and no version is tagged. Everything below is on
   still `tstorm`.
 - Commands render into `prompts/` for Codex and Pi ([#7]). Codex invokes the
   plugin skills and passes packaged TOML roles to built-in agents; Pi runs each
-  role in a tmux pane through `tstorm dispatch` ([#8]).
+  role in a tmux window or Zellij tab through `tstorm dispatch` ([#8]).
 - `docs/internal/thunderstorm.md` says what starts a review pass on each
   harness, and `docs/internal/hosts.md` what a role may reach on Pi and what
   each harness enforces ([#8], [#9]).

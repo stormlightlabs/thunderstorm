@@ -12,13 +12,15 @@ import (
 
 func dispatchCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	var (
-		harness  string
-		role     string
-		worktree string
-		model    string
-		thinking string
-		out      string
-		timeout  time.Duration
+		harness     string
+		role        string
+		worktree    string
+		provider    string
+		model       string
+		thinking    string
+		multiplexer string
+		out         string
+		timeout     time.Duration
 	)
 
 	cmd := &cobra.Command{
@@ -26,8 +28,8 @@ func dispatchCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		Short: "Run one thunderstorm role as a session of its own on Pi",
 		Long: "dispatch runs one role of a thunderstorm run as a separate pi session.\n\n" +
 			"Claude Code provisions a subagent for a role and Codex spawns one. Pi\n" +
-			"ships neither, so the loop starts the session itself: a detached tmux\n" +
-			"pane in the directory the role owns, running the model the dispatch\n" +
+			"ships neither, so the loop opens a tmux window or Zellij tab in the\n" +
+			"directory the role owns, running the provider and model the dispatch\n" +
 			"names. The role's report comes back on stdout for the next pass to\n" +
 			"read, and its transcript stays on disk, where the model that answered\n" +
 			"is recorded.",
@@ -42,13 +44,15 @@ func dispatchCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				return err
 			}
 			res, runErr := dispatch.Run(cmd.Context(), dispatch.Request{
-				Role:     r,
-				Worktree: worktree,
-				Model:    model,
-				Thinking: thinking,
-				Task:     strings.Join(args, " "),
-				Out:      out,
-				Timeout:  timeout,
+				Role:        r,
+				Worktree:    worktree,
+				Provider:    provider,
+				Model:       model,
+				Thinking:    thinking,
+				Multiplexer: multiplexer,
+				Task:        strings.Join(args, " "),
+				Out:         out,
+				Timeout:     timeout,
 			})
 			// The report is printed even when the session failed. A pass that
 			// got most of the way through still wrote something the operator
@@ -69,8 +73,10 @@ func dispatchCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd.Flags().StringVar(&harness, "harness", dispatch.Pi, "harness to dispatch on")
 	cmd.Flags().StringVar(&role, "role", "", "role to run: "+dispatch.RoleNames())
 	cmd.Flags().StringVar(&worktree, "worktree", "", "directory the role works in, which the worktree skill creates")
-	cmd.Flags().StringVar(&model, "model", "", "model the session runs, as pi names it")
+	cmd.Flags().StringVar(&provider, "provider", "", "Pi provider (optional when --model includes it)")
+	cmd.Flags().StringVar(&model, "model", "", "model the session runs, as Pi names it")
 	cmd.Flags().StringVar(&thinking, "thinking", "medium", "reasoning level: "+dispatch.ThinkingLevels())
+	cmd.Flags().StringVar(&multiplexer, "multiplexer", "auto", "terminal multiplexer: "+dispatch.Multiplexers())
 	cmd.Flags().StringVar(&out, "out", "", "where the transcript goes (default a new directory under the temporary directory)")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Minute, "how long to wait before killing the session")
 	for _, required := range []string{"role", "worktree", "model"} {

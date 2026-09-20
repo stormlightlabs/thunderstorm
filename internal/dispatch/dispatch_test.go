@@ -101,6 +101,67 @@ func TestShellQuoteSurvivesAQuote(t *testing.T) {
 	}
 }
 
+func TestPiArgvPassesProviderAndModelSeparately(t *testing.T) {
+	r := Request{
+		Role: Role{ClaudeTools: []string{"Read"}}, Provider: "openrouter",
+		Model: "anthropic/claude-sonnet-4", Thinking: "high",
+	}
+	args := piArgv("pi", r, "/tmp/pass", "/tmp/system.md")
+	joined := strings.Join(args, "\n")
+	for _, want := range []string{"--provider\nopenrouter", "--model\nanthropic/claude-sonnet-4"} {
+		if !strings.Contains(joined, want) {
+			t.Errorf("pi arguments do not contain %q: %v", want, args)
+		}
+	}
+}
+
+func TestMultiplexerSelectionPrefersTheActiveSession(t *testing.T) {
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "zellij"), []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("ZELLIJ", "0")
+	got, err := selectMultiplexer("auto")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "zellij" {
+		t.Errorf("selected %q, want zellij", got)
+	}
+}
+
+func TestZellijDispatchOpensATabInTheWorktree(t *testing.T) {
+	bin := t.TempDir()
+	passed := filepath.Join(bin, "argv")
+	stub := "#!/bin/sh\nprintf '%s\\n' \"$@\" >" + shellQuote(passed) + "\nfor last do :; done\n/bin/sh \"$last\"\nprintf '7\\n'\n"
+	if err := os.WriteFile(filepath.Join(bin, "zellij"), []byte(stub), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("ZELLIJ", "0")
+
+	out := t.TempDir()
+	script := filepath.Join(out, "run.sh")
+	if err := os.WriteFile(script, []byte("#!/bin/sh\nprintf '0\\n' >"+shellQuote(filepath.Join(out, "status"))+"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	worktree := t.TempDir()
+	req := Request{Role: Role{Name: "reviewer"}, Worktree: worktree, Timeout: time.Second}
+	if err := runInZellij(context.Background(), "review-pass", script, out, req); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(passed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"action\nnew-tab", "--name\nreview-pass", "--cwd\n" + worktree, "/bin/sh\n" + script} {
+		if !strings.Contains(string(body), want) {
+			t.Errorf("zellij arguments do not contain %q: %s", want, body)
+		}
+	}
+}
+
 func TestRunScriptRecordsTheExitStatus(t *testing.T) {
 	dir := t.TempDir()
 	script := runScript([]string{"/bin/sh", "-c", "exit 3"}, dir)
@@ -166,6 +227,7 @@ func TestRunRefusesARequestItCannotRecord(t *testing.T) {
 		"no task":        func(r *Request) { r.Task = "  " },
 		"no timeout":     func(r *Request) { r.Timeout = 0 },
 		"unknown level":  func(r *Request) { r.Thinking = "hard" },
+		"unknown mux":    func(r *Request) { r.Multiplexer = "screen" },
 		"no such tree":   func(r *Request) { r.Worktree = filepath.Join(r.Worktree, "gone") },
 		"tree is a file": func(r *Request) { r.Worktree = writeFile(t, "tree") },
 	} {
@@ -229,7 +291,8 @@ func TestRunDrivesAPane(t *testing.T) {
 	res, err := Run(context.Background(), Request{
 		Role:     role,
 		Worktree: t.TempDir(),
-		Model:    "openai-codex/gpt-5.6-terra",
+		Provider: "openai-codex",
+		Model:    "gpt-5.6-terra",
 		Thinking: "high",
 		Task:     "Review #8",
 		Out:      out,
@@ -262,7 +325,7 @@ func TestRunDrivesAPane(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"--thinking\nhigh", "--tools\nbash,find,grep,ls,read", "Review #8"} {
+	for _, want := range []string{"--provider\nopenai-codex", "--model\ngpt-5.6-terra", "--thinking\nhigh", "--tools\nbash,find,grep,ls,read", "Review #8"} {
 		if !strings.Contains(string(passed), want) {
 			t.Errorf("pi was not given %q: %s", want, passed)
 		}

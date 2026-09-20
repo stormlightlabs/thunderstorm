@@ -3,7 +3,8 @@
 // The role definitions are the only part so far. Claude Code provisions a
 // subagent from one and Codex spawns an agent; Pi has neither mechanism, so
 // tstorm dispatch starts the session and needs the role's prompt and its tool
-// list on a machine where no payload carries either.
+// list on a machine where no payload carries either. Pi runs each role in a
+// tmux window or Zellij tab.
 //
 // These are the files render copies, so a role edited under workflow/ reaches
 // dispatch at the next build and the payload at the next render.

@@ -72,8 +72,9 @@ tstorm render --target pi
 tstorm version
 ```
 
-The binary also dispatches Pi roles. The checks a run depends on — commit and
-pull request shape, document identity, worktree isolation — are Python scripts
+The binary also dispatches Pi roles through tmux or Zellij. The checks a run
+depends on — commit and pull request shape, document identity, worktree
+isolation — are Python scripts
 the payload installs, which the skills call by path;
 [#16](https://github.com/stormlightlabs/thunderstorm/issues/16) ports them
 here, and board writes and the prose check follow in
@@ -106,7 +107,7 @@ skips the review fan-out is worse than no payload.
 | | Claude Code | Codex | Pi |
 | --- | --- | --- | --- |
 | Skills | `.claude/skills/` | plugin skills | `.agents/skills/`, `.pi/skills/` |
-| Dispatch | subagents | built-in agents with packaged roles | a session per tmux pane |
+| Dispatch | subagents | built-in agents with packaged roles | a session per tmux or Zellij tab |
 | Checks | hooks | a plugin hook | an extension |
 
 `docs/internal/hosts.md` records how each row was verified, including the

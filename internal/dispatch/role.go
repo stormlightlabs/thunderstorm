@@ -3,7 +3,7 @@
 // Claude Code provisions a subagent from a definition under agents/ and Codex
 // spawns one, so on those harnesses a run hands over a prompt and receives a
 // report. Pi ships no subagents, so the loop starts the session: a pi process
-// in a detached tmux pane, in the directory the role owns, writing its
+// in a tmux window or Zellij tab, in the directory the role owns, writing its
 // transcript to disk.
 //
 // The definitions are the ones Claude Code reads. A definition's tools line is

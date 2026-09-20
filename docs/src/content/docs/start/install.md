@@ -79,17 +79,28 @@ thunderstorm@stormlightlabs`.
 
 ## Pi
 
-Install `tstorm`, then install the repository as a Pi package:
+Install `tstorm`, then install the repository as a Pi package for the current
+user:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 pi install git:github.com/stormlightlabs/thunderstorm
 ```
 
+For one project, run this from the project root instead:
+
+```sh
+pi install git:github.com/stormlightlabs/thunderstorm -l
+```
+
+The local command writes `.pi/settings.json`. Pi asks the user to trust the
+project before it loads the package.
+
 The package loads the skills, prompts, and extension from `payloads/pi`. The
 extension supplies the package path used by the scripts and blocks the four
 merge and push command prefixes. `tstorm dispatch` starts each role in its own
-Pi session and tmux pane.
+Pi session. When Pi runs inside tmux or Zellij, dispatch opens a new window or
+tab in that session so the operator can watch and control it.
 
 ## The checks
 
@@ -179,8 +190,13 @@ the gates: the skills are written against `<project>`, `<owner>` and
 ### Your model assignments
 
 Which model runs which role is a decision per organization, not per package.
-One rule travels with the loop whatever you decide: an implementer and the
-reviewer reading its work never share a model within a run, because a model
-reviewing its own diff inherits the gap that produced the defect. The
-[harness reference](/reference/harnesses/) covers what an agent must provide
-before it can carry a role at all.
+Pass either `--model provider/model` or separate `--provider` and `--model`
+values to `tstorm dispatch`. The values come from `pi --list-models`, including
+custom providers declared in `~/.pi/agent/models.json`. Pi's `models.json`
+supports OpenAI-, Anthropic-, and Google-compatible endpoints; a Pi extension
+can register other APIs or OAuth flows.
+
+An implementer and the reviewer reading its work never share a model within a
+run, because a model reviewing its own diff inherits the gap that produced the
+defect. The [harness reference](/reference/harnesses/) covers what an agent
+must provide before it can carry a role at all.
