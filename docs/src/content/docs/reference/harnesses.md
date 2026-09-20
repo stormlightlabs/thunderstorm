@@ -7,12 +7,12 @@ Each agent loads skills from a different directory and dispatches work its own
 way. What follows was verified on 2026-09-19 against Claude Code, `pi` 0.85.1,
 and `codex-cli` 0.146.0.
 
-| | Claude Code | Codex | Pi |
-| --- | --- | --- | --- |
-| Skills | `.claude/skills/` | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
-| Commands | `.claude/commands/` | `~/.codex/prompts/` | `.pi/prompts/` |
-| Dispatch | subagents | `spawn_agent` | a session per tmux pane |
-| Checks | hooks | hooks | an extension |
+|          | Claude Code         | Codex                               | Pi                               |
+| -------- | ------------------- | ----------------------------------- | -------------------------------- |
+| Skills   | `.claude/skills/`   | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
+| Commands | `.claude/commands/` | `~/.codex/prompts/`                 | `.pi/prompts/`                   |
+| Dispatch | subagents           | `spawn_agent`                       | a session per tmux pane          |
+| Checks   | hooks               | hooks                               | an extension                     |
 
 `.agents/skills/` is read by both Codex and Pi, so one directory serves them
 together. Claude Code reads only `.claude/skills/`, which is why each agent gets
@@ -20,6 +20,8 @@ its own rendered payload.
 
 A `SKILL.md` file is the same everywhere. All three agents expect a directory
 holding one, with `name` and `description` in the frontmatter.
+
+Cursor and OpenCode Go are planned but not supported today.
 
 ## Dispatch
 

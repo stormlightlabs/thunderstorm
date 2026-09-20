@@ -6,9 +6,7 @@ id: 01M2PXCQDS6JFP04C2JK1T6XMD
 
 > Copied from `stormlightlabs/thunderus` on 2026-09-19 with the rest of the
 > workflow. The identifier is unchanged so that open issues citing it still
-> resolve. The role assignments here are thunderus's; making them say what a
-> harness must provide before it can carry a role is
-> stormlightlabs/thunderstorm#10.
+> resolve. The role assignments here are thunderus's.
 
 # Model assignments
 
@@ -18,14 +16,48 @@ what.
 
 ## Roles
 
-| Role                 | Claude Code   | Codex and Pi                                                  | OpenCode Go | Cursor |
-| -------------------- | ------------- | ------------------------------------------------------------- | ----------- | ------ |
-| Implementer          | Opus, Sonnet  | `5.6-sol` at low or medium, `5.6-luna` at high or above       | todo        | todo   |
-| Reviewer             | Opus, Fable   | `5.6-terra` at high or above, `5.6-sol` at medium, `6-astra` at medium | todo | todo   |
-| Adversarial reviewer | Opus, Fable   | `5.6-sol` at high, `6-astra` at medium                        | todo        | todo   |
+| Role                 | Claude Code  | Codex and Pi                                                           | OpenCode Go | Cursor |
+| -------------------- | ------------ | ---------------------------------------------------------------------- | ----------- | ------ |
+| Implementer          | Opus, Sonnet | `5.6-sol` at low or medium, `5.6-luna` at high or above                | todo        | todo   |
+| Reviewer             | Opus, Fable  | `5.6-terra` at high or above, `5.6-sol` at medium, `6-astra` at medium | todo        | todo   |
+| Adversarial reviewer | Opus, Fable  | `5.6-sol` at high, `6-astra` at medium                                 | todo        | todo   |
 
-OpenCode Go and Cursor have no assignments yet. Do not run a thunderstorm role
-on either until this table names one.
+## What a harness must provide
+
+Four things, before the table above can name a harness at all:
+
+- A model the dispatch chooses, rather than the one the session is already
+  running.
+- A reasoning level the dispatch chooses and the role can name.
+- A second context within one run, so the implementer and the reviewer are
+  different sessions.
+- Evidence, after the run, of which model and level each pass used.
+
+The fourth is separate from the third because asking for a different model is
+not the same as getting one. On Codex a full-history fork — `fork_turns`
+omitted or `"all"` — inherits the parent's model and reasoning effort and
+refuses to override either, so a dispatch that forgets `fork_turns` runs the
+reviewer on the implementer's model and says nothing about it. Separation there
+is a property of the dispatch rather than of the harness, which is why the list
+asks for evidence and not only for the capability.
+
+| Harness     | Model                                                      | Level                                            | Second context                       | Evidence                                         |
+| ----------- | ---------------------------------------------------------- | ------------------------------------------------ | ------------------------------------ | ------------------------------------------------ |
+| Claude Code | the subagent definition                                    | the subagent definition                          | subagents                            | the review comment's first line                  |
+| Codex       | `spawn_agent`, with `fork_turns` of `"none"` or an integer | `reasoning_effort` on the same call              | `spawn_agent`, three workers at once | the first line, if the dispatch forked correctly |
+| Pi          | `--model` on the pane's command                            | `--thinking`, read back as `$PI_REASONING_LEVEL` | one session per tmux pane            | the pane's command and its `events.jsonl`        |
+| OpenCode Go | not assessed                                               | not assessed                                     | not assessed                         | not assessed                                     |
+| Cursor      | not assessed                                               | not assessed                                     | not assessed                         | not assessed                                     |
+
+The mechanisms are in [hosts.md](hosts.md), verified against `codex-cli`
+0.146.0 and `pi` 0.85.1 on 2026-09-19.
+
+OpenCode Go and Cursor are planned but unsupported, and neither has been
+assessed against the list above: no Cursor agent is installed on the machine
+the host contracts were verified on, and OpenCode Go was not examined there.
+stormlightlabs/thunderstorm#2 carries the decision for both. Until one of them
+is assessed and the roles table names its models, do not run a thunderstorm
+role on it.
 
 ## Picking within a row
 
