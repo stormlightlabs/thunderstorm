@@ -2,6 +2,7 @@
 name: commits-and-prs
 description: Write commit messages and pull request descriptions for this repository. Use when committing, opening a pull request, or asked to write a PR body or a pull request comment.
 ---
+Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Commits and pull requests
 
@@ -41,7 +42,7 @@ Comments are counted in words because GitHub soft-wraps them. A 40-line comment
 there is 400 words, which is how the old line targets were met and missed at
 once. `writing-docs` carries that rule for everything else.
 
-`${HOME}/.codex/thunderstorm/scripts/check-commit-message.py --pr --title-file <f> --body-file <f>`
+`../../scripts/check-commit-message.py --pr --title-file <f> --body-file <f>`
 reports the title and the body, and CI runs it on every edit to either.
 
 ## Commit messages
@@ -54,7 +55,7 @@ reports the title and the body, and CI runs it on every edit to either.
 
 Types used here: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`.
 
-`${HOME}/.codex/thunderstorm/scripts/check-commit-message.py` checks the shape: the type, the
+`../../scripts/check-commit-message.py` checks the shape: the type, the
 60-character subject, the blank line, and the 72-column body. Fenced blocks,
 trailers, and unbreakable strings such as URLs are exempt from the column limit.
 

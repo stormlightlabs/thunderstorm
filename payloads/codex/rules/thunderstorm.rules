@@ -1,9 +1,8 @@
 # thunderstorm: a session does not merge or approve its own work.
 #
-# Put this in ~/.codex/rules/, or in .codex/rules/ of a trusted project.
-# A plugin install carries no permission, so nothing puts it there for
-# you. `codex execpolicy check --rules <file> -- <command>` says what a
-# command gets.
+# The plugin hook applies this policy while Thunderstorm is enabled.
+# Copy this file into a Codex rules directory only when the same policy
+# should apply outside Thunderstorm.
 
 prefix_rule(
     pattern = ["gh", "pr", "merge"],

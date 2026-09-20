@@ -2,6 +2,7 @@
 name: rubber-duck
 description: Think through a design, feature, or problem in conversation before any code or spec exists, and record the result as an idea file. Use for /r-d, /rubber-duck, ideation, design discussion, or working out an approach.
 ---
+Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Rubber duck
 
@@ -31,7 +32,7 @@ The conversation is not the artifact. When the discussion settles, or when the
 user asks, write an entry to `internal/ideas/`.
 
 ```sh
-python3 ${HOME}/.codex/thunderstorm/scripts/ulid.py
+python3 ../../scripts/ulid.py
 ```
 
 ```markdown

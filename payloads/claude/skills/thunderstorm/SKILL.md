@@ -87,11 +87,12 @@ using records nothing a later reader can check.
 
 ### Dispatch on Codex
 
-Codex loads the four role definitions as custom agents from `.codex/agents/`.
-Dispatch the agent named for the role and pass it the issue number, acceptance
-criteria, file ownership, and working directory described above. Set
-`fork_turns` to `"none"` or to a positive number when the dispatch names a
-model or reasoning effort; a full-history fork inherits the parent settings.
+Codex plugins do not register custom agents. Before each dispatch, read the
+role from `${CLAUDE_PLUGIN_ROOT}/agents/<role>.toml`, then dispatch a `default` agent with
+its `developer_instructions` and the issue number, acceptance criteria, file
+ownership, and working directory described above. Set `fork_turns` to `"none"`
+or to a positive number when the dispatch names a model or reasoning effort; a
+full-history fork inherits the parent settings.
 
 ### Dispatch on Pi
 

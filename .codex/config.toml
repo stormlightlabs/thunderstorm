@@ -1,0 +1,6 @@
+[marketplaces.stormlightlabs]
+source_type = "git"
+source = "https://github.com/stormlightlabs/thunderstorm.git"
+
+[plugins."thunderstorm@stormlightlabs"]
+enabled = true

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/fs"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +35,7 @@ func fixture(t *testing.T, artifacts string) string {
 		}
 	}
 	write("skills/review/SKILL.md",
-		"---\nname: review\n---\n\nRun `{{PLUGIN}}/scripts/check.py`; a diff touching `{{ROOT}}/` is a change.\n")
+		"---\nname: review\n---\n\nRead `{{PLUGIN}}/agents/reviewer.toml`, then run `{{PLUGIN}}/scripts/check.py`; a diff touching `{{ROOT}}/` is a change.\n")
 	write("skills/review/references/diff.md", "How to read a diff.\n")
 	write("commands/revise.md", "Use the `revise` skill.\n")
 	write("agents/reviewer.md", "---\nname: reviewer\ndescription: Review the change.\ntools: Skill, Bash, Read\n---\n\nYou review.\n")
@@ -247,6 +248,8 @@ func TestCodexCarriesCurrentPluginAndAgentFormats(t *testing.T) {
 		"plugin.json",
 		".codex-plugin/plugin.json",
 		"agents/reviewer.toml",
+		"hooks/deny-command.py",
+		"hooks/hooks.json",
 		"scripts/check.py",
 	} {
 		body(t, p, want)
@@ -255,10 +258,102 @@ func TestCodexCarriesCurrentPluginAndAgentFormats(t *testing.T) {
 	for _, want := range []string{
 		`name = "reviewer"`,
 		`sandbox_mode = "read-only"`,
-		`developer_instructions = "You review."`,
+		"Resolve paths that start with `../` from the directory containing this role file.",
+		`You review.`,
 	} {
 		if !strings.Contains(agent, want) {
 			t.Errorf("Codex agent does not carry %q:\n%s", want, agent)
+		}
+	}
+	skill := string(body(t, p, "skills/review/SKILL.md"))
+	for _, want := range []string{
+		"Resolve paths that start with `../../` from the directory containing this `SKILL.md`.",
+		"`../../agents/reviewer.toml`",
+		"`../../scripts/check.py`",
+	} {
+		if !strings.Contains(skill, want) {
+			t.Errorf("Codex skill does not carry %q:\n%s", want, skill)
+		}
+	}
+}
+
+func TestCodexPluginHookDeniesReservedCommands(t *testing.T) {
+	p, _, err := planFor(t, "codex", commandOnly)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	script := filepath.Join(t.TempDir(), "deny-command.py")
+	if err := os.WriteFile(script, body(t, p, "hooks/deny-command.py"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("python3", script)
+	cmd.Stdin = strings.NewReader(`{"tool_input":{"command":"go test ./... && git merge main"}}`)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("hook: %v", err)
+	}
+	var result struct {
+		HookSpecificOutput struct {
+			Decision string `json:"permissionDecision"`
+			Reason   string `json:"permissionDecisionReason"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal(out, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.HookSpecificOutput.Decision != "deny" {
+		t.Errorf("decision is %q", result.HookSpecificOutput.Decision)
+	}
+	if !strings.Contains(result.HookSpecificOutput.Reason, "git merge") {
+		t.Errorf("reason is %q", result.HookSpecificOutput.Reason)
+	}
+	bad := exec.Command("python3", script)
+	bad.Stdin = strings.NewReader("{")
+	if err := bad.Run(); err == nil {
+		t.Fatal("hook accepted malformed input")
+	} else if exit, ok := err.(*exec.ExitError); !ok || exit.ExitCode() != 2 {
+		t.Fatalf("malformed input exited with %v, want 2", err)
+	}
+}
+
+func TestRepositoryCodexMarketplacePointsAtPayload(t *testing.T) {
+	root := filepath.Join("..", "..")
+	marketplaceBody, err := os.ReadFile(filepath.Join(root, ".agents", "plugins", "marketplace.json"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marketplace struct {
+		Name    string
+		Plugins []struct {
+			Name   string
+			Source struct{ Path string }
+		}
+	}
+	if err := json.Unmarshal(marketplaceBody, &marketplace); err != nil {
+		t.Fatal(err)
+	}
+	if marketplace.Name != "stormlightlabs" || len(marketplace.Plugins) != 1 {
+		t.Fatalf("marketplace is %+v", marketplace)
+	}
+	plugin := marketplace.Plugins[0]
+	if plugin.Name != "thunderstorm" || plugin.Source.Path != "./payloads/codex" {
+		t.Errorf("marketplace plugin is %+v", plugin)
+	}
+	if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(strings.TrimPrefix(plugin.Source.Path, "./")), "plugin.json")); err != nil {
+		t.Errorf("marketplace source has no plugin manifest: %v", err)
+	}
+	config, err := os.ReadFile(filepath.Join(root, ".codex", "config.toml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		`[marketplaces.stormlightlabs]`,
+		`source = "https://github.com/stormlightlabs/thunderstorm.git"`,
+		`[plugins."thunderstorm@stormlightlabs"]`,
+		`enabled = true`,
+	} {
+		if !strings.Contains(string(config), want) {
+			t.Errorf("project Codex config does not carry %q:\n%s", want, config)
 		}
 	}
 }

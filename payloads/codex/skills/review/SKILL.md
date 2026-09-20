@@ -2,6 +2,7 @@
 name: review
 description: Review a pull request or branch and post findings as comments. Runs a standard pass or an adversarial pass. Use for /rev, /adv-rev, code review, PR review, or when asked to check a diff for defects before merge.
 ---
+Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Review
 
@@ -27,7 +28,7 @@ The standard passes read the change as written. The adversarial pass reads it
 as hostile input, an unlucky interleaving, or a caller who ignores the
 documentation would.
 
-`${HOME}/.codex/thunderstorm/agents/adversarial-reviewer.md` lists what it hunts and what it owes
+`../../agents/adversarial-reviewer.md` lists what it hunts and what it owes
 each finding: a named input, ordering or state, and how far you got. One rule
 is worth repeating here because it is the one that inflates a comment — prefer
 a few findings you can support to a list you cannot. One proven race changes

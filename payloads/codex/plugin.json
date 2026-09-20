@@ -4,7 +4,7 @@
     "name": "Stormlight Labs",
     "url": "https://github.com/stormlightlabs"
   },
-  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "description": "Run GitHub issues through triage, decomposition, implementation, review, and revision.",
   "keywords": [
     "development",
     "review",

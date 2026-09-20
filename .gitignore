@@ -6,6 +6,14 @@
 !CLAUDE.md
 !**/CLAUDE.md
 
+# These Codex files are part of the integration, even when a user's global
+# excludes treat agent configuration as machine-local.
+!/.agents/
+!/.agents/plugins/
+!/.agents/plugins/marketplace.json
+!/.codex/
+!/.codex/config.toml
+
 # Per-machine harness settings stay out, unlike the checked-in settings.json
 # a payload ships.
 **/.claude/settings.local.json

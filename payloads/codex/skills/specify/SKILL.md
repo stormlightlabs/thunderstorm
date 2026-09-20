@@ -2,6 +2,7 @@
 name: specify
 description: Turn an idea into a design document a decomposition can read. Use for /spec-ify, /specify, or when an idea cannot yet produce issues because something has to be decided first.
 ---
+Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Specify
 
@@ -33,7 +34,7 @@ internal/features/<feature-name>/plan.md
 
 One directory per feature track, named for the feature rather than for the
 change. Every file under `internal/` carries the frontmatter that
-`${HOME}/.codex/thunderstorm/scripts/check-frontmatter.py` requires:
+`../../scripts/check-frontmatter.py` requires:
 
 ```yaml
 ---
@@ -43,7 +44,7 @@ id: <ULID>
 ---
 ```
 
-Generate the identifier with `${HOME}/.codex/thunderstorm/scripts/ulid.py`. The idea the spec came
+Generate the identifier with `../../scripts/ulid.py`. The idea the spec came
 from cites its own identifier, and issues cut from the spec cite the spec's, so
 the trail reads from either end.
 

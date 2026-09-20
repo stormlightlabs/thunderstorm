@@ -4,6 +4,8 @@ agents/adversarial-reviewer.toml
 agents/implementer.toml
 agents/reviewer.toml
 agents/reviser.toml
+hooks/deny-command.py
+hooks/hooks.json
 plugin.json
 prompts/adv-rev.md
 prompts/decomp.md

@@ -1,0 +1,20 @@
+{
+  "name": "stormlightlabs",
+  "interface": {
+    "displayName": "Stormlight Labs"
+  },
+  "plugins": [
+    {
+      "name": "thunderstorm",
+      "source": {
+        "source": "local",
+        "path": "./payloads/codex"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

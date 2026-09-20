@@ -182,8 +182,8 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 		}
 		if strings.HasSuffix(src, ".md") {
 			body = bytes.ReplaceAll(body, []byte(rootToken), []byte(t.Root))
-			if t.Plugin != "" {
-				body = bytes.ReplaceAll(body, []byte(pluginToken), []byte(t.Plugin))
+			if pluginRoot := t.pluginRoot(a); pluginRoot != "" {
+				body = bytes.ReplaceAll(body, []byte(pluginToken), []byte(pluginRoot))
 			}
 			if found := leftoverToken.Find(body); found != nil {
 				return nil, fmt.Errorf("artifact %q: %s names %s, which %s has no value for",

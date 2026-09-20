@@ -2,6 +2,7 @@
 name: implement
 description: Work a GitHub issue end to end on its own branch and open a pull request against main. Use for /impl, /implement, or when asked to start work on an issue number.
 ---
+Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Implement
 
@@ -122,9 +123,9 @@ The title and body become the squash commit, verbatim. Write them to that:
   a `Not covered` line that is not empty.
 
 `commits-and-prs` carries the rest, and
-`${HOME}/.codex/thunderstorm/scripts/check-commit-message.py --pr` reports both before the merge.
+`../../scripts/check-commit-message.py --pr` reports both before the merge.
 
-Push with `${HOME}/.codex/thunderstorm/scripts/push-verified.sh`, which compares the remote ref to
+Push with `../../scripts/push-verified.sh`, which compares the remote ref to
 local `HEAD` afterwards. `git push` exits zero for a push that carried nothing,
 so its exit code is not evidence that the branch moved.
 

@@ -3,7 +3,7 @@
     "name": "Stormlight Labs",
     "url": "https://github.com/stormlightlabs"
   },
-  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "description": "Run GitHub issues through triage, decomposition, implementation, review, and revision.",
   "interface": {
     "capabilities": [
       "Read",
@@ -11,11 +11,11 @@
     ],
     "category": "Developer Tools",
     "defaultPrompt": [
-      "Use the thunderstorm skill to run issue $ARGUMENTS."
+      "Run an issue and its sub-issues with Thunderstorm."
     ],
     "developerName": "Stormlight Labs",
     "displayName": "Thunderstorm",
-    "longDescription": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+    "longDescription": "Run GitHub issues through triage, decomposition, implementation, review, and revision.",
     "shortDescription": "Run issues through implementation and review."
   },
   "name": "thunderstorm",

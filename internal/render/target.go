@@ -1,6 +1,7 @@
 package render
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -28,6 +29,9 @@ type Target struct {
 	// {{PLUGIN}} then stops that target's render rather than guessing.
 	Root   string
 	Plugin string
+	// pluginFor overrides Plugin when an artifact's location inside a package
+	// changes the relative path back to the package root.
+	pluginFor func(Artifact) string
 
 	provides map[string]bool
 	dirs     map[Kind]string
@@ -92,7 +96,7 @@ func codexTarget() *Target {
 	return &Target{
 		Name:   "codex",
 		Root:   ".codex",
-		Plugin: "${HOME}/.codex/thunderstorm",
+		Plugin: "..",
 		provides: map[string]bool{
 			CapSkills: true, CapCommands: true, CapSubagents: true,
 			CapHooks: true, CapScripts: true, CapPermissions: true,
@@ -103,6 +107,12 @@ func codexTarget() *Target {
 		},
 		extras:    codexExtras,
 		transform: codexTransform,
+		pluginFor: func(a Artifact) string {
+			if a.Kind == KindSkill {
+				return "../.."
+			}
+			return ".."
+		},
 	}
 }
 
@@ -167,6 +177,13 @@ func (t *Target) reason(key string) string {
 		return why
 	}
 	return fmt.Sprintf("target table records no reason for %s", key)
+}
+
+func (t *Target) pluginRoot(a Artifact) string {
+	if t.pluginFor != nil {
+		return t.pluginFor(a)
+	}
+	return t.Plugin
 }
 
 // claudeExtras writes the three files Claude Code needs that are not copied
@@ -239,20 +256,19 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 	return files, nil
 }
 
-// codexExtras writes the policy as execpolicy rules, which is what Codex
-// checks a command against: one Starlark prefix_rule per command, decided
-// forbidden. A person puts the file under ~/.codex/rules/ or a trusted
-// project's .codex/rules/, since no plugin mechanism carries a permission.
+// codexExtras packages the workflow for Codex and writes its command policy
+// twice. The plugin hook applies while the plugin is enabled. The execpolicy
+// file remains available to repositories that also want the policy outside a
+// Thunderstorm session.
 //
 // Verified with codex execpolicy check on codex-cli 0.146.0, 2026-09-19.
 func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
 	var b strings.Builder
 	b.WriteString("# thunderstorm: a session does not merge or approve its own work.\n")
 	b.WriteString("#\n")
-	b.WriteString("# Put this in ~/.codex/rules/, or in .codex/rules/ of a trusted project.\n")
-	b.WriteString("# A plugin install carries no permission, so nothing puts it there for\n")
-	b.WriteString("# you. `codex execpolicy check --rules <file> -- <command>` says what a\n")
-	b.WriteString("# command gets.\n")
+	b.WriteString("# The plugin hook applies this policy while Thunderstorm is enabled.\n")
+	b.WriteString("# Copy this file into a Codex rules directory only when the same policy\n")
+	b.WriteString("# should apply outside Thunderstorm.\n")
 	for _, cmd := range m.Policy.Deny {
 		fields := strings.Fields(cmd)
 		quoted := make([]string, 0, len(fields))
@@ -278,7 +294,7 @@ func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
 			"developerName":    m.Author.Name,
 			"category":         "Developer Tools",
 			"capabilities":     []string{"Read", "Write"},
-			"defaultPrompt":    []string{"Use the thunderstorm skill to run issue $ARGUMENTS."},
+			"defaultPrompt":    []string{"Run an issue and its sub-issues with Thunderstorm."},
 		},
 	})
 	if err != nil {
@@ -297,16 +313,75 @@ func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
+	denied, err := json.Marshal(m.Policy.Deny)
+	if err != nil {
+		return nil, err
+	}
+	hooks, err := marshal(map[string]any{
+		"hooks": map[string]any{
+			"PreToolUse": []any{map[string]any{
+				"matcher": "Bash",
+				"hooks": []any{map[string]any{
+					"type":          "command",
+					"command":       "python3 ${PLUGIN_ROOT}/hooks/deny-command.py",
+					"timeout":       5,
+					"statusMessage": "Checking Thunderstorm command policy",
+				}},
+			}},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	denyHook := `#!/usr/bin/env python3
+import json
+import re
+import sys
+
+DENIED = ` + string(denied) + `
+
+
+def command_pattern(prefix):
+    words = [r'''["']?''' + re.escape(word) + r'''["']?''' for word in prefix.split()]
+    return re.compile(r'''(^|[;&|()\n]\s*)''' + r'''\s+'''.join(words) + r'''(?=\s|$|[;&|()])''')
+
+
+try:
+    event = json.load(sys.stdin)
+    command = event.get("tool_input", {}).get("command", "")
+except (AttributeError, json.JSONDecodeError):
+    print("Thunderstorm could not inspect the shell command.", file=sys.stderr)
+    raise SystemExit(2)
+if not isinstance(command, str):
+    print("Thunderstorm received a shell command in an unknown format.", file=sys.stderr)
+    raise SystemExit(2)
+for prefix in DENIED:
+    if command_pattern(prefix).search(command):
+        json.dump({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "deny",
+                "permissionDecisionReason": prefix + " is reserved for a human in a Thunderstorm run.",
+            }
+        }, sys.stdout)
+        break
+`
 	return []File{
 		{Path: ".codex-plugin/plugin.json", Body: compatibility},
+		{Path: "hooks/deny-command.py", Body: []byte(denyHook), Mode: 0o755},
+		{Path: "hooks/hooks.json", Body: hooks},
 		{Path: "plugin.json", Body: portable},
 		{Path: "rules/thunderstorm.rules", Body: []byte(b.String())},
 	}, nil
 }
 
-// codexTransform turns the shared Markdown role definition into the custom
-// agent TOML that current Codex clients load from .codex/agents/.
+// codexTransform gives plugin skills relative paths and turns each shared role
+// into TOML the orchestrator can pass to a built-in Codex agent. The same TOML
+// also works as a project or personal custom-agent file.
 func codexTransform(a Artifact, body []byte) ([]byte, error) {
+	if a.Kind == KindSkill && bytes.Contains(body, []byte("../../")) {
+		return addCodexPathNote(body), nil
+	}
 	if a.Kind != KindAgent {
 		return body, nil
 	}
@@ -325,8 +400,21 @@ func codexTransform(a Artifact, body []byte) ([]byte, error) {
 	fmt.Fprintf(&b, "name = %s\n", strconv.Quote(fields["name"]))
 	fmt.Fprintf(&b, "description = %s\n", strconv.Quote(fields["description"]))
 	fmt.Fprintf(&b, "sandbox_mode = %s\n", strconv.Quote(sandbox))
+	prompt = "Resolve paths that start with `../` from the directory containing this role file.\n\n" + prompt
 	fmt.Fprintf(&b, "developer_instructions = %s\n", strconv.Quote(prompt))
 	return []byte(b.String()), nil
+}
+
+func addCodexPathNote(body []byte) []byte {
+	const note = "Resolve paths that start with `../../` from the directory containing this `SKILL.md`.\n"
+	text := string(body)
+	if strings.HasPrefix(text, "---\n") {
+		if end := strings.Index(text[4:], "\n---\n"); end >= 0 {
+			at := end + 9
+			return []byte(text[:at] + note + text[at:])
+		}
+	}
+	return append([]byte(note), body...)
 }
 
 func roleParts(text string) (map[string]string, string, error) {
