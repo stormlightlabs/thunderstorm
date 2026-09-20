@@ -1,27 +1,22 @@
 # Roadmap
 
-What is left, in the order the week runs. Finished work is in
-[CHANGELOG.md](CHANGELOG.md).
-
-Four issues are tracks rather than work: [#4], [#11], [#14] and, at the top of
-its own tree, [#1]. Most sections below are one of those, with the issues you
-pick up in the table under it. Section 2 is a single issue lifted out of [#14]
-because of when it has to happen, and section 6 holds what has no parent. The
-board is the **Thunderstorm** track of
+What is left, in the order to do it. Finished work is in
+[CHANGELOG.md](CHANGELOG.md), and the board is the **Thunderstorm** track of
 [project 13](https://github.com/orgs/stormlightlabs/projects/13).
 
-## Publishing waits a week
+[#4], [#11] and [#14] are tracks rather than work. Everything below sits under
+one of them or under nothing.
+
+## Before the tag
 
 The tag comes no earlier than 2026-09-26, and later if the work below is not
-done.
+done. A git tag publishes nothing by itself: the first fetch through
+proxy.golang.org does, and that version is immutable, so the README it carries
+is what pkg.go.dev serves from then on. The README, the install page and the
+payload are what a tag freezes.
 
-A git tag does not publish anything by itself. The first fetch through
-proxy.golang.org does, and that version is immutable: the README it carries is
-what pkg.go.dev serves for it from then on. The README, the install page and
-the payload are what a tag freezes, so they come first.
-
-Nothing is blocked in the meantime. `go install` reaches GitHub directly
-without the proxy, checked on 2026-09-19:
+Nothing waits on the tag. `go install` reaches GitHub without the proxy,
+checked on 2026-09-19:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
@@ -29,153 +24,80 @@ GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 
 That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
 
-## Before anything else
+## The sequence
 
-The workflow source lives at `workflow/` now. It is the `trps` copy, which
-carries the Projects V2 migration that `docs/internal/thunderstorm.md` still
-describes as labels. Settling that description is still open, and so is
-folding in what `thndrs` has and `trps` does not: the `release` command and
-skill, `sync-labels.py`, and `tui-capture.sh`. Neither has an issue.
+1. [#19], the release. Linux and macOS binaries with the version set at link
+   time, so a hook can fetch one without a module proxy. The skills call
+   `tstorm` by name now, and the payloads carry no scripts, so everything after
+   this assumes the binary is on `PATH`. Homebrew and the tagged module are the
+   same issue's second half and come with the tag.
 
-## 1. The other three harnesses: [#11]
+2. A real run outside Claude Code, which is what [#11] waits for. Install on
+   `trps` through the marketplace, which takes a local path, confirm `/decomp`
+   and `/impl`, then take one issue through implementation and review on Codex
+   or Pi.
 
-| Issue |                                             |
-| ----- | ------------------------------------------- |
-| [#8]  | Dispatch on Pi uses multiplexer tabs, not built-in subagents |
-| [#9]  | Merge denial is a Claude Code setting only  |
-| [#13] | Nothing in the loop reaches Cursor          |
+3. [#18], one gate on a hook. Codex's hook events and wire format are Claude
+   Code's names almost exactly, so one script covers both behind thin adapters
+   and Pi's TypeScript extension is the only per-harness code to maintain. A
+   Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a
+   real install.
 
-The renderer work for Codex and Pi is present. This track now waits on a real
-run outside Claude Code and the remaining Cursor work.
+4. [#22], then [#23]. `render --out` reaches only a directory tstorm created,
+   because it refuses one holding files its marker does not list, and a
+   repository keeps its own settings, hooks and worktrees in that directory.
+   [#22] leaves those alone; [#23] takes over a directory carrying no marker,
+   which is every repository that installed by copying.
 
-These three and [#7] all waited on [#10], which is closed. [#7] is done on
-this branch: commands render into `prompts/` for Codex and Pi. Codex agents and
-the Pi package now render too.
+5. [#2], then [#13]. [#2] decides whether Cursor and OpenCode Go carry roles,
+   and [#13] is held behind it on the board. Cursor reads `.agents/skills/`,
+   the directory Codex and Pi already need, so its skills cost a target in the
+   renderer rather than a copy of the source. Nothing here has run Cursor,
+   which is the first thing [#13] should fix.
 
-Both harnesses now have payloads. Pi installs the repository as a package.
-Codex installs from the repository's marketplace, either for the user or from
-a trusted project's configuration. The project can override the user's enabled
-state.
+6. [#15], the board writes. The largest of [#14]'s children, and nothing waits
+   on it.
 
-[#8] is done on this branch: `tstorm dispatch` starts a Pi session in a tmux
-window or Zellij tab for a role and hands the run its report. The Pi package
-carries the check scripts and sets their installed path through its extension.
-[#16] still moves
-those checks into the binary so they no longer need Python or copied scripts.
+7. [#6] and [#3]. The review protocol agrees with itself only by inspection,
+   and a document is still named after its filename, so `hooks/plan.md` and
+   `mcp/plan.md` are both called `plan`.
 
-[#9] is done on this branch: the manifest names the four denied commands and
-each target writes its own harness's spelling of them. Codex's enabled plugin
-blocks them with a `PreToolUse` hook and also carries optional execpolicy rules;
-Pi's package extension blocks the same prefixes before its `bash` tool runs.
+8. [#21], then [#20]. [#21] waited on the renderer and is free. [#20] waits on
+   the release in step 1.
 
-[#13] costs less than it looked. Cursor reads `.agents/skills/`, the same
-directory the Codex and Pi payloads need, so its skills cost a target in the
-renderer rather than a third copy of the source. It has subagents as of its
-2.4 release. All of that is from Cursor's documentation, and nothing here has
-run it, which is the first thing [#13] should fix. [#2] still decides whether
-Cursor and OpenCode Go carry roles at all.
-
-## 2. Ship the binary from GitHub: [#19]
-
-A GitHub release carrying built binaries for linux and macOS, with the version
-and commit set at link time. A hook on any harness can fetch one, and it needs
-no module proxy and no permanent tag.
-
-That is the half of [#19] the week needs. Homebrew and the tagged module are
-the same issue's other half, and they come after the harness work, alongside
-the tag. [#19] also blocks [#20].
-
-[#19] belongs to [#14] below, and sits here because the binary has to be
-reachable before anything asks a harness to run it.
-
-## 3. Install it somewhere: [#1]
-
-The payload builds and installs on Claude Code, and payloads now exist for
-Codex and Pi. None has completed the cross-harness run that [#11] requires:
-install on `trps`, confirm `/decomp` and `/impl`, then take one issue through
-implementation and review on Codex or Pi.
-
-GitHub holds [#1] behind [#7] and [#8]. Both are done on this branch and close
-when it lands.
-
-## 4. The rest of the checks: [#14]
-
-| Issue |                                                                   |
-| ----- | ----------------------------------------------------------------- |
-| [#16] | `tstorm check`: port the Python gates to one binary               |
-| [#18] | Run a gate from a hook on Claude Code, Codex, and Pi              |
-| [#15] | `tstorm board`: move board writes off labels and onto Projects V2 |
-
-[#16] is done on this branch. The five Python and shell checks are gone and
-`tstorm check` runs them, with `tstorm push` and `tstorm ulid` beside it; the
-payloads carry no `scripts/` directory at all. That closes [#5], which wanted a
-push to refuse a `HEAD` on another worker's branch, and the directory half of
-[#3]. It also means an installed payload needs `tstorm` on `PATH`, which is
-what puts [#19] ahead of the harness work in section 2.
-
-[#18] wires a gate to a hook, and is cheaper than it first looked: Codex's hook
-events and wire format turned out to be Claude Code's names almost exactly, so
-one script covers both behind thin adapters, and Pi's TypeScript extension is
-the only per-harness code to maintain. A
-Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a real
-install, so the renderer already has somewhere to put one.
-
-[#15] last, and it is the largest of the three.
-
-## 5. Claims nothing checks: [#4]
-
-| Issue |                                                            |
-| ----- | ---------------------------------------------------------- |
-| [#2]  | Assign OpenCode Go and Cursor roles, or drop them          |
-| [#6]  | Nothing checks that the review protocol agrees with itself |
-| [#12] | Nothing checks prose against the tells it catalogues       |
-
-Each of these is something the workflow asserts and nothing verifies: which
-model carries a role, that the review protocol agrees with itself, that the
-prose meets the standard it publishes. [#5] was the fourth and closed with
-[#16]. [#2] is the one section 1 waits on, for Cursor.
+## Parked
 
 [#12] is blocked outside this repository. The tropius baseline is 387 findings,
-and on 2026-09-19 its rhetorical detectors reported nothing against prose that
-was full of catalogued tells, which a reader caught by hand. Seven issues in
-`stormlightlabs/trps` under **Usable as a linter** carry the calibration.
-Wiring the gate before those land ships a check people learn to ignore.
+and on 2026-09-19 its rhetorical detectors reported nothing against prose full
+of catalogued tells that a reader caught by hand. Seven issues in
+`stormlightlabs/trps` under **Usable as a linter** carry the calibration, and
+wiring the gate before those land ships a check people learn to ignore.
+
+Two things have no issue. `docs/internal/thunderstorm.md` still describes the
+board as labels, which the Projects V2 migration replaced. And what `thndrs`
+has that `workflow/` does not has not been folded in: the `release` command and
+skill, `sync-labels.py`, and `tui-capture.sh`.
 
 [#4] also holds three issues in `stormlightlabs/thunderus`.
 
-## 6. No parent
+## Run it here
 
-| Issue |                                                              |
-| ----- | ------------------------------------------------------------ |
-| [#3]  | Make the plans-and-ideas convention work outside thunderus   |
-| [#20] | Investigate: record a real run as the home page cast         |
-| [#21] | Investigate: generate the fan-out diagram from the real tree |
+The payload installs, so run the loop on this repository. The issues above are
+its first real workload, and whatever breaks is a finding you would otherwise
+meet on somebody else's repository.
 
-[#21] waited on the renderer and is free now. [#20] waits on [#19].
-
-## Run it on this repository
-
-The payload installs, so run the loop here. The issues above
-become its first real workload, and whatever breaks is a finding you would
-otherwise meet on somebody else's repository.
-
-[#1]: https://github.com/stormlightlabs/thunderstorm/issues/1
 [#2]: https://github.com/stormlightlabs/thunderstorm/issues/2
 [#3]: https://github.com/stormlightlabs/thunderstorm/issues/3
 [#4]: https://github.com/stormlightlabs/thunderstorm/issues/4
-[#5]: https://github.com/stormlightlabs/thunderstorm/issues/5
 [#6]: https://github.com/stormlightlabs/thunderstorm/issues/6
-[#7]: https://github.com/stormlightlabs/thunderstorm/issues/7
-[#8]: https://github.com/stormlightlabs/thunderstorm/issues/8
-[#9]: https://github.com/stormlightlabs/thunderstorm/issues/9
-[#10]: https://github.com/stormlightlabs/thunderstorm/issues/10
 [#11]: https://github.com/stormlightlabs/thunderstorm/issues/11
 [#12]: https://github.com/stormlightlabs/thunderstorm/issues/12
 [#13]: https://github.com/stormlightlabs/thunderstorm/issues/13
 [#14]: https://github.com/stormlightlabs/thunderstorm/issues/14
 [#15]: https://github.com/stormlightlabs/thunderstorm/issues/15
-[#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#19]: https://github.com/stormlightlabs/thunderstorm/issues/19
 [#20]: https://github.com/stormlightlabs/thunderstorm/issues/20
 [#21]: https://github.com/stormlightlabs/thunderstorm/issues/21
+[#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
+[#23]: https://github.com/stormlightlabs/thunderstorm/issues/23

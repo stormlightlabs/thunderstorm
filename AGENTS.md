@@ -70,11 +70,14 @@ pull request targets that become the squash commit.
 
 ## Closing an issue
 
-A commit closes its issue with a `Closes #NN` line above the trailers. GitHub
-acts on that keyword only when the commit reaches the default branch, which
-here is `main`, so a commit merged through `edge` links the issue and leaves it
-open until release. Say `Closes #NN` when the work finishes the issue, and name
-the issue without the keyword when it only advances it.
+A commit closes its issue with a `Closes #NN` line at the end. GitHub acts on
+that keyword only when the commit reaches the default branch, which here is
+`main`, so a commit merged through `edge` links the issue and leaves it open
+until release.
+
+A closing keyword is the only issue reference a message carries. A line like
+`Advances #18` changes nothing on GitHub; say what remains in a comment on the
+issue.
 
 GitHub also refuses to close an issue that still has open blocking
 dependencies. Check `gh issue view <n>` for a `blocked-by:` line before relying
