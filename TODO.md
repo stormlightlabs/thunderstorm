@@ -45,28 +45,27 @@ skill, `sync-labels.py`, and `tui-capture.sh`. Neither has an issue.
 | [#9]  | Merge denial is a Claude Code setting only  |
 | [#13] | Nothing in the loop reaches Cursor          |
 
-This is the week's work, and it comes first because publishing now would ship
-a loop that runs on Claude Code and nothing else.
+The renderer work for Codex and Pi is present. This track now waits on a real
+run outside Claude Code and the remaining Cursor work.
 
 These three and [#7] all waited on [#10], which is closed. [#7] is done on
-this branch: commands render into `prompts/` for Codex and Pi, so the renderer
-stops on the review fan-out for both.
+this branch: commands render into `prompts/` for Codex and Pi. Codex agents and
+the Pi package now render too.
 
-Both harnesses install from GitHub already, checked on 2026-09-19:
-`codex plugin marketplace add owner/repo[@ref]` then `codex plugin add`, and
-`pi install git:github.com/user/repo`. What they lack is a payload worth
-installing.
+Both harnesses now have payloads. Pi installs the repository as a package.
+Codex's payload is copied into its skill, prompt, agent, and rule directories;
+its portable plugin manifest is ready for a Codex marketplace entry once the
+repository can carry a second marketplace beside Claude Code's.
 
-[#8] is done on this branch: `tstorm dispatch` starts a pi session in a tmux
-pane for a role and hands the run its report, and `docs/internal/hosts.md`
-records what that role may reach there. The pi payload still stops on the check
-scripts, which is [#16].
+[#8] is done on this branch: `tstorm dispatch` starts a Pi session in a tmux
+pane for a role and hands the run its report. The Pi package carries the check
+scripts and sets their installed path through its extension. [#16] still moves
+those checks into the binary so they no longer need Python or copied scripts.
 
 [#9] is done on this branch: the manifest names the four denied commands and
 each target writes its own harness's spelling of them. Codex gets execpolicy
-rules, checked with `codex execpolicy check`; Pi gets a line under the render
-saying it stops nothing. No harness carries a permission through an install,
-so every one of those files is put in place by hand.
+rules, checked with `codex execpolicy check`; Pi's package extension blocks the
+same prefixes before its `bash` tool runs.
 
 [#13] costs less than it looked. Cursor reads `.agents/skills/`, the same
 directory the Codex and Pi payloads need, so its skills cost a target in the
@@ -90,9 +89,10 @@ reachable before anything asks a harness to run it.
 
 ## 3. Install it somewhere: [#1]
 
-The payload builds and installs on Claude Code. What it has not done is run
-anywhere else: install on `trps`, confirm `/decomp` and `/impl` work there,
-then do the same on whichever of Codex and Pi section 1 finishes first.
+The payload builds and installs on Claude Code, and payloads now exist for
+Codex and Pi. None has completed the cross-harness run that [#11] requires:
+install on `trps`, confirm `/decomp` and `/impl`, then take one issue through
+implementation and review on Codex or Pi.
 
 GitHub holds [#1] behind [#7] and [#8]. Both are done on this branch and close
 when it lands.

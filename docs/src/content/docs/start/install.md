@@ -5,8 +5,7 @@ sidebar:
   order: 2
 ---
 
-Every harness installs from this repository, and Claude Code is the one with a
-payload today.
+Thunderstorm ships payloads for Claude Code, Codex, and Pi.
 
 ## Claude Code
 
@@ -20,24 +19,42 @@ session. `marketplace add` also takes an HTTPS URL, an SSH URL, or a local
 path. Twelve skills, sixteen commands and four agents arrive; `claude plugin
 details thunderstorm` lists them and what they cost a session.
 
-## Codex and Pi
+## Codex
 
-Neither installs yet, and commands are no longer the reason. Both render now:
-Pi reads a package's `prompts/`, and Codex reads `~/.codex/prompts`, which the
-payload carries for you to copy. What stops both is the review fan-out. Codex
-dispatches a skill carrying its own sidecar rather than an agent file, and a
-role on Pi is a session in a tmux pane that `tstorm dispatch` starts, so a pi
-payload has nowhere to put a role definition.
+Render the payload, then copy its resources into the directories Codex reads:
 
-`tstorm render --target codex` stops and says so rather than building a payload
-that installs and then skips half the loop. The issues that would close each
-gap are named in the failure.
+```sh
+go run ./cmd/tstorm render --target codex
+mkdir -p ~/.codex/thunderstorm ~/.codex/skills ~/.codex/prompts ~/.codex/agents ~/.codex/rules
+cp -R payloads/codex/. ~/.codex/thunderstorm/
+cp -R payloads/codex/skills/. ~/.codex/skills/
+cp payloads/codex/prompts/*.md ~/.codex/prompts/
+cp payloads/codex/agents/*.toml ~/.codex/agents/
+cp payloads/codex/rules/*.rules ~/.codex/rules/
+```
+
+The first copy gives the installed skills a fixed path to their scripts. The
+other four put each resource where Codex discovers it. Start a new Codex
+session after copying them.
+
+## Pi
+
+Install `tstorm`, then install the repository as a Pi package:
+
+```sh
+GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
+pi install git:github.com/stormlightlabs/thunderstorm
+```
+
+The package loads the skills, prompts, and extension from `payloads/pi`. The
+extension supplies the package path used by the scripts and blocks the four
+merge and push command prefixes. `tstorm dispatch` starts each role in its own
+Pi session and tmux pane.
 
 ## The checks
 
 The checks the skills call are Python scripts inside the installed payload, so
-they need `python3`. `tstorm` itself is what builds a payload, and you need it
-only to render one:
+they need `python3`. Pi also needs `tstorm` for role dispatch. Install it with:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
@@ -63,9 +80,9 @@ names none leaves an agent to guess.
 
 ### The deny rules
 
-No plugin mechanism on any harness carries a permission, so an installed
-payload cannot stop a session merging its own work. Each payload ships the
-rules in its own harness's terms, for you to merge into your settings.
+Claude Code and Codex do not install permission rules with a plugin. Their
+payloads carry files for you to copy into the settings each harness reads. Pi
+loads its command gate from the package extension.
 
 Claude Code reads them as one rule per command. Merge the payload's
 `settings.json` into your repository's `.claude/settings.json`:
@@ -106,10 +123,10 @@ any command gets:
 codex execpolicy check --rules ~/.codex/rules/thunderstorm.rules -- gh pr merge 12
 ```
 
-Pi stops nothing, and there is no file to give it. It ships no sandbox and
-leaves isolation to the operating system or a container, so the merge rule is
-prose a session can skip rather than a command that fails. Keep a human
-between a Pi session and anything you cannot undo.
+Pi ships no sandbox, but its thunderstorm extension rejects the same four
+command prefixes before its `bash` tool runs. The extension is not process
+isolation: keep Pi inside an operating-system sandbox or container when the
+repository needs one.
 
 ### Your board
 

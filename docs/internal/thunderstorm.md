@@ -181,7 +181,7 @@ An alias is a symlink to its canonical file, so the pair cannot drift.
 A run covers one issue. Several are open at once, sub-issues accumulate under
 all of them, and work arrives that belongs to none. `/triage` answers the
 question a run cannot: of everything queued, which issues go out now, and which
-of those are safe to work at the same time. The `triage` skill holds the
+can run at the same time. The `triage` skill holds the
 buckets, the ordering and the reading; what follows is why it is shaped that
 way.
 
@@ -253,8 +253,8 @@ failure the whole review sequence exists to prevent.
 
 How much of that is a check depends on the harness. The manifest names the
 four commands and the renderer writes each harness's own spelling of them:
-deny rules for Claude Code, forbidden execpolicy rules for Codex, and for Pi
-no file at all, which a render reports as a limit of the payload.
+deny rules for Claude Code, forbidden execpolicy rules for Codex, and a Pi
+extension that blocks the same prefixes before its `bash` tool runs.
 [hosts.md](hosts.md#permissions) has what each one enforces.
 
 The implementer and the reviewer never share a model in one run.
@@ -267,7 +267,7 @@ not, and [models.md](models.md) names the harnesses the loop will run at all.
 | Harness             | A pass is                                                        |
 | ------------------- | ---------------------------------------------------------------- |
 | Claude Code         | a subagent the harness provisions from a definition under `agents/` |
-| Codex               | `spawn_agent`, forked with `fork_turns` so the dispatch picks the model |
+| Codex               | a custom agent, forked with `fork_turns` so the dispatch picks the model |
 | Pi                  | `tstorm dispatch`: one pi session in a detached tmux pane         |
 | OpenCode Go, Cursor | nothing. Both are unsupported, with the reason in `models.md`     |
 
@@ -391,8 +391,9 @@ and the directory does not.
 
 Role definitions live in `.claude/agents/`: `implementer`, `reviewer`,
 `adversarial-reviewer`, and `reviser`, one per role the run dispatches. Claude
-Code reads them as subagent definitions. `tstorm dispatch` reads the same four
-from a copy inside the binary, because a pi package has nowhere to put them.
+Code reads them as subagent definitions. Codex receives them as custom-agent
+TOML files. The Pi package carries a reference copy, while `tstorm dispatch`
+reads the definitions embedded in the binary.
 
 Each definition's `tools:` line is an allowlist, so a role reaches GitHub only
 through the tools it names. A cloud run is the case that exposes this: the

@@ -9,20 +9,17 @@ and `codex-cli` 0.146.0.
 
 |          | Claude Code         | Codex                               | Pi                               |
 | -------- | ------------------- | ----------------------------------- | -------------------------------- |
-| Payload  | **installs today**  | no                                  | no                               |
+| Payload  | plugin              | copied into Codex's resource roots  | Pi package                       |
 | Skills   | `.claude/skills/`   | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
 | Commands | `.claude/commands/` | `~/.codex/prompts/`                 | `.pi/prompts/`                   |
-| Dispatch | subagents           | `spawn_agent`                       | a session per tmux pane          |
+| Dispatch | subagents           | custom agents                       | a session per tmux pane          |
 | Checks   | hooks               | hooks                               | an extension                     |
-| Merging  | deny rules          | a forbidden execpolicy rule         | nothing stops it                 |
+| Merging  | deny rules          | a forbidden execpolicy rule         | extension blocks the prefixes    |
 
-The table is where each agent *would* read a payload, not a claim that one
-exists. Only Claude Code has one. Commands reach all three now, rendered into
-`prompts/` for Codex and Pi; what stops those payloads is the review fan-out.
-Codex dispatches it from a skill carrying its own sidecar, and Pi runs a role
-as a session in a tmux pane that `tstorm dispatch` starts, so a pi payload has
-nowhere to put a role definition. The renderer refuses to build for either
-rather than installing a loop with its review passes missing.
+The renderer builds all three payloads from the same skills, commands, role
+definitions, and scripts. Codex role definitions become `.toml` custom agents.
+Pi carries the Markdown definitions for reference while `tstorm dispatch` uses
+the same definitions embedded in the binary.
 
 `.agents/skills/` is read by both Codex and Pi, so one directory serves them
 together. Claude Code reads only `.claude/skills/`, which is why each agent gets
@@ -45,19 +42,20 @@ Pi has no subagent mechanism. A worker there is a separate `pi` session running
 in a tmux pane, given its model, thinking level, and tool list as command-line
 arguments.
 
+Codex loads each role from `.codex/agents/*.toml`. Reviewer roles run read-only;
+implementer and reviser roles may write in their worktree.
+
 ## Only a human merges
 
 The loop denies four commands: `gh pr merge`, `gh pr review`, `git push` and
 `git merge`. Claude Code takes them as written, one deny rule each. Codex
 checks a command against execution-policy rules, so the same four arrive as a
 `prefix_rule` apiece, decided `forbidden`, which blocks the command without a
-prompt. Pi stops nothing: it ships no sandbox and leaves isolation to the
-operating system or a container, so there the rule is prose a session can
-skip.
+prompt. Pi's package extension intercepts its `bash` tool and blocks the same
+prefixes. Pi still leaves process isolation to the operating system or a
+container.
 
-[Install](/start/install/#the-deny-rules) has the file each agent reads. None
-of them arrives with the payload, because no plugin mechanism carries a
-permission.
+[Install](/start/install/#the-deny-rules) explains what each harness loads.
 
 ## Choosing a model
 

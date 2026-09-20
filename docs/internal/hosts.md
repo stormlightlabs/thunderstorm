@@ -1,6 +1,6 @@
 ---
 name: hosts
-last_updated: 2026-09-19
+last_updated: 2026-09-20
 id: 01M2YGPF6QM3YGDKFDVGP3BR7W
 ---
 
@@ -53,7 +53,7 @@ Skills are the portable part. The rest varies, but less than it first appears.
 | Resource  | Claude Code             | Pi                   | Codex                   |
 | --------- | ----------------------- | -------------------- | ----------------------- |
 | Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`, or a package's `prompts/` | `~/.codex/prompts/*.md` |
-| Subagents | `.claude/agents/*.md`   | none; tmux instead   | built in, on by default |
+| Subagents | `.claude/agents/*.md`   | none; tmux instead   | `.codex/agents/*.toml`  |
 | Hooks     | `.claude/settings.json` | extensions (TS/JS)   | `hooks.json`            |
 | Themes    | none                    | `.pi/themes/*.json`  | `config.toml`           |
 
@@ -80,8 +80,7 @@ otherwise.
 
 ## Dispatch
 
-Three harnesses, three mechanisms, and the review fan-out has to be expressed in
-all of them.
+Each harness expresses review dispatch differently.
 
 **Codex has a real multi-agent system**, stable and enabled by default: the
 `multi_agent` feature is on, and the model is told it is `/root` in a team. The
@@ -104,13 +103,15 @@ model is therefore not merely a convention on Codex; a dispatch that forgets
 `fork_turns` silently violates it. `default_subagent_model` and
 `default_subagent_reasoning_effort` in `config.toml` set the fallback.
 
-A skill becomes a dispatchable agent by carrying `agents/openai.yaml` beside its
-`SKILL.md`, which names the display metadata and a
-`policy.allow_implicit_invocation` flag; Codex's own `review-agent` is built
-this way and is invoked as `$review-agent`.
+Codex loads custom agents from `.codex/agents/*.toml` in a trusted project or
+`~/.codex/agents/*.toml` for one person. Each file names the agent, describes
+when to use it, and supplies its developer instructions. It may also set the
+model, reasoning effort, sandbox, MCP servers, and skill configuration. The
+renderer converts the shared Markdown role definitions to this format and
+uses a read-only sandbox for roles without `Write` or `Edit`.
 
-**Pi has no subagents and does not want them.** Its route is a session per tmux
-pane, and `tstorm dispatch` drives it. A reviewer dispatch completed here on
+Pi has no built-in subagent mechanism. Thunderstorm starts one session per tmux
+pane through `tstorm dispatch`. A reviewer dispatch completed here on
 2026-09-19, exit 0, in a directory of its own, answering from a file it found
 there. The command the pane runs is
 
@@ -181,15 +182,15 @@ A `settings.json` in a payload is read by nothing. The same install reported
 
 ## Permissions
 
-Only a human merges, and what enforces that differs per host. No host carries
-a permission through a plugin install, so each file below is one somebody
-merges into their own settings by hand.
+Only a human merges, and each host enforces that rule differently. Claude Code
+and Codex need a settings file copied by hand. Pi loads its command gate from
+the installed package.
 
 | Host        | What stops a command                    | Where it lives           |
 | ----------- | --------------------------------------- | ------------------------ |
 | Claude Code | a deny rule per command prefix          | `.claude/settings.json`  |
 | Codex       | a forbidden execpolicy rule per command | `~/.codex/rules/*.rules` |
-| Pi          | nothing                                 | —                        |
+| Pi          | a package extension blocks each prefix  | the installed package    |
 | Cursor      | unverified                              | —                        |
 
 The workflow manifest names four commands: `gh pr merge`, `gh pr review`,
@@ -217,62 +218,64 @@ appears rather than which commands are refused. Sandboxing is a third axis:
 `workspace-write` turns network access off by default, which would stop
 `gh pr merge` and `git push` but leave a local `git merge` alone.
 
-Pi stops no command. Its own `docs/security.md` says it ships no sandbox and
-leaves isolation to the operating system, a container, or a micro-VM. Per-role
-`--tools` narrows what a session can call, and a reviewer keeps `bash`, so a
-role told to merge can. What separates one role's work from another's is the
-worktree its pane starts in, and sandboxing the process is
-`internal/ideas/remote-operation.md` under bwrap. Running the loop on Pi means
-accepting that the merge rule is prose there.
+Pi ships no sandbox and leaves isolation to the operating system, a container,
+or a micro-VM. The thunderstorm package handles its four denied command
+prefixes: its extension intercepts Pi's `bash` tool and rejects a matching
+command before the tool runs. Per-role `--tools` still narrows what a session
+can call, and the worktree its pane starts in separates one role's files from
+another's. Broader process isolation remains the bwrap work in
+`internal/ideas/remote-operation.md`.
 
 ## Plugin manifests
 
-Three manifest formats, one shape.
+Each harness has its own package entry point.
 
 | Host        | Manifest path                    | Marketplace                            |
 | ----------- | -------------------------------- | -------------------------------------- |
 | Claude Code | `.claude-plugin/plugin.json`     | `.claude-plugin/marketplace.json`      |
-| Codex       | `.codex-plugin/plugin.json`      | `.agents/plugins/marketplace.json`     |
+| Codex       | `plugin.json`                    | `.agents/plugins/marketplace.json`     |
 | Pi          | `package.json`, under a `pi` key | npm, or a git URL                      |
 
-Codex's manifest carries `name`, `version`, `description`, `author`, and an
-`interface` block of presentation metadata, and the official `linear` plugin
-adds `skills`, `apps` and `mcpServers` as path keys. `version` must be strict
-semver. The validator does **not** reject unknown fields: a manifest carrying
-a `wombat` key added and installed without complaint on 2026-09-19, so
-acceptance of a key is no evidence that anything reads it. Pi's is an npm package whose `pi` key
-names its extensions and skill directories:
+New Codex packages use the Agent Plugins manifest at the package root. Skills
+under `skills/` need no manifest field. The payload also keeps
+`.codex-plugin/plugin.json` as a compatibility manifest for clients that still
+read it. Pi uses an npm package whose `pi` key names its extensions, skills,
+and prompts:
 
 ```json
-{ "pi": { "extensions": ["./index.ts"], "skills": ["./skills"] } }
+{ "pi": { "extensions": ["./extensions"], "skills": ["./skills"], "prompts": ["./prompts"] } }
 ```
 
-There is also a fourth, vendor-neutral format. Pi validates a `plugin.json`
-carrying `$schema` of `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`
-and Codex puts its marketplace under `.agents/plugins/`, the same namespace as
-`.agents/skills`. The standard is young and neither host requires it, so it is
-worth tracking rather than building on.
+The root Codex manifest uses the vendor-neutral Agent Plugins schema. Codex
+puts its marketplace under `.agents/plugins/`, beside the shared skills
+namespace.
 
 ## Installation
 
-All three install from a git repository, so one repository can serve all three:
+All three use artifacts from this repository:
 
 ```sh
 # Claude Code
 /plugin marketplace add stormlightlabs/thunderstorm
 
-# Codex
-codex plugin marketplace add stormlightlabs/thunderstorm
-codex plugin add thunderstorm@stormlightlabs
+# Codex, after rendering this checkout
+mkdir -p ~/.codex/thunderstorm ~/.codex/skills ~/.codex/prompts ~/.codex/agents ~/.codex/rules
+cp -R payloads/codex/. ~/.codex/thunderstorm/
+cp -R payloads/codex/skills/. ~/.codex/skills/
+cp payloads/codex/prompts/*.md ~/.codex/prompts/
+cp payloads/codex/agents/*.toml ~/.codex/agents/
+cp payloads/codex/rules/*.rules ~/.codex/rules/
 
 # Pi
 pi install git:github.com/stormlightlabs/thunderstorm
 ```
 
-Codex's `marketplace add` takes `owner/repo[@ref]`, an HTTPS URL, an SSH URL, or
-a local path, and `--sparse` restricts the checkout to named paths. Pi installs
-from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and `-l` installs
-into the project's own `.pi/settings.json` rather than the user's.
+Codex can install a plugin from a marketplace, but this repository's existing
+marketplace entry points at the Claude Code payload. Until it publishes a
+separate Codex entry, copying the rendered resources is the working install
+path. Pi installs from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and
+`-l` installs into the project's own `.pi/settings.json` rather than the
+user's.
 
 ## Cursor
 

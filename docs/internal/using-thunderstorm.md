@@ -65,30 +65,24 @@ portable. One source, three filenames.
 | Harness     | Where a command lands      | Installs today |
 | ----------- | -------------------------- | -------------- |
 | Claude Code | `commands/` in the payload | yes            |
-| Pi          | `prompts/` in the package  | no             |
-| Codex       | `~/.codex/prompts/`        | no             |
+| Pi          | `prompts/` in the package  | yes            |
+| Codex       | `~/.codex/prompts/`        | copied         |
 | Cursor      | `.cursor/commands/`        | no             |
-
-Claude Code is the only one where `/storm 26` works, because it is the only
-one with a payload. The other three render their commands and stop on the
-review fan-out, which is #8. The rest of this section is what will be true
-when they do install, and what to check when you are the one making it true.
 
 Pi reads prompt templates from a package's `prompts/` directory, and its
 format is the one already written: `description` and `argument-hint` in the
 frontmatter, `$ARGUMENTS` in the body, filename as the command name. Nothing
 had to be translated.
 
-Codex reads `~/.codex/prompts/`, which is a user directory rather than
-anything a plugin writes, so the payload carries the files and installing them
-is one copy:
+Codex reads prompts and custom agents from user or project directories rather
+than from the portable plugin manifest. The payload carries both for copying:
 
 ```sh
 cp <payload>/prompts/*.md ~/.codex/prompts/
+cp <payload>/agents/*.toml ~/.codex/agents/
 ```
 
-That path is from Codex's documentation and has not been run here. Cursor's
-`.cursor/commands/` is documented too and equally unexercised; Cursor is
+Cursor's `.cursor/commands/` is documented but unexercised here. Cursor is
 retiring commands in favour of skills, so check before relying on it.
 
 Where a harness has no command mechanism, name the skill in the prompt

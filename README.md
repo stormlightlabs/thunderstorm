@@ -21,9 +21,9 @@ claude plugin install thunderstorm@stormlightlabs
 ```
 
 Or `/plugin marketplace add` and `/plugin install` from inside a session.
-Claude Code is the only harness with a payload today; `docs/src/content/docs/start/install.md`
-says what stays with your repository, and what Codex and Pi are still waiting
-on.
+Codex and Pi use their own payloads; the
+[install guide](docs/src/content/docs/start/install.md) has the commands and
+the files that stay with your repository.
 
 ## The stages
 
@@ -55,12 +55,14 @@ Today it renders payloads:
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 tstorm render --target claude
+tstorm render --target codex
+tstorm render --target pi
 tstorm version
 ```
 
-That is the whole binary. The checks a run depends on — commit and pull
-request shape, document identity, worktree isolation — are Python scripts the
-payload installs, which the skills call by path;
+The binary also dispatches Pi roles. The checks a run depends on — commit and
+pull request shape, document identity, worktree isolation — are Python scripts
+the payload installs, which the skills call by path;
 [#16](https://github.com/stormlightlabs/thunderstorm/issues/16) ports them
 here, and board writes and the prose check follow in
 [#15](https://github.com/stormlightlabs/thunderstorm/issues/15) and
@@ -76,6 +78,8 @@ and means its own thing by a subagent. The workflow is written once under
 ```sh
 tstorm render --target claude          # writes payloads/claude
 tstorm render --target claude --check  # does the committed payload still match?
+tstorm render --target codex           # writes payloads/codex
+tstorm render --target pi              # writes payloads/pi
 ```
 
 A path that differs between harnesses is written `{{ROOT}}` in the source, and
@@ -90,7 +94,7 @@ skips the review fan-out is worse than no payload.
 | | Claude Code | Codex | Pi |
 | --- | --- | --- | --- |
 | Skills | `.claude/skills/` | `.agents/skills/`, `.codex/skills/` | `.agents/skills/`, `.pi/skills/` |
-| Dispatch | subagents | `spawn_agent` | a session per tmux pane |
+| Dispatch | subagents | custom agents | a session per tmux pane |
 | Checks | hooks | hooks | an extension |
 
 `docs/internal/hosts.md` records how each row was verified, including the
@@ -113,12 +117,12 @@ docs/internal/  working documents, not published
 
 ## Status
 
-The binary is early: `tstorm render` and `tstorm version` are what exist, and
-the rest of the surface is on the board under the **Thunderstorm** track of
-[project 13](https://github.com/orgs/stormlightlabs/projects/13). Only the
-Claude Code payload renders today. Codex and Pi have no place to put a command,
-and Pi has no subagents, so the render stops and names the issue that would
-close each gap.
+The binary is early: `tstorm render`, `tstorm dispatch`, and `tstorm version`
+are what exist. The rest of the surface is on the board under the
+**Thunderstorm** track of
+[project 13](https://github.com/orgs/stormlightlabs/projects/13). Claude Code,
+Codex, and Pi payloads render from the shared workflow. Cursor remains
+unsupported.
 
 ## License
 

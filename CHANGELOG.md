@@ -25,6 +25,9 @@ Nothing is released yet, and no version is tagged. Everything below is on
   artifact needs of a harness ([#17]).
 - A Claude Code payload under `payloads/claude`, and a marketplace at
   `.claude-plugin/marketplace.json` that installs it ([#1]).
+- Codex and Pi payloads. Codex gets a portable plugin manifest and custom-agent
+  TOML files; Pi gets an installable package with prompts, skills, scripts, and
+  role dispatch through `tstorm`.
 - `/forecast` as a second name for `/triage`, which describes what the stage
   produces rather than how a hospital sorts casualties.
 - `tstorm dispatch --role <role> --worktree <dir> --model <id>` runs one role
@@ -43,16 +46,14 @@ Nothing is released yet, and no version is tagged. Everything below is on
   reads. A `settings.json` inside a payload is read by nothing.
 - The rules that stop a session merging or approving its own work render per
   harness: deny rules for Claude Code, a forbidden execpolicy rule per command
-  for Codex, and for Pi a line under the render saying it stops nothing. No
-  plugin mechanism carries a permission, so each is a file you put in place
-  yourself ([#1], [#9]).
+  for Codex, and a Pi extension that blocks the same command prefixes
+  ([#1], [#9]).
 - The Go module path is `github.com/stormlightlabs/thunderstorm`, matching the
   repository it is fetched from, so `go install` resolves it. The binary is
   still `tstorm`.
-- Codex and Pi are recorded as unsupported with the reason. Commands reach
-  both now, rendered into `prompts/` ([#7]); what stops each payload is the
-  review fan-out, which Codex dispatches from a skill sidecar and Pi runs as
-  tmux panes, leaving a pi payload nowhere to put a role definition ([#8]).
+- Commands render into `prompts/` for Codex and Pi ([#7]). Codex role
+  definitions render as custom-agent TOML; Pi runs each role in a tmux pane
+  through `tstorm dispatch` ([#8]).
 - `docs/internal/thunderstorm.md` says what starts a review pass on each
   harness, and `docs/internal/hosts.md` what a role may reach on Pi and what
   each harness enforces ([#8], [#9]).
