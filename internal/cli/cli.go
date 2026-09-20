@@ -1,67 +1,66 @@
-// Package cli dispatches tstorm's subcommands.
+// Package cli builds tstorm's command tree.
 package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"sort"
-	"text/tabwriter"
 
+	"github.com/spf13/cobra"
 	"github.com/stormlightlabs/tstorm/internal/buildinfo"
+	"github.com/stormlightlabs/tstorm/internal/ui"
 )
 
-// ErrUsage reports that the command line was wrong and usage has already been
-// written. main exits non-zero without printing it again.
-var ErrUsage = errors.New("usage")
+// Root returns the tstorm command tree writing to stdout and stderr.
+func Root(stdout, stderr io.Writer) *cobra.Command {
+	var noColor bool
 
-type command struct {
-	summary string
-	run     func(ctx context.Context, args []string, stdout, stderr io.Writer) error
+	root := &cobra.Command{
+		Use:   "tstorm",
+		Short: "Run the thunderstorm workflow's checks and board operations",
+		Long: "tstorm runs the thunderstorm workflow's checks and board operations.\n\n" +
+			"The skills a harness loads are prose, and prose cannot fail a run.\n" +
+			"This is the other half: the checks that hold the loop to what the\n" +
+			"prose says, and the board writes too racy to leave to a model.",
+		SilenceUsage:      true,
+		SilenceErrors:     true,
+		DisableAutoGenTag: true,
+		// clig.dev: a bare invocation shows help rather than doing something.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return cmd.Help()
+		},
+	}
+
+	root.SetOut(stdout)
+	root.SetErr(stderr)
+	root.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable color even on a terminal")
+	root.SetVersionTemplate("{{.Version}}\n")
+	root.Version = buildinfo.String()
+
+	printer := func(cmd *cobra.Command) *ui.Printer {
+		return ui.New(cmd.OutOrStdout(), noColor)
+	}
+
+	root.AddCommand(versionCmd(printer))
+	return root
 }
 
-var commands = map[string]command{
-	"version": {
-		summary: "print the version of tstorm that is running",
-		run: func(_ context.Context, _ []string, stdout, _ io.Writer) error {
-			_, err := fmt.Fprintln(stdout, buildinfo.String())
+func versionCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	return &cobra.Command{
+		Use:   "version",
+		Short: "Print the version of tstorm that is running",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			p := printer(cmd)
+			_, err := fmt.Fprintln(cmd.OutOrStdout(), p.Bold.Render(buildinfo.String()))
 			return err
 		},
-	},
+	}
 }
 
-// Run dispatches args to a subcommand.
-func Run(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	if len(args) == 0 {
-		usage(stderr)
-		return ErrUsage
-	}
-	name := args[0]
-	if name == "-h" || name == "--help" || name == "help" {
-		usage(stdout)
-		return nil
-	}
-	cmd, ok := commands[name]
-	if !ok {
-		fmt.Fprintf(stderr, "tstorm: unknown command %q\n\n", name)
-		usage(stderr)
-		return ErrUsage
-	}
-	return cmd.run(ctx, args[1:], stdout, stderr)
-}
-
-func usage(w io.Writer) {
-	fmt.Fprint(w, "tstorm runs the thunderstorm workflow's checks and board operations.\n\nUsage:\n\n\ttstorm <command> [arguments]\n\nCommands:\n\n")
-	names := make([]string, 0, len(commands))
-	for name := range commands {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	tw := tabwriter.NewWriter(w, 0, 0, 4, ' ', 0)
-	for _, name := range names {
-		fmt.Fprintf(tw, "\t%s\t%s\n", name, commands[name].summary)
-	}
-	tw.Flush()
-	fmt.Fprintln(w)
+// Execute runs the command tree against args.
+func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) error {
+	root := Root(stdout, stderr)
+	root.SetArgs(args)
+	return root.ExecuteContext(ctx)
 }
