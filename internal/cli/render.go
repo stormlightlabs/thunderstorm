@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/stormlightlabs/tstorm/internal/render"
-	"github.com/stormlightlabs/tstorm/internal/ui"
+	"github.com/stormlightlabs/thunderstorm/internal/render"
+	"github.com/stormlightlabs/thunderstorm/internal/ui"
 )
 
 func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {

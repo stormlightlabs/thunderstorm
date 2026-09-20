@@ -1,4 +1,4 @@
-module github.com/stormlightlabs/tstorm
+module github.com/stormlightlabs/thunderstorm
 
 go 1.26
 

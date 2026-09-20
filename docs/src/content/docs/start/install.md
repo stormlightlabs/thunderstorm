@@ -37,11 +37,11 @@ The checks the skills call run from the installed payload, and `tstorm` is
 called by name, so it needs to be on your `PATH`:
 
 ```sh
-go install github.com/stormlightlabs/tstorm/cmd/tstorm@latest
+go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
 ```
 
-Released builds are published for macOS and Linux, through Homebrew, `.deb`,
-`.rpm` and `.apk` packages, and the NUR.
+Nothing is released yet, so that command builds from source. Homebrew is the
+other route planned, and it is the only other one.
 
 ## What the package does not carry
 

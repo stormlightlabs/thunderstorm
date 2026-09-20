@@ -7,8 +7,8 @@ import (
 	"io"
 
 	"github.com/spf13/cobra"
-	"github.com/stormlightlabs/tstorm/internal/buildinfo"
-	"github.com/stormlightlabs/tstorm/internal/ui"
+	"github.com/stormlightlabs/thunderstorm/internal/buildinfo"
+	"github.com/stormlightlabs/thunderstorm/internal/ui"
 )
 
 // Root returns the tstorm command tree writing to stdout and stderr.

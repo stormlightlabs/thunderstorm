@@ -84,5 +84,6 @@ workflow/       the loop, written once
 payloads/       rendered per harness, committed, never hand-edited
 docs/           the published site
 docs/internal/  working documents, not published
-TODO.md         the roadmap over the open issues
+CHANGELOG.md    what has landed, Keep a Changelog format
+TODO.md         what is left, one section per umbrella issue
 ```

@@ -12,7 +12,7 @@ import (
 	"os"
 	"os/signal"
 
-	"github.com/stormlightlabs/tstorm/internal/cli"
+	"github.com/stormlightlabs/thunderstorm/internal/cli"
 )
 
 func main() {

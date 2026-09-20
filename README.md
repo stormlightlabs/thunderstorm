@@ -56,12 +56,12 @@ with CI green throughout. `tstorm` holds the parts that have to be true:
 - prose, checked against a catalogue of writing tells
 
 ```sh
-go install github.com/stormlightlabs/tstorm/cmd/tstorm@latest
+go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
 ```
 
-Hooks installed with the payload call it by name, so it needs to be on `PATH`.
-Released builds will also ship through Homebrew, `.deb`, `.rpm`, `.apk`, and
-the NUR.
+The checks call it by name, so it needs to be on `PATH`. Homebrew is the other
+route once [#19](https://github.com/stormlightlabs/thunderstorm/issues/19)
+lands; nothing is released yet.
 
 Each harness reads skills from its own directory, names commands its own way,
 and means its own thing by a subagent. The workflow is written once under
@@ -94,6 +94,8 @@ fixture used and the versions it was checked against.
 
 ```text
 AGENTS.md       gates, commit shape, and where things live (CLAUDE.md links to it)
+CHANGELOG.md    what has landed
+TODO.md         what is left
 cmd/tstorm      entry point
 internal/       tstorm source
 workflow/       the skills, commands, agents and scripts, written once
