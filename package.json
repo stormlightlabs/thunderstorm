@@ -1,0 +1,20 @@
+{
+  "name": "@stormlightlabs/thunderstorm",
+  "version": "0.1.0",
+  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "private": true,
+  "keywords": [
+    "pi-package"
+  ],
+  "pi": {
+    "extensions": [
+      "./payloads/pi/extensions"
+    ],
+    "skills": [
+      "./payloads/pi/skills"
+    ],
+    "prompts": [
+      "./payloads/pi/prompts"
+    ]
+  }
+}

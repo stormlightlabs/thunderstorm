@@ -54,7 +54,7 @@ Read each sub-issue's `blocked_by` before claiming it, through the
 **Dependencies** section of `github-board`. An issue whose blockers are still
 open is not claimable, whatever the board says, and dispatching one
 anyway produces a worker with nothing to build on. Independent in the dependency
-graph is not the same as safe to run at once: check the file ownership this
+graph does not mean two issues can run at once: check the file ownership this
 issue records, and its milestone's description for what crosses to a sibling,
 before taking two at a time.
 
@@ -85,10 +85,17 @@ The implementer and the reviewer never share a model within one run. Name the
 model on each dispatch: a pass that inherits whatever the run happens to be
 using records nothing a later reader can check.
 
-### Where there are no subagents
+### Dispatch on Codex
 
-On Claude Code a dispatch provisions a subagent from a definition. Pi has no
-such mechanism, so start the session yourself:
+Codex loads the four role definitions as custom agents from `.codex/agents/`.
+Dispatch the agent named for the role and pass it the issue number, acceptance
+criteria, file ownership, and working directory described above. Set
+`fork_turns` to `"none"` or to a positive number when the dispatch names a
+model or reasoning effort; a full-history fork inherits the parent settings.
+
+### Dispatch on Pi
+
+Pi has no subagent mechanism, so start the session yourself:
 
 ```sh
 tstorm dispatch --role implementer --worktree <dir> \

@@ -1,0 +1,20 @@
+{
+  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "keywords": [
+    "pi-package"
+  ],
+  "name": "thunderstorm",
+  "pi": {
+    "extensions": [
+      "./extensions"
+    ],
+    "prompts": [
+      "./prompts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "type": "module",
+  "version": "0.1.0"
+}

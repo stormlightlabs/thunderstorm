@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -34,6 +35,9 @@ type Target struct {
 	// issue that would close it. Its text is what an operator reads.
 	why    map[string]string
 	extras func(Manifest, []Artifact) ([]File, error)
+	// transform rewrites a source artifact when the harness reads a different
+	// file format. Most targets copy source bytes unchanged.
+	transform func(Artifact, []byte) ([]byte, error)
 }
 
 // Targets returns the harnesses render knows, in the order they are supported.
@@ -86,42 +90,39 @@ func claudeTarget() *Target {
 
 func codexTarget() *Target {
 	return &Target{
-		Name: "codex",
-		Root: ".codex",
+		Name:   "codex",
+		Root:   ".codex",
+		Plugin: "${HOME}/.codex/thunderstorm",
 		provides: map[string]bool{
 			CapSkills: true, CapCommands: true, CapSubagents: true,
 			CapHooks: true, CapScripts: true, CapPermissions: true,
 		},
 		dirs: map[Kind]string{
-			KindSkill: "skills", KindCommand: "prompts", KindHook: "hooks", KindScript: "scripts",
+			KindSkill: "skills", KindCommand: "prompts", KindAgent: "agents",
+			KindHook: "hooks", KindScript: "scripts",
 		},
-		why: map[string]string{
-			string(KindAgent): "Codex dispatches a skill carrying agents/openai.yaml rather than an agent file; " +
-				"writing that sidecar is #8",
-		},
-		extras: codexExtras,
+		extras:    codexExtras,
+		transform: codexTransform,
 	}
 }
 
 func piTarget() *Target {
 	return &Target{
-		Name:     "pi",
-		Root:     ".pi",
-		provides: map[string]bool{CapSkills: true, CapCommands: true},
-		dirs:     map[Kind]string{KindSkill: "skills", KindCommand: "prompts"},
-		why: map[string]string{
-			CapSubagents: "Pi has no subagent mechanism; a role runs there as a pi session in a tmux pane, " +
-				"which tstorm dispatch starts from a copy of the definitions inside the binary",
-			string(KindAgent): "Pi has no subagent mechanism; a role runs there as a pi session in a tmux pane, " +
-				"which tstorm dispatch starts from a copy of the definitions inside the binary",
-			CapHooks:           "Pi's only hook equivalent is a TypeScript extension; see #18",
-			string(KindHook):   "Pi's only hook equivalent is a TypeScript extension; see #18",
-			CapScripts:         "a pi package has no slot for the check scripts; they move into tstorm in #16",
-			string(KindScript): "a pi package has no slot for the check scripts; they move into tstorm in #16",
-			CapPermissions: "Pi stops no command: it ships no sandbox and leaves isolation to the operating " +
-				"system, so what holds a role back there is the tool list tstorm dispatch passes it and the " +
-				"worktree its pane starts in",
+		Name:   "pi",
+		Root:   ".pi",
+		Plugin: "${THUNDERSTORM_PLUGIN_ROOT}",
+		provides: map[string]bool{
+			CapSkills: true, CapCommands: true, CapSubagents: true,
+			CapScripts: true, CapPermissions: true,
 		},
+		dirs: map[Kind]string{
+			KindSkill: "skills", KindCommand: "prompts", KindAgent: "roles", KindScript: "scripts",
+		},
+		why: map[string]string{
+			CapHooks:         "Pi's only hook equivalent is a TypeScript extension; see #18",
+			string(KindHook): "Pi's only hook equivalent is a TypeScript extension; see #18",
+		},
+		extras: piExtras,
 	}
 }
 
@@ -165,7 +166,7 @@ func (t *Target) reason(key string) string {
 	if why, ok := t.why[key]; ok {
 		return why
 	}
-	return "no reason recorded, which is itself a gap in the target table"
+	return fmt.Sprintf("target table records no reason for %s", key)
 }
 
 // claudeExtras writes the three files Claude Code needs that are not copied
@@ -264,7 +265,152 @@ func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
 		fmt.Fprintf(&b, "    justification = %q,\n", "only a human merges or approves a thunderstorm run")
 		b.WriteString(")\n")
 	}
-	return []File{{Path: "rules/thunderstorm.rules", Body: []byte(b.String())}}, nil
+	compatibility, err := marshal(map[string]any{
+		"name":        m.Name,
+		"version":     m.Version,
+		"description": m.Description,
+		"author":      m.Author,
+		"skills":      "./skills/",
+		"interface": map[string]any{
+			"displayName":      "Thunderstorm",
+			"shortDescription": "Run issues through implementation and review.",
+			"longDescription":  m.Description,
+			"developerName":    m.Author.Name,
+			"category":         "Developer Tools",
+			"capabilities":     []string{"Read", "Write"},
+			"defaultPrompt":    []string{"Use the thunderstorm skill to run issue $ARGUMENTS."},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	portable, err := marshal(map[string]any{
+		"$schema":     "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+		"name":        m.Name,
+		"version":     m.Version,
+		"description": m.Description,
+		"author":      m.Author,
+		"repository":  "https://github.com/stormlightlabs/thunderstorm",
+		"license":     "Apache-2.0",
+		"keywords":    []string{"development", "review", "workflow"},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return []File{
+		{Path: ".codex-plugin/plugin.json", Body: compatibility},
+		{Path: "plugin.json", Body: portable},
+		{Path: "rules/thunderstorm.rules", Body: []byte(b.String())},
+	}, nil
+}
+
+// codexTransform turns the shared Markdown role definition into the custom
+// agent TOML that current Codex clients load from .codex/agents/.
+func codexTransform(a Artifact, body []byte) ([]byte, error) {
+	if a.Kind != KindAgent {
+		return body, nil
+	}
+	fields, prompt, err := roleParts(string(body))
+	if err != nil {
+		return nil, fmt.Errorf("agent %q: %w", a.Name, err)
+	}
+	sandbox := "read-only"
+	for _, tool := range strings.FieldsFunc(fields["tools"], func(r rune) bool { return r == ',' || r == ' ' }) {
+		if tool == "Write" || tool == "Edit" {
+			sandbox = "workspace-write"
+			break
+		}
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "name = %s\n", strconv.Quote(fields["name"]))
+	fmt.Fprintf(&b, "description = %s\n", strconv.Quote(fields["description"]))
+	fmt.Fprintf(&b, "sandbox_mode = %s\n", strconv.Quote(sandbox))
+	fmt.Fprintf(&b, "developer_instructions = %s\n", strconv.Quote(prompt))
+	return []byte(b.String()), nil
+}
+
+func roleParts(text string) (map[string]string, string, error) {
+	rest, ok := strings.CutPrefix(text, "---\n")
+	if !ok {
+		return nil, "", fmt.Errorf("no frontmatter")
+	}
+	head, prompt, ok := strings.Cut(rest, "\n---\n")
+	if !ok {
+		return nil, "", fmt.Errorf("frontmatter is not closed")
+	}
+	fields := map[string]string{}
+	for _, line := range strings.Split(head, "\n") {
+		key, value, ok := strings.Cut(line, ":")
+		if ok {
+			fields[strings.TrimSpace(key)] = strings.TrimSpace(value)
+		}
+	}
+	for _, key := range []string{"name", "description", "tools"} {
+		if fields[key] == "" {
+			return nil, "", fmt.Errorf("no %s", key)
+		}
+	}
+	return fields, strings.TrimSpace(prompt), nil
+}
+
+// piExtras makes the payload a Pi package. The extension records its package
+// root for the shared prose and refuses the command prefixes in the manifest.
+func piExtras(m Manifest, _ []Artifact) ([]File, error) {
+	pkg, err := marshal(map[string]any{
+		"name":        m.Name,
+		"version":     m.Version,
+		"description": m.Description,
+		"keywords":    []string{"pi-package"},
+		"type":        "module",
+		"pi": map[string]any{
+			"extensions": []string{"./extensions"},
+			"skills":     []string{"./skills"},
+			"prompts":    []string{"./prompts"},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	denied, err := json.Marshal(m.Policy.Deny)
+	if err != nil {
+		return nil, err
+	}
+	extension := `import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const denied = ` + string(denied) + `;
+
+function shellWord(word: string): string {
+	const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+	return "[\"']?" + escaped + "[\"']?";
+}
+
+function commandPattern(prefix: string): RegExp {
+	const words = prefix.split(/\s+/).map(shellWord).join("\\s+");
+	return new RegExp("(^|[;&|()\\n]\\s*)" + words + "(?=\\s|$|[;&|()])");
+}
+
+export default function (pi) {
+	process.env.THUNDERSTORM_PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+	const patterns = denied.map((prefix) => ({ prefix, pattern: commandPattern(prefix) }));
+
+	pi.on("tool_call", async (event) => {
+		if (event.toolName !== "bash") return undefined;
+		const command = event.input.command as string;
+		const match = patterns.find(({ pattern }) => pattern.test(command));
+		if (!match) return undefined;
+		return {
+			block: true,
+			reason: match.prefix + " is reserved for a human in a thunderstorm run.",
+		};
+	});
+}
+`
+	return []File{
+		{Path: "extensions/thunderstorm.ts", Body: []byte(extension)},
+		{Path: "package.json", Body: pkg},
+	}, nil
 }
 
 func marshal(v any) ([]byte, error) {

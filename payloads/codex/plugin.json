@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "author": {
+    "name": "Stormlight Labs",
+    "url": "https://github.com/stormlightlabs"
+  },
+  "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board.",
+  "keywords": [
+    "development",
+    "review",
+    "workflow"
+  ],
+  "license": "Apache-2.0",
+  "name": "thunderstorm",
+  "repository": "https://github.com/stormlightlabs/thunderstorm",
+  "version": "0.1.0"
+}

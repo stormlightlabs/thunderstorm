@@ -37,7 +37,7 @@ func fixture(t *testing.T, artifacts string) string {
 		"---\nname: review\n---\n\nRun `{{PLUGIN}}/scripts/check.py`; a diff touching `{{ROOT}}/` is a change.\n")
 	write("skills/review/references/diff.md", "How to read a diff.\n")
 	write("commands/revise.md", "Use the `revise` skill.\n")
-	write("agents/reviewer.md", "You review.\n")
+	write("agents/reviewer.md", "---\nname: reviewer\ndescription: Review the change.\ntools: Skill, Bash, Read\n---\n\nYou review.\n")
 	write("hooks/session-start.sh", "#!/bin/sh\necho hello\n")
 	write("scripts/check.py", "print('ok')\n")
 	write("manifest.json", `{
@@ -59,11 +59,16 @@ const allArtifacts = `
      "event": "SessionStart", "matcher": "startup", "timeout": 1200},
     {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
 
-// commandOnly is the fixture Codex and Pi can carry whole: they have no
-// subagents, and the fixture's skill names {{PLUGIN}}, which neither has a
-// verified value for. It is what a test about the rest of a payload uses.
+// commandOnly keeps tests about one generated file independent of the other
+// artifact formats.
 const commandOnly = `
     {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]}`
+
+const piArtifacts = `
+    {"kind": "skill", "name": "review", "source": "skills/review", "requires": ["skills"]},
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]},
+    {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
+    {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
 
 func planFor(t *testing.T, target, artifacts string) (*Payload, string, error) {
 	t.Helper()
@@ -233,29 +238,88 @@ func TestCodexCarriesThePolicyAsExecpolicyRules(t *testing.T) {
 	}
 }
 
-// Pi stops no command at all. That is a limitation of running the loop there,
-// and a render is where an operator meets it.
-func TestPiSaysItStopsNothing(t *testing.T) {
-	p, _, err := planFor(t, "pi", commandOnly)
+func TestCodexCarriesCurrentPluginAndAgentFormats(t *testing.T) {
+	p, _, err := planFor(t, "codex", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
-	if len(p.Limits) != 1 || !strings.Contains(p.Limits[0], "ships no sandbox") {
-		t.Errorf("pi reports %v", p.Limits)
+	for _, want := range []string{
+		"plugin.json",
+		".codex-plugin/plugin.json",
+		"agents/reviewer.toml",
+		"scripts/check.py",
+	} {
+		body(t, p, want)
 	}
-	for _, f := range p.Files {
-		if f.Path == "rules/thunderstorm.rules" || f.Path == "settings.json" {
-			t.Errorf("pi carries %s, which nothing there reads", f.Path)
+	agent := string(body(t, p, "agents/reviewer.toml"))
+	for _, want := range []string{
+		`name = "reviewer"`,
+		`sandbox_mode = "read-only"`,
+		`developer_instructions = "You review."`,
+	} {
+		if !strings.Contains(agent, want) {
+			t.Errorf("Codex agent does not carry %q:\n%s", want, agent)
 		}
 	}
 }
 
-// The issue's rule: a payload that installs and then skips part of the workflow
-// is worse than no payload, so an unmet requirement stops the whole render.
-func TestAMissingCapabilityStopsTheRender(t *testing.T) {
+// Pi's extension rejects the same command prefixes that the other targets
+// write into their native policy files.
+func TestPiEnforcesTheDeniedCommands(t *testing.T) {
+	p, _, err := planFor(t, "pi", commandOnly)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if len(p.Limits) != 0 {
+		t.Errorf("pi reports %v", p.Limits)
+	}
+	extension := string(body(t, p, "extensions/thunderstorm.ts"))
+	for _, want := range []string{`"git merge"`, `event.toolName !== "bash"`, `block: true`} {
+		if !strings.Contains(extension, want) {
+			t.Errorf("Pi extension does not carry %q:\n%s", want, extension)
+		}
+	}
+}
+
+func TestPiCarriesTheWholeCurrentWorkflowShape(t *testing.T) {
+	p, _, err := planFor(t, "pi", piArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	for _, want := range []string{
+		"package.json",
+		"skills/review/SKILL.md",
+		"prompts/revise.md",
+		"roles/reviewer.md",
+		"scripts/check.py",
+	} {
+		body(t, p, want)
+	}
+	skill := string(body(t, p, "skills/review/SKILL.md"))
+	if !strings.Contains(skill, "${THUNDERSTORM_PLUGIN_ROOT}/scripts/check.py") {
+		t.Errorf("Pi skill does not resolve its script through the package extension: %q", skill)
+	}
+	var pkg struct {
+		Pi struct {
+			Extensions []string
+			Skills     []string
+			Prompts    []string
+		}
+	}
+	if err := json.Unmarshal(body(t, p, "package.json"), &pkg); err != nil {
+		t.Fatal(err)
+	}
+	if len(pkg.Pi.Extensions) != 1 || len(pkg.Pi.Skills) != 1 || len(pkg.Pi.Prompts) != 1 {
+		t.Errorf("Pi package resources are %+v", pkg.Pi)
+	}
+}
+
+// Pi still has no generic hook format. A hook in the source must stop its
+// render until the extension adapter in #18 exists.
+func TestPiReportsAnUnsupportedHook(t *testing.T) {
 	p, _, err := planFor(t, "pi", allArtifacts)
 	if p != nil {
-		t.Fatal("pi produced a payload despite having no subagents")
+		t.Fatal("pi produced a payload despite having no hook adapter")
 	}
 	var unmet *Unmet
 	if !errors.As(err, &unmet) {
@@ -264,22 +328,15 @@ func TestAMissingCapabilityStopsTheRender(t *testing.T) {
 	if unmet.Target != "pi" {
 		t.Errorf("unmet names %q", unmet.Target)
 	}
-	if !strings.Contains(err.Error(), "#16") {
+	if !strings.Contains(err.Error(), "#18") {
 		t.Errorf("the failure does not name the issue that would close it:\n%s", err)
 	}
-	// The subagent gap is the one with no issue behind it: a role runs on Pi
-	// through tstorm dispatch, so the reason says what to run instead.
-	if !strings.Contains(err.Error(), "tstorm dispatch") {
-		t.Errorf("the failure does not say what dispatches a role on Pi:\n%s", err)
-	}
-	if !strings.Contains(err.Error(), "agent reviewer") {
+	if !strings.Contains(err.Error(), "hook session-start.sh") {
 		t.Errorf("the failure does not name the blocked artifact:\n%s", err)
 	}
 }
 
-// Commands render wherever a harness has somewhere to read one. Pi and Codex
-// both do; what stops those payloads is the review fan-out, not the command
-// layer, so this renders one rather than reading the target table back.
+// Commands render wherever a harness has somewhere to read one.
 func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
 	const commandOnly = `
     {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]}`
@@ -327,6 +384,14 @@ func TestCursorReportsAnUnverifiedContract(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "unverified") || !strings.Contains(err.Error(), "#13") {
 		t.Errorf("cursor's refusal does not say why:\n%s", err)
+	}
+}
+
+func TestAnUnexplainedGapNamesTheMissingEntry(t *testing.T) {
+	got := claudeTarget().reason("wombat")
+	want := "target table records no reason for wombat"
+	if got != want {
+		t.Errorf("reason is %q, want %q", got, want)
 	}
 }
 

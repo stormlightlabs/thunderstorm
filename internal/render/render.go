@@ -190,6 +190,12 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 					a.Name, src, found, t.Name)
 			}
 		}
+		if t.transform != nil {
+			body, err = t.transform(a, body)
+			if err != nil {
+				return nil, err
+			}
+		}
 		for _, name := range a.Names() {
 			out = append(out, File{Path: p.destination(a, dir, name, src), Body: body, Mode: mode})
 		}
@@ -205,8 +211,15 @@ func (p *Payload) destination(a Artifact, dir, name, src string) string {
 		rel := strings.TrimPrefix(src, a.Source+"/")
 		return path.Join(dir, name, rel)
 	}
-	if a.Kind == KindCommand || a.Kind == KindAgent {
+	if a.Kind == KindCommand {
 		return path.Join(dir, name+".md")
+	}
+	if a.Kind == KindAgent {
+		ext := ".md"
+		if p.Target.Name == "codex" {
+			ext = ".toml"
+		}
+		return path.Join(dir, name+ext)
 	}
 	return path.Join(dir, name)
 }

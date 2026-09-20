@@ -1,0 +1,30 @@
+# thunderstorm: a session does not merge or approve its own work.
+#
+# Put this in ~/.codex/rules/, or in .codex/rules/ of a trusted project.
+# A plugin install carries no permission, so nothing puts it there for
+# you. `codex execpolicy check --rules <file> -- <command>` says what a
+# command gets.
+
+prefix_rule(
+    pattern = ["gh", "pr", "merge"],
+    decision = "forbidden",
+    justification = "only a human merges or approves a thunderstorm run",
+)
+
+prefix_rule(
+    pattern = ["gh", "pr", "review"],
+    decision = "forbidden",
+    justification = "only a human merges or approves a thunderstorm run",
+)
+
+prefix_rule(
+    pattern = ["git", "push"],
+    decision = "forbidden",
+    justification = "only a human merges or approves a thunderstorm run",
+)
+
+prefix_rule(
+    pattern = ["git", "merge"],
+    decision = "forbidden",
+    justification = "only a human merges or approves a thunderstorm run",
+)
