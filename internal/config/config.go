@@ -4,6 +4,11 @@
 // whichever repository installed the payload, and where that repository keeps
 // its documents is its own business, so the setting lives in a file beside its
 // code rather than in a default that only one repository is right about.
+//
+// The same holds for the board. Project 13 under stormlightlabs carries
+// several repositories at once and separates them with a Track field, which is
+// one arrangement among many; a repository installing the loop is as likely to
+// want a project of its own, or status options under different names.
 package config
 
 import (
@@ -13,6 +18,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Name is the file tstorm reads, found at the repository root or any directory
@@ -26,9 +32,47 @@ type Config struct {
 	// the check has nothing to do.
 	Documents string `json:"documents"`
 
+	// Board is the GitHub Projects board the loop writes. A repository that
+	// names none gets an error from the board commands rather than a guess.
+	Board Board `json:"board"`
+
 	// dir is the directory the file was read from, so a relative setting
 	// resolves against the file rather than the caller's working directory.
 	dir string
+}
+
+// Board names the project the loop reads and writes, and what this repository
+// calls each state the loop uses.
+type Board struct {
+	// Owner is the user or organization the project belongs to, and Number is
+	// the project's number in that owner's list.
+	Owner  string `json:"owner"`
+	Number int    `json:"number"`
+
+	// Repository filters every read to one repository's issues, as
+	// "owner/name". Left empty it is read from the origin remote, which is
+	// the repository the command is running in.
+	Repository string `json:"repository"`
+
+	// StatusField is the name of the single-select field carrying status.
+	StatusField string `json:"statusField"`
+
+	// Status maps each state the loop uses to the option name this board
+	// gives it.
+	Status Status `json:"status"`
+
+	// GroupField and GroupValue narrow a board that carries more than one
+	// repository's work. A board that carries one leaves both empty.
+	GroupField string `json:"groupField"`
+	GroupValue string `json:"groupValue"`
+}
+
+// Status is the option name for each of the three states the loop moves an
+// issue between.
+type Status struct {
+	Todo       string `json:"todo"`
+	InProgress string `json:"inProgress"`
+	Done       string `json:"done"`
 }
 
 // Load reads the settings that apply to dir, walking up until it finds a file
@@ -72,4 +116,31 @@ func (c Config) DocumentsDir() string {
 		return c.Documents
 	}
 	return filepath.Join(c.dir, c.Documents)
+}
+
+// Validate reports every board setting that is missing, in one error. A
+// repository configuring the board for the first time has usually left out
+// more than one, and learning about them one run at a time is three runs.
+func (b Board) Validate() error {
+	var missing []string
+	for _, setting := range []struct {
+		name  string
+		empty bool
+	}{
+		{"owner", b.Owner == ""},
+		{"number", b.Number == 0},
+		{"statusField", b.StatusField == ""},
+		{"status.todo", b.Status.Todo == ""},
+		{"status.inProgress", b.Status.InProgress == ""},
+		{"status.done", b.Status.Done == ""},
+		{"groupValue", b.GroupField != "" && b.GroupValue == ""},
+	} {
+		if setting.empty {
+			missing = append(missing, "board."+setting.name)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	return fmt.Errorf("%s names no %s", Name, strings.Join(missing, ", "))
 }

@@ -10,17 +10,14 @@ per run.
 
 ## Read before claiming
 
-The `github-board` skill's Transport section decides whether this run uses `gh`
-or the GitHub MCP tools. Use the same transport for everything below.
-
 ```sh
-gh issue view <n> --json title,body,assignees,url
-gh issue view <n> --json subIssues
+tstorm board show <n> --json
+gh issue view <n> --json title,body,url
 ```
 
-Through MCP: `issue_read` method `get`, then method `get_sub_issues`. The
-issue's status is on the project board, not the issue; `github-board`'s
-**Status** has that read.
+`tstorm board show` carries the status, who holds it, the children and the
+blockers, none of which are on the issue itself. The issue's text comes from
+`gh` locally, or `issue_read` method `get` in a cloud session.
 
 Stop and ask when any of these is true:
 

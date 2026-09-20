@@ -210,11 +210,36 @@ repository needs one.
 
 ### Your board
 
-The `github-board` and `triage` skills read and write a GitHub Projects board.
-The board, its `Todo`/`In Progress`/`Done` status field, and the labels are
-yours to create. Name the board's number and owner in your `AGENTS.md`, beside
-the gates: the skills are written against `<project>`, `<owner>` and
-`<owner>/<repo>`, and take all three from what your repository says.
+`tstorm board` reads and writes a GitHub Projects board, and the `github-board`
+and `triage` skills decide what it writes. The board and the single-select
+field carrying status are yours to create. Name them in the same
+`.tstorm.json`:
+
+```json
+{
+  "board": {
+    "owner": "your-org",
+    "number": 13,
+    "statusField": "Status",
+    "status": {
+      "todo": "Todo",
+      "inProgress": "In Progress",
+      "done": "Done"
+    }
+  }
+}
+```
+
+The three option names are whatever your board calls the states the loop moves
+an issue between. A project carrying several repositories' work adds
+`groupField` and `groupValue` to separate them; a project that is this
+repository's alone leaves both out. Reads are filtered to the repository the
+command runs in, taken from its `origin` remote unless `repository` names one.
+
+A repository that configures none of this gets an error naming every setting it
+left out. Reading and writing a project also needs the `project` scope on the
+token: `gh auth status` lists what yours carries, and `gh auth refresh -s
+project` adds it.
 
 ### Your model assignments
 

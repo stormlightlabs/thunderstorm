@@ -94,14 +94,15 @@ reach the work.
 Attach each one as a sub-issue of the issue a run takes. The relation is what the next
 stage reads: `/storm` asks GitHub for an issue's children and refuses one that
 declares none, so sub-issues that exist only as lines in a body are work no run
-can find. `github-board` carries the calls under **File new
-work** — `parent_issue_number` on the create, or `sub_issue_write` method `add`
-afterwards, which takes the sub-issue's ID rather than its number.
+can find. `tstorm board file --parent <n>` files a child
+under the parent, and `tstorm board sub add <parent> <child>` attaches one that
+already exists.
 
 Where one sub-issue cannot start until another lands, record that as a
 dependency as well. The sub-issue relation says what the work is part of; it
 says nothing about order, and work whose order lives only in prose gets
-dispatched out of it. `github-board` carries the calls under **Dependencies**.
+dispatched out of it. `tstorm board blocked-by add <blocked> <blocker>` records
+one.
 
 A dependency is not a block. A block ends a run and is for something found
 while working. A sub-issue waiting on a sibling stays `Todo`.

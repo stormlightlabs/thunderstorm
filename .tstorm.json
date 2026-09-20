@@ -1,3 +1,15 @@
 {
-  "documents": "docs/internal"
+  "documents": "docs/internal",
+  "board": {
+    "owner": "stormlightlabs",
+    "number": 13,
+    "statusField": "Status",
+    "status": {
+      "todo": "Todo",
+      "inProgress": "In Progress",
+      "done": "Done"
+    },
+    "groupField": "Track",
+    "groupValue": "Thunderstorm"
+  }
 }
