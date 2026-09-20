@@ -40,8 +40,8 @@ to `go install` it, which is the one instruction on that page that is not yet
 true. It also blocks [#20].
 
 Two routes, not five: `go install` from go.dev, and Homebrew. The `.deb`,
-`.rpm`, `.apk` and NUR packages in the issue title are dropped. The issue is
-still titled for all five.
+`.rpm`, `.apk` and NUR packages are dropped, and [#19] records why rather than
+having lost them.
 
 [#16] then ports the gates, and [#18] wires one to a hook. [#18] is cheaper
 than it first looked: Codex's hook events and wire format turned out to be
