@@ -32,11 +32,12 @@ user settings.
 
 ## The checks
 
-The skills are prose; `tstorm` is the half that can fail. Install it alongside:
+The hooks installed with the payload call `tstorm` by name, so it needs to be
+on your `PATH`:
 
 ```sh
 go install github.com/stormlightlabs/tstorm/cmd/tstorm@latest
 ```
 
-Released builds are also published for macOS and Linux. Once it is on your
-`PATH`, the hooks each harness installs will find it.
+Released builds are published for macOS and Linux, through Homebrew, `.deb`,
+`.rpm` and `.apk` packages, and the NUR.
