@@ -4,9 +4,12 @@ What Claude Code, Pi, and Codex actually load, verified on this machine against
 Claude Code, `pi` 0.85.1, and `codex-cli` 0.146.0. Cursor is not covered; no
 Cursor agent is installed here, so nothing below is claimed about it.
 
-Every row was checked by building a fixture with a probe skill in each candidate
-directory and asking each agent to name the skills it could see. Paths taken
-from documentation alone are marked as such.
+Discovery was checked by building a fixture with a probe skill in each candidate
+directory and asking each agent to name the skills it could see. Dispatch and
+hooks come from Codex's own prompt, its feature list, and the strings in its
+binary, which say what the tools are but not how well they work. Pi's dispatch
+shape is read off a run that completed. Anything taken from documentation alone
+is marked where it appears.
 
 ## Skill discovery
 
@@ -37,25 +40,90 @@ accept it.
 
 ## Other resources
 
-Skills are the portable part. Nothing else is.
+Skills are the portable part. The rest varies, but less than it first appears.
 
-| Resource    | Claude Code            | Pi                  | Codex                  |
-| ----------- | ---------------------- | ------------------- | ---------------------- |
-| Commands    | `.claude/commands/*.md`| `.pi/prompts/*.md`  | `~/.codex/prompts/*.md`|
-| Subagents   | `.claude/agents/*.md`  | none                | none                   |
-| Hooks       | `.claude/settings.json`| extensions (TS/JS)  | none usable            |
-| Themes      | none                   | `.pi/themes/*.json` | `config.toml`          |
+| Resource  | Claude Code             | Pi                   | Codex                   |
+| --------- | ----------------------- | -------------------- | ----------------------- |
+| Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`   | `~/.codex/prompts/*.md` |
+| Subagents | `.claude/agents/*.md`   | none; tmux instead   | built in, on by default |
+| Hooks     | `.claude/settings.json` | extensions (TS/JS)   | `hooks.json`            |
+| Themes    | none                    | `.pi/themes/*.json`  | `config.toml`           |
 
 Pi's project resource roots are `.pi/{extensions,skills,prompts,themes}` and its
 user roots are `~/.pi/agent/{extensions,skills,prompts,themes}`. Codex prompts
 live at `~/.codex/prompts`; that path is from Codex's documentation and was not
 exercised here, because the directory does not exist on this machine.
 
-Two gaps matter for the workflow. Neither Pi nor Codex has subagents, so the
-review fan-out cannot be dispatched the way Claude Code dispatches it. And
-neither has a hook that fires on a tool call: Pi's equivalent is an extension
-written in TypeScript, and Codex's plugin validator rejects a `hooks` field in
-the manifest even though the manifest spec lists one.
+## Dispatch
+
+Three harnesses, three mechanisms, and the review fan-out has to be expressed in
+all of them.
+
+**Codex has a real multi-agent system**, stable and enabled by default: the
+`multi_agent` feature is on, and the model is told it is `/root` in a team. The
+tools are `spawn_agent`, `followup_task`, `send_message`, `wait_agent`,
+`interrupt_agent`, and `list_agents`, and a sub-agent may spawn its own. Two
+constraints shape a run:
+
+- **Four concurrency slots**, the orchestrator included, so three workers at
+  once. `max_concurrent_threads_per_session` and `max_depth` configure it.
+- **Every agent shares one working directory** and one filesystem. Codex says so
+  outright, which makes the stolen-`HEAD` failure certain rather than likely:
+  the orchestrator must create each worktree and tell the agent to work there.
+
+`fork_turns` decides how much context a child inherits, and it gates model
+selection. A full-history fork — `fork_turns` omitted or `"all"` — inherits the
+parent's model and reasoning effort **and refuses to override either**. Setting
+`model` or `reasoning_effort` requires `fork_turns` of `"none"` or a positive
+integer string. The loop's rule that an implementer and a reviewer never share a
+model is therefore not merely a convention on Codex; a dispatch that forgets
+`fork_turns` silently violates it. `default_subagent_model` and
+`default_subagent_reasoning_effort` in `config.toml` set the fallback.
+
+A skill becomes a dispatchable agent by carrying `agents/openai.yaml` beside its
+`SKILL.md`, which names the display metadata and a
+`policy.allow_implicit_invocation` flag; Codex's own `review-agent` is built
+this way and is invoked as `$review-agent`.
+
+**Pi has no subagents and does not want them.** Its route is a session per tmux
+pane, and that route has been run: a reviewer dispatch completed here on
+2026-09-19, exit 0, against a worktree of its own. The shape was
+
+```sh
+pi --mode json --print --approve --session-dir <dir>/sessions \
+   --model openai-codex/gpt-5.6-terra --thinking high \
+   --tools read,bash,grep,find,ls,mcp \
+   --append-system-prompt <dir>/system.md -- '<task>'
+```
+
+with the pane signalling completion through `tmux wait-for`, stdout captured as
+`events.jsonl`, and the exit status written to a file. The role prompt names the
+model through `$PI_MODEL` and `$PI_REASONING_LEVEL`, so a finding still reports
+where it came from. Per-role tool limits are `--tools` and `--exclude-tools`
+rather than a subagent's allowlist.
+
+Codex can drive tmux the same way, since it has a shell and background
+terminals, but it has no reason to: `spawn_agent` is the better route there.
+
+## Hooks
+
+Codex's hook contract is close enough to Claude Code's to share one
+implementation. The events are `PreToolUse`, `PostToolUse`, `UserPromptSubmit`,
+`Stop`, `SessionStart`, `PreCompact`, `PostCompact`, `PermissionRequest`,
+`SubagentStart`, and `SubagentStop`. Inputs arrive as `session_id`, `turn_id`,
+`cwd`, `tool_name`, `tool_input`, `tool_response`, `hook_event_name`, `model`,
+`permission_mode`, and `agent_type`; a hook replies with `hookSpecificOutput`
+carrying `hookEventName`, `additionalContext`, `permissionDecision`, and
+`permissionDecisionReason`. Those are Claude Code's names.
+
+So the deslop gate is one script behind two thin adapters, not three
+implementations. Pi is the exception: its only equivalent is an extension in
+TypeScript, and that is the shim the packaging has to carry.
+
+The `plugin-creator` skill states that validation rejects a `hooks` field in the
+plugin manifest. The runtime disagrees — it resolves and trusts hooks carried by
+a plugin — so treat that as the scaffold being conservative and verify against a
+real install before relying on either reading.
 
 ## Plugin manifests
 
