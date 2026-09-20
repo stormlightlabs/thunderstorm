@@ -1,0 +1,31 @@
+---
+title: Introduction
+description: What a thunderstorm run does, what gets installed, and why it is a package.
+sidebar:
+  order: 1
+---
+
+## A run
+
+A run covers one issue and the sub-issues under it. It claims the issue on the
+board, creates a git worktree for each worker, takes each change through a fixed
+sequence of review passes, and stops once a pull request is open. A person
+starts every run, and merging is left to a person as well.
+
+## What gets installed
+
+The skills describe each stage of the loop, along with the commands that start
+them. `tstorm` is a separate binary carrying the checks: commit message shape,
+document identity, worktree isolation, and prose quality. Each supported agent
+receives a payload shaped to what it can load, which the
+[harness reference](/reference/harnesses/) describes.
+
+## Why it is packaged
+
+The loop began as six directories inside a single repository. A second
+repository could copy them, and the two copies drifted within weeks. Installing
+gives both of them the same fix.
+
+The checks are separate from the skills for a different reason. A skill is an
+instruction, and when an agent ignores one, nothing records that it happened. A
+check that exits non-zero leaves a result someone can read afterward.

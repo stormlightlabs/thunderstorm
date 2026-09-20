@@ -1,6 +1,8 @@
 ---
 title: Install
 description: Add thunderstorm to Claude Code, Codex, or Pi.
+sidebar:
+  order: 2
 ---
 
 Every harness installs from this repository. Pick the one you use.
