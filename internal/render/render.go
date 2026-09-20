@@ -48,6 +48,10 @@ type File struct {
 type Payload struct {
 	Target *Target
 	Files  []File
+	// Limits is what this harness does not get, where the render went ahead
+	// anyway: an unmet artifact stops a render, a missing permission
+	// mechanism does not. The render report is where an operator meets it.
+	Limits []string
 
 	counts map[Kind]int
 }
@@ -128,6 +132,10 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 			return nil, fmt.Errorf("%s: %w", t.Name, err)
 		}
 		p.Files = append(p.Files, extras...)
+	}
+	if !t.provides[CapPermissions] {
+		p.Limits = append(p.Limits, fmt.Sprintf("nothing stops the denied commands here: %s",
+			t.reason(CapPermissions)))
 	}
 	// The marker lists one path per line, so a path carrying a newline would
 	// split into two entries and every later render would refuse the payload.

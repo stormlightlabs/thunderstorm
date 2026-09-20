@@ -251,6 +251,12 @@ and no `/merge` command either: a named path is what turns a capability into
 the obvious next step, and an agent approving or merging its own work is the
 failure the whole review sequence exists to prevent.
 
+How much of that is a check depends on the harness. The manifest names the
+four commands and the renderer writes each harness's own spelling of them:
+deny rules for Claude Code, forbidden execpolicy rules for Codex, and for Pi
+no file at all, which a render reports as a limit of the payload.
+[hosts.md](hosts.md#permissions) has what each one enforces.
+
 The implementer and the reviewer never share a model in one run.
 
 ### What starts a pass

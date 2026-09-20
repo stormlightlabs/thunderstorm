@@ -62,9 +62,11 @@ pane for a role and hands the run its report, and `docs/internal/hosts.md`
 records what that role may reach there. The pi payload still stops on the check
 scripts, which is [#16].
 
-[#9] matters more than it did: an installed payload carries no permission on
-any harness, so the deny rules are a file a repository merges by hand
-everywhere.
+[#9] is done on this branch: the manifest names the four denied commands and
+each target writes its own harness's spelling of them. Codex gets execpolicy
+rules, checked with `codex execpolicy check`; Pi gets a line under the render
+saying it stops nothing. No harness carries a permission through an install,
+so every one of those files is put in place by hand.
 
 [#13] costs less than it looked. Cursor reads `.agents/skills/`, the same
 directory the Codex and Pi payloads need, so its skills cost a target in the

@@ -177,9 +177,53 @@ payload root, with commands written against `${CLAUDE_PLUGIN_ROOT}`, not in a
 rejects.
 
 A `settings.json` in a payload is read by nothing. The same install reported
-`Hooks (0)` while the payload carried its hook registration there. Permissions
-have no plugin mechanism at all, so the deny rules that stop a session merging
-its own work are a file a repository merges into its own settings.
+`Hooks (0)` while the payload carried its hook registration there.
+
+## Permissions
+
+Only a human merges, and what enforces that differs per host. No host carries
+a permission through a plugin install, so each file below is one somebody
+merges into their own settings by hand.
+
+| Host        | What stops a command                    | Where it lives           |
+| ----------- | --------------------------------------- | ------------------------ |
+| Claude Code | a deny rule per command prefix          | `.claude/settings.json`  |
+| Codex       | a forbidden execpolicy rule per command | `~/.codex/rules/*.rules` |
+| Pi          | nothing                                 | —                        |
+| Cursor      | unverified                              | —                        |
+
+The workflow manifest names four commands: `gh pr merge`, `gh pr review`,
+`git push` and `git merge`. Claude Code is the only host that takes them as
+written, one `Bash(<prefix>:*)` rule each. The renderer translates, so the
+manifest carries no host's spelling.
+
+Codex checks a command against execution-policy rules: Starlark `.rules`
+files of `prefix_rule` entries, each matching a command and the arguments
+that follow it and returning `allow`, `prompt` or `forbidden`. The most
+restrictive decision wins where several match, and `forbidden` blocks without
+a prompt. Codex reads `rules/` in every active config layer, which for one
+person is `~/.codex/rules/` and for a project Codex trusts is
+`<repo>/.codex/rules/`.
+
+`codex execpolicy check --rules <file> -- <command>` reports what a command
+gets, and is how the rendered file was checked against `codex-cli` 0.146.0 on
+2026-09-19: the four commands came back `forbidden`, while `git status`,
+`gh pr view` and `gh pr comment` matched nothing.
+
+The approval policy is not the route. `approval_policy = "untrusted"` is
+retired, and Codex's configuration reference says to remove it; what survives
+is `on-request`, `never`, or a table of booleans, which choose when a prompt
+appears rather than which commands are refused. Sandboxing is a third axis:
+`workspace-write` turns network access off by default, which would stop
+`gh pr merge` and `git push` but leave a local `git merge` alone.
+
+Pi stops no command. Its own `docs/security.md` says it ships no sandbox and
+leaves isolation to the operating system, a container, or a micro-VM. Per-role
+`--tools` narrows what a session can call, and a reviewer keeps `bash`, so a
+role told to merge can. What separates one role's work from another's is the
+worktree its pane starts in, and sandboxing the process is
+`internal/ideas/remote-operation.md` under bwrap. Running the loop on Pi means
+accepting that the merge rule is prose there.
 
 ## Plugin manifests
 

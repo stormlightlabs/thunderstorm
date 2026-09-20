@@ -25,8 +25,9 @@ details thunderstorm` lists them and what they cost a session.
 Neither installs yet, and commands are no longer the reason. Both render now:
 Pi reads a package's `prompts/`, and Codex reads `~/.codex/prompts`, which the
 payload carries for you to copy. What stops both is the review fan-out. Codex
-dispatches a skill carrying its own sidecar rather than an agent file, and Pi
-has no subagents at all.
+dispatches a skill carrying its own sidecar rather than an agent file, and a
+role on Pi is a session in a tmux pane that `tstorm dispatch` starts, so a pi
+payload has nowhere to put a role definition.
 
 `tstorm render --target codex` stops and says so rather than building a payload
 that installs and then skips half the loop. The issues that would close each
@@ -62,9 +63,12 @@ names none leaves an agent to guess.
 
 ### The deny rules
 
-No plugin mechanism carries a permission, so an installed payload cannot stop a
-session merging its own work. The payload ships them as `settings.json` for you
-to merge into your repository's `.claude/settings.json`:
+No plugin mechanism on any harness carries a permission, so an installed
+payload cannot stop a session merging its own work. Each payload ships the
+rules in its own harness's terms, for you to merge into your settings.
+
+Claude Code reads them as one rule per command. Merge the payload's
+`settings.json` into your repository's `.claude/settings.json`:
 
 ```json
 {
@@ -82,6 +86,30 @@ to merge into your repository's `.claude/settings.json`:
 A bare `git push` is denied because pushing goes through `push-verified.sh`,
 which compares the remote ref to what it is about to overwrite. Without these
 rules the review sequence is a convention an agent can skip.
+
+Codex checks a command against execution-policy rules, so its payload carries
+`rules/thunderstorm.rules`, one rule per command:
+
+```starlark
+prefix_rule(
+    pattern = ["gh", "pr", "merge"],
+    decision = "forbidden",
+    justification = "only a human merges or approves a thunderstorm run",
+)
+```
+
+Put the file in `~/.codex/rules/`, or in `.codex/rules/` of a project Codex
+trusts. A `forbidden` rule blocks the command without a prompt. To see what
+any command gets:
+
+```sh
+codex execpolicy check --rules ~/.codex/rules/thunderstorm.rules -- gh pr merge 12
+```
+
+Pi stops nothing, and there is no file to give it. It ships no sandbox and
+leaves isolation to the operating system or a container, so the merge rule is
+prose a session can skip rather than a command that fails. Keep a human
+between a Pi session and anything you cannot undo.
 
 ### Your board
 

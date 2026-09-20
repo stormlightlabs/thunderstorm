@@ -41,10 +41,12 @@ const (
 	CapSubagents = "subagents"
 	CapHooks     = "hooks"
 	CapScripts   = "scripts"
-	CapDenyRules = "deny-rules"
+	// CapPermissions is a mechanism that refuses a command. Each harness
+	// spells it differently, and Pi has none.
+	CapPermissions = "permissions"
 )
 
-var capabilities = []string{CapSkills, CapCommands, CapSubagents, CapHooks, CapScripts, CapDenyRules}
+var capabilities = []string{CapSkills, CapCommands, CapSubagents, CapHooks, CapScripts, CapPermissions}
 
 // Manifest is the canonical description of the workflow: one entry per
 // artifact, plus the permission policy a harness is asked to enforce.
@@ -66,6 +68,10 @@ type Author struct {
 // Policy is the permission rules the workflow depends on rather than merely
 // prefers: the ones that keep an agent from approving or merging its own work.
 // See docs/internal/thunderstorm.md.
+//
+// Deny lists command prefixes as a person would type them. A target
+// translates them into what its own harness reads; one with no permission
+// mechanism says so instead.
 //
 // Deny only. An allow rule is a literal command prefix, and where an installed
 // payload puts its scripts is not knowable when the manifest is written, so a

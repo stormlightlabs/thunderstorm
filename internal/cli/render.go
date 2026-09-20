@@ -10,6 +10,14 @@ import (
 	"github.com/stormlightlabs/thunderstorm/internal/ui"
 )
 
+// printLimits says what the payload does not carry to this harness. It is not
+// a failure, so it goes to stdout under the summary rather than to stderr.
+func printLimits(cmd *cobra.Command, p *ui.Printer, payload *render.Payload) {
+	for _, limit := range payload.Limits {
+		fmt.Fprintln(cmd.OutOrStdout(), p.Subtle.Render("  "+limit))
+	}
+}
+
 func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	var (
 		target string
@@ -62,6 +70,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 						out, strings.Join(diff, "\n  "), rerun)
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("up to date"), payload.Summary())
+				printLimits(cmd, p, payload)
 				return nil
 			}
 
@@ -69,6 +78,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("rendered"), payload.Summary(), p.Subtle.Render("→ "+out))
+			printLimits(cmd, p, payload)
 			return nil
 		},
 	}

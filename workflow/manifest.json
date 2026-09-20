@@ -8,10 +8,10 @@
   },
   "policy": {
     "deny": [
-      "Bash(gh pr merge:*)",
-      "Bash(gh pr review:*)",
-      "Bash(git push:*)",
-      "Bash(git merge:*)"
+      "gh pr merge",
+      "gh pr review",
+      "git push",
+      "git merge"
     ]
   },
   "artifacts": [

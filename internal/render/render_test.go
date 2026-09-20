@@ -45,7 +45,7 @@ func fixture(t *testing.T, artifacts string) string {
   "version": "0.1.0",
   "description": "A test workflow.",
   "author": {"name": "Stormlight Labs"},
-  "policy": {"deny": ["Bash(git merge:*)"]},
+  "policy": {"deny": ["git merge"]},
   "artifacts": [`+artifacts+`]
 }`)
 	return root
@@ -58,6 +58,12 @@ const allArtifacts = `
     {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "requires": ["hooks"],
      "event": "SessionStart", "matcher": "startup", "timeout": 1200},
     {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
+
+// commandOnly is the fixture Codex and Pi can carry whole: they have no
+// subagents, and the fixture's skill names {{PLUGIN}}, which neither has a
+// verified value for. It is what a test about the rest of a payload uses.
+const commandOnly = `
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]}`
 
 func planFor(t *testing.T, target, artifacts string) (*Payload, string, error) {
 	t.Helper()
@@ -190,7 +196,8 @@ func TestThePayloadRegistersItsHookWhereAPluginIsRead(t *testing.T) {
 }
 
 // No plugin mechanism carries a permission rule, so the deny rules ride along
-// as a file a repository merges into its own settings.
+// as a file a repository merges into its own settings. The manifest names a
+// command; Claude Code's own spelling of it is the renderer's to write.
 func TestTheDenyRulesShipForARepositoryToMerge(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
@@ -204,6 +211,42 @@ func TestTheDenyRulesShipForARepositoryToMerge(t *testing.T) {
 	}
 	if len(settings.Permissions.Deny) != 1 || settings.Permissions.Deny[0] != "Bash(git merge:*)" {
 		t.Errorf("deny rules are %v", settings.Permissions.Deny)
+	}
+}
+
+// Codex reads a command against execpolicy rules, so the same policy renders
+// as one forbidden rule per command, with each command's words as the tokens
+// the rule matches.
+func TestCodexCarriesThePolicyAsExecpolicyRules(t *testing.T) {
+	p, _, err := planFor(t, "codex", commandOnly)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	rules := string(body(t, p, "rules/thunderstorm.rules"))
+	for _, want := range []string{
+		`pattern = ["git", "merge"]`,
+		`decision = "forbidden"`,
+	} {
+		if !strings.Contains(rules, want) {
+			t.Errorf("the rule file does not carry %q:\n%s", want, rules)
+		}
+	}
+}
+
+// Pi stops no command at all. That is a limitation of running the loop there,
+// and a render is where an operator meets it.
+func TestPiSaysItStopsNothing(t *testing.T) {
+	p, _, err := planFor(t, "pi", commandOnly)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	if len(p.Limits) != 1 || !strings.Contains(p.Limits[0], "ships no sandbox") {
+		t.Errorf("pi reports %v", p.Limits)
+	}
+	for _, f := range p.Files {
+		if f.Path == "rules/thunderstorm.rules" || f.Path == "settings.json" {
+			t.Errorf("pi carries %s, which nothing there reads", f.Path)
+		}
 	}
 }
 

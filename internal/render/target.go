@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 )
 
 // Target is one harness: what it provides, where its payload puts each kind of
@@ -73,7 +74,7 @@ func claudeTarget() *Target {
 		Plugin: claudePluginRoot,
 		provides: map[string]bool{
 			CapSkills: true, CapCommands: true, CapSubagents: true,
-			CapHooks: true, CapScripts: true, CapDenyRules: true,
+			CapHooks: true, CapScripts: true, CapPermissions: true,
 		},
 		dirs: map[Kind]string{
 			KindSkill: "skills", KindCommand: "commands", KindAgent: "agents",
@@ -88,7 +89,8 @@ func codexTarget() *Target {
 		Name: "codex",
 		Root: ".codex",
 		provides: map[string]bool{
-			CapSkills: true, CapCommands: true, CapSubagents: true, CapHooks: true, CapScripts: true,
+			CapSkills: true, CapCommands: true, CapSubagents: true,
+			CapHooks: true, CapScripts: true, CapPermissions: true,
 		},
 		dirs: map[Kind]string{
 			KindSkill: "skills", KindCommand: "prompts", KindHook: "hooks", KindScript: "scripts",
@@ -96,8 +98,8 @@ func codexTarget() *Target {
 		why: map[string]string{
 			string(KindAgent): "Codex dispatches a skill carrying agents/openai.yaml rather than an agent file; " +
 				"writing that sidecar is #8",
-			CapDenyRules: "merge denial is a Claude Code setting today; see #9",
 		},
+		extras: codexExtras,
 	}
 }
 
@@ -116,7 +118,9 @@ func piTarget() *Target {
 			string(KindHook):   "Pi's only hook equivalent is a TypeScript extension; see #18",
 			CapScripts:         "a pi package has no slot for the check scripts; they move into tstorm in #16",
 			string(KindScript): "a pi package has no slot for the check scripts; they move into tstorm in #16",
-			CapDenyRules:       "merge denial is a Claude Code setting today; see #9",
+			CapPermissions: "Pi stops no command: it ships no sandbox and leaves isolation to the operating " +
+				"system, so what holds a role back there is the tool list tstorm dispatch passes it and the " +
+				"worktree its pane starts in",
 		},
 	}
 }
@@ -208,9 +212,13 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 		})
 	}
 
+	deny := make([]string, 0, len(m.Policy.Deny))
+	for _, cmd := range m.Policy.Deny {
+		deny = append(deny, fmt.Sprintf("Bash(%s:*)", cmd))
+	}
 	settings, err := marshal(map[string]any{
 		"$schema":     "https://json.schemastore.org/claude-code-settings.json",
-		"permissions": map[string]any{"deny": m.Policy.Deny},
+		"permissions": map[string]any{"deny": deny},
 	})
 	if err != nil {
 		return nil, err
@@ -228,6 +236,35 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 		files = append(files, File{Path: "hooks/hooks.json", Body: hooks})
 	}
 	return files, nil
+}
+
+// codexExtras writes the policy as execpolicy rules, which is what Codex
+// checks a command against: one Starlark prefix_rule per command, decided
+// forbidden. A person puts the file under ~/.codex/rules/ or a trusted
+// project's .codex/rules/, since no plugin mechanism carries a permission.
+//
+// Verified with codex execpolicy check on codex-cli 0.146.0, 2026-09-19.
+func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
+	var b strings.Builder
+	b.WriteString("# thunderstorm: a session does not merge or approve its own work.\n")
+	b.WriteString("#\n")
+	b.WriteString("# Put this in ~/.codex/rules/, or in .codex/rules/ of a trusted project.\n")
+	b.WriteString("# A plugin install carries no permission, so nothing puts it there for\n")
+	b.WriteString("# you. `codex execpolicy check --rules <file> -- <command>` says what a\n")
+	b.WriteString("# command gets.\n")
+	for _, cmd := range m.Policy.Deny {
+		fields := strings.Fields(cmd)
+		quoted := make([]string, 0, len(fields))
+		for _, f := range fields {
+			quoted = append(quoted, fmt.Sprintf("%q", f))
+		}
+		b.WriteString("\nprefix_rule(\n")
+		fmt.Fprintf(&b, "    pattern = [%s],\n", strings.Join(quoted, ", "))
+		b.WriteString("    decision = \"forbidden\",\n")
+		fmt.Fprintf(&b, "    justification = %q,\n", "only a human merges or approves a thunderstorm run")
+		b.WriteString(")\n")
+	}
+	return []File{{Path: "rules/thunderstorm.rules", Body: []byte(b.String())}}, nil
 }
 
 func marshal(v any) ([]byte, error) {
