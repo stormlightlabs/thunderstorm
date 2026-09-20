@@ -12,30 +12,6 @@
       "Bash(gh pr review:*)",
       "Bash(git push:*)",
       "Bash(git merge:*)"
-    ],
-    "allow": [
-      "Bash({{ROOT}}/scripts/check-commit-message.py:*)",
-      "Bash({{ROOT}}/scripts/push-verified.sh:*)",
-      "Bash({{ROOT}}/scripts/ulid.py:*)",
-      "Bash(git add:*)",
-      "Bash(git branch --list:*)",
-      "Bash(git branch --show-current)",
-      "Bash(git branch -m:*)",
-      "Bash(git branch -vv)",
-      "Bash(git checkout:*)",
-      "Bash(git commit:*)",
-      "Bash(git diff:*)",
-      "Bash(git fetch:*)",
-      "Bash(git log:*)",
-      "Bash(git rev-parse:*)",
-      "Bash(git show:*)",
-      "Bash(git status:*)",
-      "Bash(git switch:*)",
-      "Bash(git worktree add:*)",
-      "Bash(git worktree list:*)",
-      "Bash(git worktree prune)",
-      "Bash(git worktree remove:*)",
-      "Bash(rg:*)"
     ]
   },
   "artifacts": [
@@ -262,17 +238,6 @@
       "requires": [
         "subagents"
       ]
-    },
-    {
-      "kind": "hook",
-      "name": "session-start.sh",
-      "source": "hooks/session-start.sh",
-      "requires": [
-        "hooks"
-      ],
-      "event": "SessionStart",
-      "matcher": "startup",
-      "timeout": 1200
     },
     {
       "kind": "script",

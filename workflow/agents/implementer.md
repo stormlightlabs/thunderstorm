@@ -19,8 +19,8 @@ Make the smallest change that satisfies the criteria. Follow the module order,
 error policy, and documentation conventions the surrounding code already keeps.
 Write the test with the change.
 
-Run the narrowest relevant test, then `cargo fmt`, strict clippy, and the
-workspace tests. Never weaken, skip, or delete a test to make a gate pass.
+Run the narrowest relevant test, then the gates the repository's `AGENTS.md`
+names. Never weaken, skip, or delete a test to make a gate pass.
 
 Work larger than the issue describes gets filed as a new issue, not absorbed.
 

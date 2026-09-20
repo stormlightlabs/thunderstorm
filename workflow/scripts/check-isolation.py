@@ -5,8 +5,8 @@
     check-isolation.py <dir>              # check some other tree
 
 The `worktree` skill makes every worktree here, outside the repository root so
-Cargo cannot reach the parent `.cargo/config.toml` and build into the parent
-`target/`. The harness makes them inside the root, and takes the instruction two
+a build tool cannot reach the parent's configuration and build into the
+parent's output directory. The harness makes them inside the root, and takes the instruction two
 ways:
 
 - An `isolation` key in a definition's frontmatter, which the harness reads

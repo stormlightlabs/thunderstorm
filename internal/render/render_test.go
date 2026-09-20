@@ -25,7 +25,8 @@ func fixture(t *testing.T, artifacts string) string {
 			t.Fatal(err)
 		}
 	}
-	write("skills/review/SKILL.md", "---\nname: review\n---\n\nRun `{{ROOT}}/scripts/check.py`.\n")
+	write("skills/review/SKILL.md",
+		"---\nname: review\n---\n\nRun `{{PLUGIN}}/scripts/check.py`; a diff touching `{{ROOT}}/` is a change.\n")
 	write("skills/review/references/diff.md", "How to read a diff.\n")
 	write("commands/revise.md", "Use the `revise` skill.\n")
 	write("agents/reviewer.md", "You review.\n")
@@ -36,7 +37,7 @@ func fixture(t *testing.T, artifacts string) string {
   "version": "0.1.0",
   "description": "A test workflow.",
   "author": {"name": "Stormlight Labs"},
-  "policy": {"deny": ["Bash(git merge:*)"], "allow": ["Bash({{ROOT}}/scripts/check.py:*)"]},
+  "policy": {"deny": ["Bash(git merge:*)"]},
   "artifacts": [`+artifacts+`]
 }`)
 	return root
@@ -95,6 +96,7 @@ func TestClaudePayloadPlacesEveryKind(t *testing.T) {
 		"commands/revise.md",
 		"agents/reviewer.md",
 		"hooks/session-start.sh",
+		"hooks/hooks.json",
 		"scripts/check.py",
 		"settings.json",
 		".claude-plugin/plugin.json",
@@ -116,45 +118,83 @@ func TestAnAliasBecomesItsOwnFile(t *testing.T) {
 	}
 }
 
-// A skill that names a script has to name the path the reader will have.
-func TestProseCarriesTheTargetsResourceRoot(t *testing.T) {
+// The two roots are different places once a payload is installed rather than
+// copied: the scripts sit where the plugin landed, and the worktrees sit in the
+// repository being worked on.
+func TestProseSeparatesThePluginFromTheRepository(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	skill := string(body(t, p, "skills/review/SKILL.md"))
-	if strings.Contains(skill, rootToken) {
-		t.Errorf("%s left unsubstituted in %q", rootToken, skill)
+	if strings.Contains(skill, rootToken) || strings.Contains(skill, pluginToken) {
+		t.Errorf("a token survived the render: %q", skill)
 	}
-	if !strings.Contains(skill, ".claude/scripts/check.py") {
-		t.Errorf("skill does not name the rendered path: %q", skill)
+	if !strings.Contains(skill, "${CLAUDE_PLUGIN_ROOT}/scripts/check.py") {
+		t.Errorf("the script does not resolve to the installed payload: %q", skill)
+	}
+	if !strings.Contains(skill, "`.claude/` is a change") {
+		t.Errorf("the repository directory did not survive as itself: %q", skill)
 	}
 }
 
-func TestSettingsCarryTheHookAndTheDenyRules(t *testing.T) {
+// A target with no verified install layout has no value for {{PLUGIN}}. Leaving
+// the braces in the prose, or quietly dropping them, both reach a reader.
+func TestAnUnvaluedTokenStopsTheRender(t *testing.T) {
+	root := fixture(t, allArtifacts)
+	m, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	claude, _ := Lookup("claude")
+	claude.Plugin = ""
+	if _, err := Plan(m, claude, root); err == nil {
+		t.Fatal("rendered prose carrying a token the target cannot resolve")
+	} else if !strings.Contains(err.Error(), pluginToken) {
+		t.Errorf("the failure does not name the token: %v", err)
+	}
+}
+
+// The first real install reported no hooks: a settings.json in a payload is
+// read by nothing, and hooks/hooks.json is what a plugin carries.
+func TestThePayloadRegistersItsHookWhereAPluginIsRead(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	var hooks struct {
+		Hooks map[string][]struct {
+			Matcher string
+			Hooks   []struct{ Command string }
+		}
+	}
+	if err := json.Unmarshal(body(t, p, "hooks/hooks.json"), &hooks); err != nil {
+		t.Fatal(err)
+	}
+	start := hooks.Hooks["SessionStart"]
+	if len(start) != 1 {
+		t.Fatalf("SessionStart has %d registrations, want 1", len(start))
+	}
+	if got := start[0].Hooks[0].Command; got != "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh" {
+		t.Errorf("hook command is %q, which is not where the install puts it", got)
+	}
+}
+
+// No plugin mechanism carries a permission rule, so the deny rules ride along
+// as a file a repository merges into its own settings.
+func TestTheDenyRulesShipForARepositoryToMerge(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	var settings struct {
-		Hooks map[string][]struct {
-			Matcher string
-			Hooks   []struct{ Command string }
-		}
-		Permissions struct{ Allow, Deny []string }
+		Permissions struct{ Deny []string }
 	}
 	if err := json.Unmarshal(body(t, p, "settings.json"), &settings); err != nil {
 		t.Fatal(err)
 	}
-	start := settings.Hooks["SessionStart"]
-	if len(start) != 1 || !strings.HasSuffix(start[0].Hooks[0].Command, "hooks/session-start.sh") {
-		t.Errorf("SessionStart registration is %+v", start)
-	}
 	if len(settings.Permissions.Deny) != 1 || settings.Permissions.Deny[0] != "Bash(git merge:*)" {
 		t.Errorf("deny rules are %v", settings.Permissions.Deny)
-	}
-	if got := settings.Permissions.Allow[0]; got != "Bash(.claude/scripts/check.py:*)" {
-		t.Errorf("allow rule kept the token: %q", got)
 	}
 }
 

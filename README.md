@@ -16,16 +16,14 @@ copies drifted within weeks. This repository is the installable version.
 ## Install
 
 ```sh
-# Claude Code
-/plugin marketplace add stormlightlabs/thunderstorm
-
-# Codex
-codex plugin marketplace add stormlightlabs/thunderstorm
-codex plugin add thunderstorm@stormlightlabs
-
-# Pi
-pi install git:github.com/stormlightlabs/thunderstorm
+claude plugin marketplace add stormlightlabs/thunderstorm
+claude plugin install thunderstorm@stormlightlabs
 ```
+
+Or `/plugin marketplace add` and `/plugin install` from inside a session.
+Claude Code is the only harness with a payload today; `docs/start/install.md`
+says what stays with your repository, and what Codex and Pi are still waiting
+on.
 
 ## The stages
 
@@ -95,9 +93,10 @@ fixture used and the versions it was checked against.
 ## Layout
 
 ```text
+AGENTS.md       gates, commit shape, and where things live (CLAUDE.md links to it)
 cmd/tstorm      entry point
 internal/       tstorm source
-workflow/       the skills, commands, agents, hooks and scripts, written once
+workflow/       the skills, commands, agents and scripts, written once
 payloads/       what `tstorm render` builds from them, one directory per harness
 docs/           the published site
 docs/internal/  working documents, not published

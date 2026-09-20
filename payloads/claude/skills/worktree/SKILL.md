@@ -58,8 +58,8 @@ The one case with no worktree is a cloud session working an issue itself, where
 the container checkout belongs to nobody else. A second tree there costs three
 things and buys nothing. It is untracked inside the repository root, so the
 checkout reads dirty. The stop hook then asks for a locked second checkout to be
-committed. Cargo can reach the parent `.cargo/config.toml` and build into the
-parent `target/`. That session still owns its branch: rename a harness-supplied
+committed. A build tool that walks upward for its configuration reaches the
+parent's, and builds into the parent's output directory. That session still owns its branch: rename a harness-supplied
 name to `agent/<issue>` before the first push.
 
 A reviewer needs no worktree, only a tree that does not move while it reads,
@@ -68,11 +68,12 @@ which is a commit. The `review` skill owns how to read one.
 ## Create
 
 Always outside the repository root. A worktree created inside it inherits the
-parent `.cargo/config.toml`, and Cargo can then build into the parent `target/`:
+parent's build configuration, and can then build into the parent's output
+directory:
 
 ```sh
 git fetch origin
-git worktree add ../trps-worktrees/<issue> -b agent/<issue> origin/main
+git worktree add ../<repo>-worktrees/<issue> -b agent/<issue> origin/main
 ```
 
 Branch from `origin/main`, not from whatever the user has checked out. The
@@ -84,10 +85,10 @@ no rename.
 
 ## Build isolation
 
-Each worktree keeps its own `target/`. Do not set a shared `CARGO_TARGET_DIR`.
-Cargo takes an exclusive lock on the build directory, so a shared one serializes
-the builds it was supposed to parallelize, and differing feature resolution
-across branches invalidates the shared incremental state.
+Each worktree keeps its own build directory. Do not point two at one shared
+directory: a build tool that takes an exclusive lock on its output serializes
+the builds the worktrees were supposed to parallelize, and differing
+configuration across branches invalidates the shared incremental state.
 
 Share compilation through a content-addressed cache instead, when it is
 installed:
@@ -102,15 +103,14 @@ that do not reproduce. Check target isolation before anything else.
 
 ## Provisioning
 
-Untracked files do not follow a worktree. The build needs none today: the
-pattern dictionary is compiled into `tropius-core`, so a fresh worktree builds
-and tests with nothing copied into it.
+Untracked files do not follow a worktree. Where the build needs none, a fresh
+worktree builds and tests with nothing copied into it.
 
 Where that changes, copy what the build needs by name:
 
 ```sh
 for file in <path>; do
-  test -f "$file" && install -D "$file" "../trps-worktrees/<issue>/$file"
+  test -f "$file" && install -D "$file" "../<repo>-worktrees/<issue>/$file"
 done
 ```
 
@@ -128,7 +128,7 @@ Raise the cap only after measuring.
 Removal is part of the run, not cleanup for later:
 
 ```sh
-git worktree remove ../trps-worktrees/<issue>
+git worktree remove ../<repo>-worktrees/<issue>
 git branch -d agent/<issue>   # a run that took no worktree runs this line alone
 git worktree prune
 ```

@@ -1,0 +1,14 @@
+{
+  "name": "stormlightlabs",
+  "owner": {
+    "name": "Stormlight Labs",
+    "url": "https://github.com/stormlightlabs"
+  },
+  "plugins": [
+    {
+      "name": "thunderstorm",
+      "source": "./payloads/claude",
+      "description": "Triage, decompose, implement, review and revise, run as one loop over a GitHub board."
+    }
+  ]
+}

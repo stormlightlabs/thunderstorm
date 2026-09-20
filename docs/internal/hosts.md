@@ -120,10 +120,17 @@ So the deslop gate is one script behind two thin adapters, not three
 implementations. Pi is the exception: its only equivalent is an extension in
 TypeScript, and that is the shim the packaging has to carry.
 
-The `plugin-creator` skill states that validation rejects a `hooks` field in the
-plugin manifest. The runtime disagrees — it resolves and trusts hooks carried by
-a plugin — so treat that as the scaffold being conservative and verify against a
-real install before relying on either reading.
+A Claude Code plugin does carry hooks, verified by installing this
+repository's payload on 2026-09-19: `claude plugin details thunderstorm`
+reported `Hooks (1) SessionStart`. They travel in `hooks/hooks.json` at the
+payload root, with commands written against `${CLAUDE_PLUGIN_ROOT}`, not in a
+`hooks` field of the plugin manifest, which the `plugin-creator` scaffold
+rejects.
+
+A `settings.json` in a payload is read by nothing. The same install reported
+`Hooks (0)` while the payload carried its hook registration there. Permissions
+have no plugin mechanism at all, so the deny rules that stop a session merging
+its own work are a file a repository merges into its own settings.
 
 ## Plugin manifests
 

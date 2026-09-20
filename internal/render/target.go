@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 )
 
 // Target is one harness: what it provides, where its payload puts each kind of
@@ -15,9 +14,14 @@ import (
 // did not cover provides nothing, which is not a claim that it cannot.
 type Target struct {
 	Name string
-	// Root replaces {{ROOT}} in rendered prose, so a skill that names a script
-	// names the path the reader will actually have.
-	Root string
+	// Root replaces {{ROOT}} in rendered prose: the harness's own directory in
+	// the repository being worked on. Plugin replaces {{PLUGIN}}: where the
+	// installed payload sits, which is not inside that repository at all once
+	// the payload is installed rather than copied. Plugin is empty for a
+	// harness whose install layout has not been verified, and a source naming
+	// {{PLUGIN}} then stops that target's render rather than guessing.
+	Root   string
+	Plugin string
 
 	provides map[string]bool
 	dirs     map[Kind]string
@@ -54,10 +58,15 @@ func TargetNames() string {
 	return out
 }
 
+// claudePluginRoot is what Claude Code expands to the installed payload's
+// directory, in a hook command and in rendered prose alike.
+const claudePluginRoot = "${CLAUDE_PLUGIN_ROOT}"
+
 func claudeTarget() *Target {
 	return &Target{
-		Name: "claude",
-		Root: ".claude",
+		Name:   "claude",
+		Root:   ".claude",
+		Plugin: claudePluginRoot,
 		provides: map[string]bool{
 			CapSkills: true, CapCommands: true, CapSubagents: true,
 			CapHooks: true, CapScripts: true, CapDenyRules: true,
@@ -151,12 +160,16 @@ func (t *Target) reason(key string) string {
 	return "no reason recorded, which is itself a gap in the target table"
 }
 
-// claudeExtras writes the two files Claude Code needs that are not copied from
-// the source: the plugin manifest, and the settings file carrying the hook
-// registrations and the deny rules that keep an agent from merging its own work.
+// claudeExtras writes the three files Claude Code needs that are not copied
+// from the source.
+//
+// hooks/hooks.json is what a plugin install reads; a settings.json in a
+// payload is read by nothing, which is why the first install reported no
+// hooks at all. It is written only when the workflow has a hook to register,
+// which it does not today. settings.json stays for the deny rules, which no
+// plugin mechanism can carry: a repository merges them into its own settings,
+// and docs/start/install.md says so.
 func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
-	const root = ".claude"
-
 	plugin, err := marshal(map[string]any{
 		"name":        m.Name,
 		"version":     m.Version,
@@ -185,33 +198,32 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 			Matcher: a.Matcher,
 			Hooks: []command{{
 				Type:    "command",
-				Command: "$CLAUDE_PROJECT_DIR/" + root + "/hooks/" + a.Name,
+				Command: claudePluginRoot + "/hooks/" + a.Name,
 				Timeout: a.Timeout,
 			}},
 		})
 	}
-	allow := make([]string, len(m.Policy.Allow))
-	for i, rule := range m.Policy.Allow {
-		allow[i] = strings.ReplaceAll(rule, rootToken, root)
-	}
-	settings := map[string]any{
-		"$schema": "https://json.schemastore.org/claude-code-settings.json",
-		"permissions": map[string]any{
-			"allow": allow,
-			"deny":  m.Policy.Deny,
-		},
-	}
-	if len(events) > 0 {
-		settings["hooks"] = events
-	}
-	body, err := marshal(settings)
+
+	settings, err := marshal(map[string]any{
+		"$schema":     "https://json.schemastore.org/claude-code-settings.json",
+		"permissions": map[string]any{"deny": m.Policy.Deny},
+	})
 	if err != nil {
 		return nil, err
 	}
-	return []File{
+
+	files := []File{
 		{Path: ".claude-plugin/plugin.json", Body: plugin},
-		{Path: "settings.json", Body: body},
-	}, nil
+		{Path: "settings.json", Body: settings},
+	}
+	if len(events) > 0 {
+		hooks, err := marshal(map[string]any{"hooks": events})
+		if err != nil {
+			return nil, err
+		}
+		files = append(files, File{Path: "hooks/hooks.json", Body: hooks})
+	}
+	return files, nil
 }
 
 func marshal(v any) ([]byte, error) {

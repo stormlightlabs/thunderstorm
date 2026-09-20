@@ -72,17 +72,14 @@ wrong, say so and fix it deliberately, with the reason recorded.
 
 ## Verify
 
-```sh
-cargo fmt
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-features --locked
-```
+Run the narrowest relevant test, then the gates the repository's `AGENTS.md`
+names: its formatter, its linter at the strictness it sets, and its tests.
 
 
 ## Push and reply
 
 Commit with the `commits-and-prs` skill, push to the same branch with
-`{{ROOT}}/scripts/push-verified.sh`, then post one reply comment listing each
+`{{PLUGIN}}/scripts/push-verified.sh`, then post one reply comment listing each
 finding and its outcome, **under 150 words**. Open it with one line naming the
 pass you are answering, what it ran as, and what you ran as:
 

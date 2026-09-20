@@ -31,7 +31,7 @@ The conversation is not the artifact. When the discussion settles, or when the
 user asks, write an entry to `internal/ideas/`.
 
 ```sh
-python3 .claude/scripts/ulid.py
+python3 ${CLAUDE_PLUGIN_ROOT}/scripts/ulid.py
 ```
 
 ```markdown

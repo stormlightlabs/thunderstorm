@@ -26,7 +26,7 @@ the session sits on and is rarely the one under review. Where reading a tree is
 worth the setup, take a worktree that cannot move:
 
 ```sh
-git worktree add --detach ../trps-worktrees/review-<n> "$commit"
+git worktree add --detach ../<repo>-worktrees/review-<n> "$commit"
 ```
 
 Git allows that beside the worktree that holds the branch. Remove it when the

@@ -67,19 +67,20 @@ residue becomes unreachable rather than untidy.
 Where there is no branch to rename, that same `git switch -c` creates one.
 
 A local session takes a worktree, because the checkout there is the user's. It
-goes outside the repository root so Cargo does not find the parent
-`.cargo/config.toml`:
+goes outside the repository root, so a build tool that walks upward for its
+configuration finds the user's rather than the worktree's:
 
 ```sh
 git fetch origin
-git worktree add ../trps-worktrees/<n> -b agent/<n> origin/main
+git worktree add ../<repo>-worktrees/<n> -b agent/<n> origin/main
 ```
 
 Work only inside that worktree. The user's primary checkout stays untouched.
 
-Each worktree keeps its own `target/`. Do not set a shared `CARGO_TARGET_DIR`:
-Cargo locks the build directory and a shared one serializes parallel builds.
-Use `RUSTC_WRAPPER=sccache` when it is installed.
+Each worktree keeps its own build directory. Do not point two at one shared
+directory: a build tool that locks its output serializes the builds the
+worktrees were supposed to parallelize. Share compilation through a
+content-addressed cache instead, where the toolchain has one.
 
 ## Do the work
 
@@ -95,22 +96,11 @@ license. File the extra work as a new issue and finish what was claimed.
 
 ## Verify
 
-Run the narrowest relevant test, then the full gates:
+Run the narrowest relevant test, then the gates the repository's `AGENTS.md`
+names: its formatter, its linter at the strictness it sets, and its tests.
 
-```sh
-cargo fmt
-cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-cargo test --workspace --all-features --locked
-```
-
-A change to what the CLI prints gets a run against real text, not only a unit
-test:
-
-```sh
-printf '<the input under test>' | cargo run -q -p tropius-cli
-```
-
-Put that output in your report. Check any claim you make about it against the
+A change to what a command prints gets a run against real input, not only a
+unit test. Put that output in your report. Check any claim you make about it against the
 output itself rather than against what the change intended to print.
 
 Do not weaken, skip, or delete a test to make a gate pass. If a test is wrong,
@@ -130,9 +120,9 @@ The title and body become the squash commit, verbatim. Write them to that:
   a `Not covered` line that is not empty.
 
 `commits-and-prs` carries the rest, and
-`{{ROOT}}/scripts/check-commit-message.py --pr` reports both before the merge.
+`{{PLUGIN}}/scripts/check-commit-message.py --pr` reports both before the merge.
 
-Push with `{{ROOT}}/scripts/push-verified.sh`, which compares the remote ref to
+Push with `{{PLUGIN}}/scripts/push-verified.sh`, which compares the remote ref to
 local `HEAD` afterwards. `git push` exits zero for a push that carried nothing,
 so its exit code is not evidence that the branch moved.
 

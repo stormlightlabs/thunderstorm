@@ -27,7 +27,7 @@ The standard passes read the change as written. The adversarial pass reads it
 as hostile input, an unlucky interleaving, or a caller who ignores the
 documentation would.
 
-`{{ROOT}}/agents/adversarial-reviewer.md` lists what it hunts and what it owes
+`{{PLUGIN}}/agents/adversarial-reviewer.md` lists what it hunts and what it owes
 each finding: a named input, ordering or state, and how far you got. One rule
 is worth repeating here because it is the one that inflates a comment — prefer
 a few findings you can support to a list you cannot. One proven race changes

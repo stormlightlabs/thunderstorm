@@ -5,37 +5,36 @@ sidebar:
   order: 2
 ---
 
-Every harness installs from this repository. Pick the one you use.
+Every harness installs from this repository, and Claude Code is the one with a
+payload today.
 
 ## Claude Code
 
 ```sh
-/plugin marketplace add stormlightlabs/thunderstorm
+claude plugin marketplace add stormlightlabs/thunderstorm
+claude plugin install thunderstorm@stormlightlabs
 ```
 
-## Codex
+`/plugin marketplace add` and `/plugin install` do the same from inside a
+session. `marketplace add` also takes an HTTPS URL, an SSH URL, or a local
+path. Twelve skills, sixteen commands and four agents arrive; `claude plugin
+details thunderstorm` lists them and what they cost a session.
 
-```sh
-codex plugin marketplace add stormlightlabs/thunderstorm
-codex plugin add thunderstorm@stormlightlabs
-```
+## Codex and Pi
 
-`marketplace add` also takes an HTTPS URL, an SSH URL, or a local path, and
-`--sparse` restricts the checkout to named paths.
+Neither installs yet. Codex reads prompts from `~/.codex/prompts`, which a
+plugin does not write, and Pi packages extensions and skills but not prompts,
+so the commands have nowhere to go on either. Pi has no subagents at all, so
+the review fan-out has nothing to dispatch with.
 
-## Pi
-
-```sh
-pi install git:github.com/stormlightlabs/thunderstorm
-```
-
-Add `-l` to install into the project's own `.pi/settings.json` rather than your
-user settings.
+`tstorm render --target codex` stops and says so rather than building a payload
+that installs and then skips half the loop. The issues that would close each
+gap are named in the failure.
 
 ## The checks
 
-The hooks installed with the payload call `tstorm` by name, so it needs to be
-on your `PATH`:
+The checks the skills call run from the installed payload, and `tstorm` is
+called by name, so it needs to be on your `PATH`:
 
 ```sh
 go install github.com/stormlightlabs/tstorm/cmd/tstorm@latest
@@ -43,3 +42,52 @@ go install github.com/stormlightlabs/tstorm/cmd/tstorm@latest
 
 Released builds are published for macOS and Linux, through Homebrew, `.deb`,
 `.rpm` and `.apk` packages, and the NUR.
+
+## What the package does not carry
+
+The loop is the same everywhere. What it runs against is not, so four things
+stay with the repository rather than arriving with the install.
+
+### Your gates
+
+The `implement` and `revise` skills run the narrowest relevant test and then
+the gates your `AGENTS.md` names. Name them there: the formatter, the linter
+and the strictness you hold it to, and the test command. A repository that
+names none leaves an agent to guess.
+
+### The deny rules
+
+No plugin mechanism carries a permission, so an installed payload cannot stop a
+session merging its own work. The payload ships them as `settings.json` for you
+to merge into your repository's `.claude/settings.json`:
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(gh pr merge:*)",
+      "Bash(gh pr review:*)",
+      "Bash(git push:*)",
+      "Bash(git merge:*)"
+    ]
+  }
+}
+```
+
+A bare `git push` is denied because pushing goes through `push-verified.sh`,
+which compares the remote ref to what it is about to overwrite. Without these
+rules the review sequence is a convention an agent can skip.
+
+### Your board
+
+The `github-board` and `triage` skills read and write a GitHub Projects board.
+The project, its status field, and the labels the skills expect are yours to
+create, and the examples in those skills are written against `<owner>/<repo>`
+for you to fill in.
+
+### Your model assignments
+
+Which model runs which role is a decision per organization, not per package.
+`docs/internal/models.md` in this repository records the rule the loop depends
+on — an implementer and a reviewer never share a run — and what a harness must
+provide before it can carry a role.

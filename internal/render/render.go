@@ -8,6 +8,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
@@ -18,9 +19,19 @@ import (
 // work that happens to sit at the path they passed to --out.
 const marker = ".tstorm-payload"
 
-// rootToken stands in the source for whatever the target calls its resource
-// directory, so one skill body can name a script path on every harness.
-const rootToken = "{{ROOT}}"
+// The source names two directories it cannot spell itself. rootToken is the
+// harness's own directory inside the repository being worked on, which is where
+// a worktree and a .gitignore live. pluginToken is where the installed payload
+// landed, which is where the scripts and the agent definitions live. They were
+// one token until a plugin install put the payload outside the repository.
+const (
+	rootToken   = "{{ROOT}}"
+	pluginToken = "{{PLUGIN}}"
+)
+
+// leftoverToken catches a token the target has no value for, which would
+// otherwise reach a reader as literal braces.
+var leftoverToken = regexp.MustCompile(`{{[A-Z_]+}}`)
 
 // File is one file of a payload, at a slash-separated path relative to the
 // payload root.
@@ -84,24 +95,30 @@ func (u *Unmet) Error() string {
 // returns an *Unmet when the target cannot carry every artifact.
 func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 	p := &Payload{Target: t, counts: map[Kind]int{}}
+
+	// Every gap is collected before anything is rendered, so a target that
+	// cannot carry the workflow says so once, in full, rather than failing on
+	// whichever artifact happened to come first.
 	var gaps []Gap
 	var present []Artifact
-
 	for _, a := range m.Artifacts {
 		if reasons := t.unmet(a); len(reasons) > 0 {
 			gaps = append(gaps, Gap{Artifact: a.Name, Kind: a.Kind, Reasons: reasons})
 			continue
 		}
 		present = append(present, a)
+	}
+	if len(gaps) > 0 {
+		return nil, &Unmet{Target: t.Name, Gaps: gaps}
+	}
+
+	for _, a := range present {
 		files, err := p.render(a, t, root)
 		if err != nil {
 			return nil, err
 		}
 		p.Files = append(p.Files, files...)
 		p.counts[a.Kind]++
-	}
-	if len(gaps) > 0 {
-		return nil, &Unmet{Target: t.Name, Gaps: gaps}
 	}
 
 	if t.extras != nil {
@@ -134,6 +151,13 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 		}
 		if strings.HasSuffix(src, ".md") {
 			body = bytes.ReplaceAll(body, []byte(rootToken), []byte(t.Root))
+			if t.Plugin != "" {
+				body = bytes.ReplaceAll(body, []byte(pluginToken), []byte(t.Plugin))
+			}
+			if found := leftoverToken.Find(body); found != nil {
+				return nil, fmt.Errorf("artifact %q: %s names %s, which %s has no value for",
+					a.Name, src, found, t.Name)
+			}
 		}
 		for _, name := range a.Names() {
 			out = append(out, File{Path: p.destination(a, dir, name, src), Body: body, Mode: mode})

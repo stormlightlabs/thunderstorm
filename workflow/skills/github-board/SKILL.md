@@ -80,7 +80,7 @@ every milestone's full description on every row and is large enough to matter:
 ```sh
 gh project item-list 13 --owner stormlightlabs --format json --limit 100 \
   | jq -r '.items[]
-           | select(.content.repository == "stormlightlabs/trps")
+           | select(.content.repository == "<owner>/<repo>")
            | "\(.content.number)\t\(.status)\t\(.content.title)"'
 ```
 
@@ -88,7 +88,7 @@ Write one field at a time, naming the issue by URL:
 
 ```sh
 gh project item-edit 13 --owner stormlightlabs \
-  --url https://github.com/stormlightlabs/trps/issues/<n> \
+  --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "In Progress"
 ```
 
@@ -127,7 +127,7 @@ A claim is a status change followed by an assignment, in that order:
 
 ```sh
 gh project item-edit 13 --owner stormlightlabs \
-  --url https://github.com/stormlightlabs/trps/issues/<n> \
+  --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "In Progress"
 gh issue edit <n> --add-assignee @me
 ```
@@ -162,7 +162,7 @@ rather than a state: say what is needed, give the issue back, stop.
 gh issue comment <n> --body "<what is needed to unblock, and from whom>"
 gh issue edit <n> --remove-assignee @me
 gh project item-edit 13 --owner stormlightlabs \
-  --url https://github.com/stormlightlabs/trps/issues/<n> \
+  --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "Todo"
 ```
 
