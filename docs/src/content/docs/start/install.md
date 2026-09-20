@@ -38,11 +38,14 @@ they need `python3`. `tstorm` itself is what builds a payload, and you need it
 only to render one:
 
 ```sh
-go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
+GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 ```
 
-Nothing is released yet, so that command builds from source. Homebrew is the
-other route planned, and it is the only other one.
+Nothing is tagged yet, so that fetches the current `main` straight from GitHub
+and builds it. Once a version is tagged, `go install
+github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest` is the same thing
+through the module proxy. Homebrew is the other route planned, and it is the
+only other one.
 
 ## What the package does not carry
 

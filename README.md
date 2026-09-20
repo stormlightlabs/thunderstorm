@@ -53,7 +53,7 @@ going to live.
 Today it renders payloads:
 
 ```sh
-go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest
+GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 tstorm render --target claude
 tstorm version
 ```
@@ -65,7 +65,8 @@ payload installs, which the skills call by path;
 here, and board writes and the prose check follow in
 [#15](https://github.com/stormlightlabs/thunderstorm/issues/15) and
 [#12](https://github.com/stormlightlabs/thunderstorm/issues/12). Nothing is
-released, so `go install` builds from source; Homebrew arrives with
+tagged, so that fetches `main` from GitHub directly; `@latest` through the
+module proxy, a GitHub release, and Homebrew all arrive with
 [#19](https://github.com/stormlightlabs/thunderstorm/issues/19).
 
 Each harness reads skills from its own directory, names commands its own way,

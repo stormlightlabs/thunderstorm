@@ -1,8 +1,9 @@
 # Host contracts
 
 What Claude Code, Pi, and Codex actually load, verified on this machine against
-Claude Code, `pi` 0.85.1, and `codex-cli` 0.146.0. Cursor is not covered; no
-Cursor agent is installed here, so nothing below is claimed about it.
+Claude Code, `pi` 0.85.1, and `codex-cli` 0.146.0. Cursor has its own section
+at the end, taken from its documentation on 2026-09-19: no Cursor agent is
+installed here, so none of it was exercised.
 
 Discovery was checked by building a fixture with a probe skill in each candidate
 directory and asking each agent to name the skills it could see. Dispatch and
@@ -17,16 +18,17 @@ A skill is a directory holding `SKILL.md` with `name` and `description`
 frontmatter. All three hosts agree on that shape, so the file itself needs no
 translation. They disagree only on where they look.
 
-| Directory              | Claude Code | Pi  | Codex |
-| ---------------------- | ----------- | --- | ----- |
-| `.claude/skills/`      | yes         | no  | no    |
-| `.pi/skills/`          | no          | yes | no    |
-| `.codex/skills/`       | no          | no  | yes   |
-| `.agents/skills/`      | no          | yes | yes   |
-| `~/.claude/skills/`    | yes         | no  | no    |
-| `~/.agents/skills/`    | no          | yes | yes   |
+| Directory              | Claude Code | Pi  | Codex | Cursor |
+| ---------------------- | ----------- | --- | ----- | ------ |
+| `.claude/skills/`      | yes         | no  | no    | no     |
+| `.pi/skills/`          | no          | yes | no    | no     |
+| `.codex/skills/`       | no          | no  | yes   | no     |
+| `.cursor/skills/`      | no          | no  | no    | yes    |
+| `.agents/skills/`      | no          | yes | yes   | yes    |
+| `~/.claude/skills/`    | yes         | no  | no    | no     |
+| `~/.agents/skills/`    | no          | yes | yes   | yes    |
 
-`.agents/skills/` covers Pi and Codex together. Claude Code reads neither the
+`.agents/skills/` covers Pi, Codex and Cursor together. Claude Code reads neither the
 project nor the user copy of it, so two locations cover all three hosts rather
 than four. That is what the `.agents/skills -> ../.claude/skills` symlink in
 thunderus was working around.
@@ -177,3 +179,27 @@ Codex's `marketplace add` takes `owner/repo[@ref]`, an HTTPS URL, an SSH URL, or
 a local path, and `--sparse` restricts the checkout to named paths. Pi installs
 from `npm:`, `git:`, an HTTPS or SSH URL, or a local path, and `-l` installs
 into the project's own `.pi/settings.json` rather than the user's.
+
+## Cursor
+
+From Cursor's documentation on 2026-09-19, not from a run: no Cursor agent is
+installed here, and every line below needs checking against one before the
+renderer relies on it.
+
+Cursor loads skills from `.agents/skills/` as well as `.cursor/skills/`, and
+from `~/.agents/skills/` and `~/.cursor/skills/` for a user-wide copy. The
+same `SKILL.md` shape applies, with `name` matching the folder and
+`description` saying when to use it, and a skill directory may carry
+`scripts/`, `references/` and `assets/`. Nested copies anywhere in a
+repository are picked up and scoped to that subtree.
+
+Two consequences, if it holds. The `.agents/skills/` directory the Codex and
+Pi payloads already need serves Cursor too, so Cursor skills cost a target in
+the renderer rather than a third copy of the skills. And commands are the
+thin part: `.cursor/commands/*.md` is the older form, retired in favour of
+skills, which is the same gap as #7 on the other two harnesses.
+
+Cursor has subagents, added in its 2.4 release alongside skills, each running
+in its own context. Whether it can carry a thunderstorm role also needs a
+model the dispatch chooses and a reasoning level the role can name, which is
+what `models.md` asks of every harness and what #2 decides for this one.
