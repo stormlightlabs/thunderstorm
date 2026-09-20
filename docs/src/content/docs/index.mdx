@@ -1,0 +1,32 @@
+---
+title: thunderstorm
+description: An installable development loop for Claude Code, Pi, Codex, and Cursor.
+template: splash
+hero:
+  tagline: One set of skills, one board, and the checks that hold them together.
+  actions:
+    - text: Install it
+      link: /start/install/
+      icon: right-arrow
+    - text: Read the source
+      link: https://github.com/stormlightlabs/thunderstorm
+      icon: external
+      variant: minimal
+---
+
+## What it is
+
+A development loop that runs on more than one coding agent. A person starts a
+run against an issue; the run claims the issue, gives each worker a worktree of
+its own, takes the change through a fixed review sequence, and stops at a pull
+request for a person to merge.
+
+The loop was written for one repository and one agent. This is the version that
+installs into any repository and runs on whichever agent is in front of you.
+
+## Why it is packaged
+
+Skills are prose, and prose cannot fail a run. An agent that skips a rule leaves
+no trace, and a rule copied into four repositories drifts in all four. So the
+rules ship as one installable thing, and the parts that have to be true are
+checks with exit codes rather than paragraphs asking nicely.
