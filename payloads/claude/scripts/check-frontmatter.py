@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-"""Check that every file under internal/ opens with the frontmatter block.
+"""Check that every document in a tree opens with the frontmatter block.
 
-    check-frontmatter.py                  # check internal/ next to this script
-    check-frontmatter.py <dir>            # check some other tree
-    check-frontmatter.py --since <ref>    # also check no identifier changed
+    check-frontmatter.py <dir>            # check that tree
+    check-frontmatter.py <dir> --since <ref>   # also check no identifier changed
+
+The tree is named rather than guessed. Installed, this script sits in a payload
+outside the repository being checked, and which directory holds a repository's
+documents is the repository's business; its AGENTS.md is where to say so.
 
 The convention lives in the specify skill: a document opens with a name,
 a date, and a ULID that never changes, and an issue cites the document it came
@@ -117,6 +120,13 @@ def check_history(root: Path, ref: str) -> list[str]:
     if repo is None:
         return [f"cannot compare against {ref}: {root} is not inside a git repository"]
 
+    # Every _show below returns None for an unresolvable ref, which is
+    # indistinguishable from a file that did not exist yet. Resolve the ref
+    # once, so a shallow or single-branch clone fails loudly instead of
+    # reporting that nothing changed.
+    if _run(["git", "-C", str(repo), "rev-parse", "--verify", f"{ref}^{{commit}}"]) is None:
+        return [f"cannot compare against {ref}: no such commit in {repo}"]
+
     failures: list[str] = []
     for path in sorted(_documents(root)):
         relative = path.relative_to(root)
@@ -140,12 +150,11 @@ def check_history(root: Path, ref: str) -> list[str]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("root", nargs="?", help="tree to check; defaults to internal/")
+    parser.add_argument("root", help="tree of documents to check")
     parser.add_argument("--since", metavar="REF", help="git ref to compare identifiers against")
     args = parser.parse_args(argv[1:])
 
-    default = Path(__file__).resolve().parents[2] / "internal"
-    root = Path(args.root) if args.root else default
+    root = Path(args.root)
     if not root.is_dir():
         print(f"{root} is not a directory", file=sys.stderr)
         return 2

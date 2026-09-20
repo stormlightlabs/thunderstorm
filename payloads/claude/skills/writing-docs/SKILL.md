@@ -136,7 +136,8 @@ One instance of any of these can read as a human voice. Repetition is the tell.
 - Sentence case for new headings.
 - Files under `internal/` need `name`, `last_updated`, and a ULID `id` in
   frontmatter. Generate identifiers with `${CLAUDE_PLUGIN_ROOT}/scripts/ulid.py`, and check the
-  tree with `${CLAUDE_PLUGIN_ROOT}/scripts/check-frontmatter.py`.
+  tree with `${CLAUDE_PLUGIN_ROOT}/scripts/check-frontmatter.py <dir>`, naming the tree
+  your `AGENTS.md` says holds them.
 - Claims in research notes carry a confidence caveat. Do not strip it while
   editing for style.
 - `meta/tropes.md` and the corpus under `meta/examples/` are quoted source, not

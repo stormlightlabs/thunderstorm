@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Push the current branch and prove the remote took it.
 #
-#   .claude/scripts/push-verified.sh [remote]
+#   push-verified.sh [remote]
 #
 # `git push` exits 0 for a push that carried nothing. With a detached HEAD the
 # branch has not moved, so git finds no ref to update, prints "Everything

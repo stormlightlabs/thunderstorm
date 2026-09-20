@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a commit message against the rules in .claude/skills/commits-and-prs.
+"""Check a commit message against the rules in the commits-and-prs skill.
 
 Reads a message from a file, or builds one from a pull request's title and
 body:
@@ -63,7 +63,11 @@ TITLE_BUDGET = SUBJECT_LIMIT - 1 - SQUASH_SUFFIX_WIDTH
 TYPES = ("feat", "fix", "docs", "refactor", "test", "chore", "perf")
 
 SUBJECT = re.compile(r"^(%s): (.+)$" % "|".join(TYPES))
-TRAILER = re.compile(r"^[A-Za-z][A-Za-z-]*: .+$")
+# A trailer key is hyphenated (Co-Authored-By, Signed-off-by) or one of the
+# few single words git tooling writes. `^[A-Za-z][A-Za-z-]*: ` also matched
+# "Note: ..." and "Result: ...", so a closing paragraph of ordinary sentences
+# exempted itself from the column limit this script exists to hold.
+TRAILER = re.compile(r"^(?:[A-Za-z][A-Za-z0-9]*(?:-[A-Za-z0-9]+)+|Closes|Fixes|Refs|Cc|Change-Id): .+$")
 SQUASH_SUFFIX = re.compile(r" \(#\d+\)$")
 
 
@@ -337,7 +341,7 @@ def main() -> int:
     if problems:
         print(
             f"\nThe {what} needs a shape fix. The rules live in "
-            ".claude/skills/commits-and-prs/SKILL.md.",
+            "the `commits-and-prs` skill.",
             file=stream,
         )
     if advice:

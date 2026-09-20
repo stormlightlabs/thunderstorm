@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check that nothing under .claude/ asks the harness for a worktree.
+"""Check that no skill or agent asks the harness for a worktree.
 
-    check-isolation.py                    # check .claude/ next to this script
+    check-isolation.py                    # check the tree this script sits in
     check-isolation.py <dir>              # check some other tree
 
 The `worktree` skill makes every worktree here, outside the repository root so
@@ -39,7 +39,7 @@ FENCE = "---"
 FIELD = re.compile(r"^(\s*)([A-Za-z][A-Za-z0-9_-]*)\s*:\s*(.*?)\s*$")
 
 # The setting as a dispatch carries it. The bare word is prose and is left alone.
-SETTING = re.compile(r"""(\bisolation\b\s*[:=]|["']isolation["'])""")
+SETTING = re.compile(r"""(\bisolation\b\s*[:=]|--isolation\b|["']isolation["'])""")
 
 # ``` or ~~~, three or more, because a longer fence is how a block nests one.
 CODE_FENCE = re.compile(r"^\s*(`{3,}|~{3,})")
@@ -80,7 +80,7 @@ def check_tree(root: Path) -> tuple[int, list[str]]:
 
 def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("root", nargs="?", help="tree to check; defaults to .claude/")
+    parser.add_argument("root", nargs="?", help="tree to check; defaults to the one holding this script")
     args = parser.parse_args(argv[1:])
 
     default = Path(__file__).resolve().parents[1]

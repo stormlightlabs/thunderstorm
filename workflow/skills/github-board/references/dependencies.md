@@ -30,11 +30,15 @@ lands in shell history.
 ```sh
 api=https://api.github.com/repos/<owner>/<repo>/issues
 gh_api() {
-  curl -sS \
+  curl -fsS \
     -H "Authorization: Bearer $GH_TOKEN" \
     -H "Accept: application/vnd.github+json" \
     -H "X-GitHub-Api-Version: 2022-11-28" "$@"
 }
+
+# -f is what makes a failure a failure. Without it curl exits 0 on 401, 404,
+# 415 and 422, so a write that never landed reports success and the run
+# dispatches an issue whose blocker is still open.
 
 gh_api "$api/<n>/dependencies/blocked_by"   # what <n> waits for
 gh_api "$api/<n>/dependencies/blocking"     # what waits for <n>
