@@ -1,0 +1,4 @@
+#!/bin/sh
+# Check a commit message's shape before it lands. Enable with:
+#   git config core.hooksPath .githooks
+exec python3 "$(git rev-parse --show-toplevel)/workflow/scripts/check-commit-message.py" "$1"

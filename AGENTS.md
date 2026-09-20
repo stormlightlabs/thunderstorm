@@ -15,6 +15,9 @@ go vet ./...
 go test ./...
 ```
 
+CI runs all of that, plus the Python suites and the site's Playwright tests,
+on every pull request and every push to `main` and `edge`.
+
 A change under `workflow/` is not done until the payload is rendered again:
 
 ```sh
@@ -24,6 +27,13 @@ go run ./cmd/tstorm render --target claude --check   # what CI will ask
 
 `payloads/` is generated. Edit `workflow/` and re-render; a hand edit there is
 lost at the next render, and `--check` is what catches it.
+
+## The board
+
+Issues live on GitHub Projects board **13**, owner `stormlightlabs`, under the
+**THNDRS** track. The `github-board` skill writes `Todo`, `In Progress` and
+`Done` there and reads it filtered to this repository; it takes the number and
+the owner from here.
 
 ## Commits
 
@@ -45,7 +55,12 @@ Check the shape before committing:
 
 ```sh
 python3 workflow/scripts/check-commit-message.py <file>
+git config core.hooksPath .githooks   # once, to have git run it for you
 ```
+
+`.githooks/commit-msg` calls the same script. Set `core.hooksPath` only when
+you mean to: it replaces `.git/hooks` wholesale, so every hook you already had
+stops firing.
 
 It checks the type, the 60-character subject, the blank line, and the 72-column
 body, and exempts fenced blocks, trailers, and URLs from the column limit. The

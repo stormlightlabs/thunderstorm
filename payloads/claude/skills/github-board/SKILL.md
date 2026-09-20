@@ -61,11 +61,24 @@ Set a milestone with `gh issue edit <n> --milestone <name>`, read one with
 `gh issue list --milestone <name>`, and create or edit one through
 `gh api repos/{owner}/{repo}/milestones`; there is no `gh milestone` command.
 
+## The 24-hour rule
+
+A claim is a status, and a status outlives the session that set it. An issue
+left `In Progress` with no pull request for more than 24 hours is treated as
+abandoned: the run that claimed it is gone, and the issue is free again.
+
+Twenty-four hours is long enough that a run spanning a working day is never
+stolen, and short enough that a crashed session does not park an issue for a
+week. Nothing enforces it on a timer. `triage` looks for the shape when it
+reads the board, and the repair is a status write a human authorizes.
+
 ## Status
 
-Status is a single-select field on the **THNDRS** project board, number 13
-under the `stormlightlabs` owner, which carries this repository's issues
-alongside others. It is not a label and not a field on the issue. Three
+Status is a single-select field on a GitHub Projects board, not a label and
+not a field on the issue. The board's number and owner belong to the
+repository being worked on, which names them in its `AGENTS.md`; `<project>`
+and `<owner>` below stand for what it says. One board may carry several
+repositories' issues, which is why every read filters by repository. Three
 options are the whole vocabulary:
 
 | Option        | What it means                                             |
@@ -78,7 +91,7 @@ Read the board projecting only the fields you need. The raw item list repeats
 every milestone's full description on every row and is large enough to matter:
 
 ```sh
-gh project item-list 13 --owner stormlightlabs --format json --limit 100 \
+gh project item-list <project> --owner <owner> --format json --limit 100 \
   | jq -r '.items[]
            | select(.content.repository == "<owner>/<repo>")
            | "\(.content.number)\t\(.status)\t\(.content.title)"'
@@ -87,7 +100,7 @@ gh project item-list 13 --owner stormlightlabs --format json --limit 100 \
 Write one field at a time, naming the issue by URL:
 
 ```sh
-gh project item-edit 13 --owner stormlightlabs \
+gh project item-edit <project> --owner <owner> \
   --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "In Progress"
 ```
@@ -126,7 +139,7 @@ have put them there, and `Todo` on the board. Read both before taking it.
 A claim is a status change followed by an assignment, in that order:
 
 ```sh
-gh project item-edit 13 --owner stormlightlabs \
+gh project item-edit <project> --owner <owner> \
   --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "In Progress"
 gh issue edit <n> --add-assignee @me
@@ -161,7 +174,7 @@ rather than a state: say what is needed, give the issue back, stop.
 ```sh
 gh issue comment <n> --body "<what is needed to unblock, and from whom>"
 gh issue edit <n> --remove-assignee @me
-gh project item-edit 13 --owner stormlightlabs \
+gh project item-edit <project> --owner <owner> \
   --url https://github.com/<owner>/<repo>/issues/<n> \
   --field Status --value "Todo"
 ```
@@ -179,8 +192,8 @@ Work found mid-run goes in a new issue, never into the one being worked:
 
 ```sh
 gh issue create --title <title> --body-file <file>
-gh project item-add 13 --owner stormlightlabs --url <the new issue's URL>
-gh project item-edit 13 --owner stormlightlabs --url <the new issue's URL> \
+gh project item-add <project> --owner <owner> --url <the new issue's URL>
+gh project item-edit <project> --owner <owner> --url <the new issue's URL> \
   --field Status --value "Todo"
 ```
 

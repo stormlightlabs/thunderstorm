@@ -53,12 +53,26 @@ Types used here: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`.
 60-character subject, the blank line, and the 72-column body. Fenced blocks,
 trailers, and unbreakable strings such as URLs are exempt from the column limit.
 
-It runs in two places. Enable the hook locally once with
-`git config core.hooksPath .githooks`, and it rejects a branch message while
-that message is still in the editor. CI runs the same script in `--pr` mode
-over the title and body, which is the text that lands, and reports without
-failing: both stay editable until the merge, so naming a problem is worth more
-than blocking on it.
+Run it before you commit. To have git run it for you, write a `commit-msg`
+hook that calls it and point git at the directory holding it:
+
+```sh
+mkdir -p .githooks
+cat > .githooks/commit-msg <<'HOOK'
+#!/bin/sh
+exec python3 "$CLAUDE_PLUGIN_ROOT/scripts/check-commit-message.py" "$1"
+HOOK
+chmod +x .githooks/commit-msg
+git config core.hooksPath .githooks
+```
+
+Set `core.hooksPath` only after the directory holds the hook. It replaces
+`.git/hooks` wholesale, so pointing it at an empty or missing directory turns
+off every hook the repository already had, silently.
+
+CI can run the same script in `--pr` mode over the title and body, which is
+the text that lands, and report without failing: both stay editable until the
+merge, so naming a problem is worth more than blocking on it.
 
 Length is reported and rejected by neither, under [Length](#length).
 ## Authorship

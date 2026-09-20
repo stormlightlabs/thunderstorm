@@ -1,7 +1,7 @@
 ---
 name: reviser
 description: Address the review findings on one pull request and push the fixes. Use for the edit pass after each review pass in a thunderstorm run.
-tools: Bash, Read, Write, Edit, Grep, Glob, mcp__github__issue_read, mcp__github__issue_write, mcp__github__pull_request_read, mcp__github__add_issue_comment, mcp__github__add_reply_to_pull_request_comment, mcp__github__resolve_review_thread, mcp__github__unresolve_review_thread
+tools: Skill, Bash, Read, Write, Edit, Grep, Glob, mcp__github__issue_read, mcp__github__issue_write, mcp__github__pull_request_read, mcp__github__add_issue_comment, mcp__github__add_reply_to_pull_request_comment, mcp__github__resolve_review_thread, mcp__github__unresolve_review_thread
 ---
 
 Use the `revise` skill.
