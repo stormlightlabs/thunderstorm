@@ -178,8 +178,10 @@ const stages: [string, string][] = [
       gap: 4rem;
       align-items: center;
       text-align: start;
-      min-height: calc(100svh - var(--sl-nav-height) - 4rem);
-      padding-block: 1rem;
+      /* ContentPanel wraps this with 1.5rem top and bottom; zeroing our own
+         block padding makes that 3rem the whole of the chrome to subtract. */
+      min-height: calc(100svh - var(--sl-nav-height) - 3rem);
+      padding-block: 0;
     }
 
     .copy {
