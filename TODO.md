@@ -14,23 +14,22 @@ open and still has no issue.
 
 ## 1. Render and install
 
-| Issue |                                       |
-| ----- | ------------------------------------- |
-| [#1]  | Thunderstorm is copied, not installed |
+Done. `docs/internal/models.md` says what a harness must provide before it can
+carry a role ([#10]), `tstorm render --target claude` builds the payload from
+`workflow/` ([#17]), and a marketplace at `.claude-plugin/marketplace.json`
+installs it ([#1]).
 
-[#10] and [#17] are done. `docs/internal/models.md` states what a harness must
-provide before it can carry a role, and `tstorm render --target claude` builds
-the Claude Code payload from `workflow/`.
+[#1] is written but cannot close: GitHub holds it behind [#7] and [#8], which
+are about the harnesses it does not yet serve. Close those, or drop the
+dependency, and the commit's keyword takes effect.
 
-Two things [#17] did not settle. `thndrs` had drifted from `trps`, and its
-extras did not come along: the `release` command and skill, `sync-labels.py`
-and `tui-capture.sh` are still only there. And Codex and Pi render nothing yet,
-because neither has a place for a command ([#7]) and Pi has no subagents
-([#8]); the render stops and says so rather than shipping half a workflow.
+Two things came out of that work rather than into it. The workflow's one hook
+warmed a Cargo registry, so it stayed with the repository it came from and the
+payload ships no hook of its own. And Codex and Pi render nothing, because
+neither has a place for a command ([#7]) and Pi has no subagents ([#8]).
 
-Next is [#1], which puts the payload onto `trps`; confirm `/decomp` and `/impl`
-work there. At that point the repository does the thing it was created for, and
-everything after widens or hardens it.
+What is left is to run it. Install on `trps`, confirm `/decomp` and `/impl`
+work there, and the repository does the thing it was created for.
 
 ## 2. The checks
 
@@ -89,8 +88,8 @@ catalogued tells, which a reader caught by hand. Seven issues in
 `stormlightlabs/trps` under **Usable as a linter** carry the calibration. Wiring
 the gate before those land ships a check people learn to ignore.
 
-Dogfood at the end of phase 1. Once [#1] works, run the loop on this repository.
-The remaining issues become its first real workload, and whatever breaks is a
+Dogfood now. The payload installs, so run the loop on this repository. The
+remaining issues become its first real workload, and whatever breaks is a
 finding you would otherwise meet on somebody else's repository.
 
 [#1]: https://github.com/stormlightlabs/thunderstorm/issues/1
