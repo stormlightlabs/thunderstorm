@@ -36,14 +36,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-go@v5
         with:
-          python-version: "3.12"
-      - run: python3 workflow/scripts/check-commit-message-test.py
-      - run: python3 workflow/scripts/check-frontmatter-test.py
-      - run: python3 workflow/scripts/check-isolation-test.py
-      - run: python3 workflow/scripts/check-isolation.py workflow
-      - run: python3 workflow/scripts/check-frontmatter.py docs/internal
+          go-version-file: go.mod
+      # The gates run over this repository, which is the tree they were
+      # written against. `go test ./...` in the job above covers them against
+      # fixtures written to be wrong.
+      - run: go run ./cmd/tstorm check isolation workflow
+      - run: go run ./cmd/tstorm check frontmatter
 
   site:
     runs-on: ubuntu-latest

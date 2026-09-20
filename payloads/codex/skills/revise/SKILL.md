@@ -2,7 +2,6 @@
 name: revise
 description: Address review comments on an open pull request and push the fixes. Use for /edit, /revise, or when asked to respond to review feedback on a PR number.
 ---
-Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Revise
 
@@ -84,7 +83,7 @@ names: its formatter, its linter at the strictness it sets, and its tests.
 ## Push and reply
 
 Commit with the `commits-and-prs` skill, push to the same branch with
-`../../scripts/push-verified.sh`, then post one reply comment listing each
+`tstorm push --branch <branch>`, then post one reply comment listing each
 finding and its outcome, **under 150 words**. Open it with one line naming the
 pass you are answering, what it ran as, and what you ran as:
 

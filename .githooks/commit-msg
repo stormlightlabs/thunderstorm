@@ -1,4 +1,11 @@
 #!/bin/sh
 # Check a commit message's shape before it lands. Enable with:
 #   git config core.hooksPath .githooks
-exec python3 "$(git rev-parse --show-toplevel)/workflow/scripts/check-commit-message.py" "$1"
+#
+# tstorm has no release yet, so this builds it from the tree when the binary is
+# not installed. Once it is on PATH the build is skipped.
+if command -v tstorm >/dev/null 2>&1; then
+  exec tstorm check commit-message "$1"
+fi
+cd "$(git rev-parse --show-toplevel)" || exit 2
+exec go run ./cmd/tstorm check commit-message "$1"

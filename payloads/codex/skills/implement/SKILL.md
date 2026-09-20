@@ -2,7 +2,6 @@
 name: implement
 description: Work a GitHub issue end to end on its own branch and open a pull request against main. Use for /impl, /implement, or when asked to start work on an issue number.
 ---
-Resolve paths that start with `../../` from the directory containing this `SKILL.md`.
 
 # Implement
 
@@ -122,12 +121,13 @@ The title and body become the squash commit, verbatim. Write them to that:
 - `Closes #<n>`, a `Verified with <command>` line naming a command you ran, and
   a `Not covered` line that is not empty.
 
-`commits-and-prs` carries the rest, and
-`../../scripts/check-commit-message.py --pr` reports both before the merge.
+`commits-and-prs` carries the rest, and `tstorm check commit-message --pr`
+reports both before the merge.
 
-Push with `../../scripts/push-verified.sh`, which compares the remote ref to
-local `HEAD` afterwards. `git push` exits zero for a push that carried nothing,
-so its exit code is not evidence that the branch moved.
+Push with `tstorm push --branch agent/<n>`, which refuses a `HEAD` on any other
+branch and compares the remote ref to local `HEAD` afterwards. `git push` exits
+zero for a push that carried nothing, so its exit code is not evidence that the
+branch moved.
 
 ```sh
 gh pr create --base main --head agent/<n> --title <title> --body-file <file>

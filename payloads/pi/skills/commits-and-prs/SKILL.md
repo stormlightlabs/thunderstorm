@@ -12,8 +12,8 @@ they read before they find it.
 Use the `writing-docs` skill for the prose, and check the draft against its
 tells catalogue before you commit or open anything. A commit message, a pull
 request body and a review comment are all read by a person, so all three get
-that pass. `check-commit-message.py` checks shape, not prose: it will pass a
-message full of tells.
+that pass. `tstorm check commit-message` checks shape, not prose: it will pass
+a message full of tells.
 
 Everything here is in addition to that.
 
@@ -41,8 +41,8 @@ Comments are counted in words because GitHub soft-wraps them. A 40-line comment
 there is 400 words, which is how the old line targets were met and missed at
 once. `writing-docs` carries that rule for everything else.
 
-`${THUNDERSTORM_PLUGIN_ROOT}/scripts/check-commit-message.py --pr --title-file <f> --body-file <f>`
-reports the title and the body, and CI runs it on every edit to either.
+`tstorm check commit-message --pr --title-file <f> --body-file <f>` reports the
+title and the body, and CI runs it on every edit to either.
 
 ## Commit messages
 
@@ -54,9 +54,9 @@ reports the title and the body, and CI runs it on every edit to either.
 
 Types used here: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`.
 
-`${THUNDERSTORM_PLUGIN_ROOT}/scripts/check-commit-message.py` checks the shape: the type, the
-60-character subject, the blank line, and the 72-column body. Fenced blocks,
-trailers, and unbreakable strings such as URLs are exempt from the column limit.
+`tstorm check commit-message` checks the shape: the type, the 60-character
+subject, the blank line, and the 72-column body. Fenced blocks, trailers, and
+unbreakable strings such as URLs are exempt from the column limit.
 
 Run it before you commit. To have git run it for you, write a `commit-msg`
 hook that calls it and point git at the directory holding it:
@@ -65,7 +65,7 @@ hook that calls it and point git at the directory holding it:
 mkdir -p .githooks
 cat > .githooks/commit-msg <<'HOOK'
 #!/bin/sh
-exec python3 "$CLAUDE_PLUGIN_ROOT/scripts/check-commit-message.py" "$1"
+exec tstorm check commit-message "$1"
 HOOK
 chmod +x .githooks/commit-msg
 git config core.hooksPath .githooks

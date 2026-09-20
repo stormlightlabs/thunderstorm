@@ -21,11 +21,6 @@ roles/adversarial-reviewer.md
 roles/implementer.md
 roles/reviewer.md
 roles/reviser.md
-scripts/check-commit-message.py
-scripts/check-frontmatter.py
-scripts/check-isolation.py
-scripts/push-verified.sh
-scripts/ulid.py
 skills/commits-and-prs/SKILL.md
 skills/decompose/SKILL.md
 skills/github-board/SKILL.md

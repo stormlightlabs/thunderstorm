@@ -23,7 +23,7 @@ never weaken, skip, or delete a test to clear a finding.
 Run the narrowest relevant test, then the gates the repository's `AGENTS.md`
 names.
 
-Push to the pull request's branch with `${THUNDERSTORM_PLUGIN_ROOT}/scripts/push-verified.sh` and
+Push to the pull request's branch with `tstorm push --branch <branch>` and
 confirm it landed before writing a reply that names a commit. Post one reply
 listing each finding and its outcome, **under 150 words**, opening with one
 line and nothing after it:

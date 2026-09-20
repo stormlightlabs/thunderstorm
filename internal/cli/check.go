@@ -1,0 +1,361 @@
+package cli
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"github.com/stormlightlabs/thunderstorm/internal/check"
+	"github.com/stormlightlabs/thunderstorm/internal/config"
+	"github.com/stormlightlabs/thunderstorm/internal/ui"
+)
+
+func checkCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "check <name>",
+		Short: "Run one of the loop's gates",
+		Long: "check runs one gate over what it is given.\n\n" +
+			"Exit codes are the interface: 0 when the gate found nothing, 1 when\n" +
+			"it found something, and 2 when the gate itself could not run. A hook\n" +
+			"reading only \"non-zero\" cannot tell a bad commit message from an\n" +
+			"unreadable file, and it has to treat the two differently.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer))
+	return cmd
+}
+
+func commitMessageCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var (
+		warn      bool
+		pr        bool
+		titleFile string
+		bodyFile  string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "commit-message <file>",
+		Short: "Check a commit message, or a pull request's title and body, against the commits-and-prs skill",
+		Long: "commit-message grades the shape of a message and the length of a body.\n\n" +
+			"Shape fails the run: a missing type, a subject over the column git log\n" +
+			"gives it, a body glued to its subject. Length never does. A body over\n" +
+			"its target is usually padding, but sometimes a change earns the room,\n" +
+			"and rejecting a message for length teaches authors to reach for\n" +
+			"--no-verify, which skips the shape checks too.\n\n" +
+			"The title and body arrive as files rather than as arguments. Both are\n" +
+			"written by whoever opened the pull request, and a workflow that\n" +
+			"interpolates a title into a shell command runs that title.\n\n" +
+			"With --warn everything is reported and the status stays 0, which is\n" +
+			"what CI wants: a pull request's title and body are editable until the\n" +
+			"merge, so naming a problem is worth more than blocking on it.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			message, err := commitText(pr, titleFile, bodyFile, args)
+			if err != nil {
+				return err
+			}
+
+			problems, advice := check.Commit(message)
+			subject, _, _ := strings.Cut(message.Text, "\n")
+			what := "commit message"
+			if message.FromPullRequest {
+				what = "pull request text"
+			}
+
+			// Warnings are results rather than errors, so they belong on
+			// stdout where a job summary or a pipe can pick them up.
+			stream := cmd.ErrOrStderr()
+			if warn {
+				stream = cmd.OutOrStdout()
+			}
+
+			if len(problems) == 0 && len(advice) == 0 {
+				fmt.Fprintf(stream, "%s checked, clean: %s\n", what, subject)
+				return nil
+			}
+
+			fmt.Fprintln(stream, subject)
+			for _, problem := range problems {
+				fmt.Fprintf(stream, "  error:  %s\n", problem)
+			}
+			for _, note := range advice {
+				fmt.Fprintf(stream, "  length: %s\n", note)
+			}
+			if warn && os.Getenv("GITHUB_ACTIONS") == "true" {
+				for _, problem := range problems {
+					fmt.Fprintf(cmd.OutOrStdout(), "::warning title=Commit message::%s\n", problem)
+				}
+				for _, note := range advice {
+					fmt.Fprintf(cmd.OutOrStdout(), "::notice title=Commit length::%s\n", note)
+				}
+			}
+			if len(problems) > 0 {
+				fmt.Fprintf(stream, "\nThe %s needs a shape fix. The rules live in the "+
+					"`commits-and-prs` skill.\n", what)
+			}
+			if len(advice) > 0 {
+				// Said plainly so nobody goes looking for the exit code that
+				// did not happen. Length is reported to be read.
+				fmt.Fprintln(stream, "\nLength advice fails nothing. A pull request's title and body "+
+					"stay editable until the merge, so this is worth reading rather than worth "+
+					"blocking on.")
+			}
+
+			if warn || len(problems) == 0 {
+				return nil
+			}
+			return findings("%s needs a shape fix", what)
+		},
+	}
+
+	cmd.Flags().BoolVar(&warn, "warn", false, "report everything and exit 0")
+	cmd.Flags().BoolVar(&pr, "pr", false, "grade the title and body a squash merge will join")
+	cmd.Flags().StringVar(&titleFile, "title-file", "", "file holding the pull request title")
+	cmd.Flags().StringVar(&bodyFile, "body-file", "", "file holding the pull request body")
+	return cmd
+}
+
+// commitText assembles the message to grade, refusing an invocation that names
+// neither a file nor both halves of a pull request.
+func commitText(pr bool, titleFile, bodyFile string, args []string) (check.Message, error) {
+	if !pr {
+		if len(args) != 1 {
+			return check.Message{}, failed("name the file holding the message, or pass --pr with " +
+				"--title-file and --body-file")
+		}
+		text, err := readMessage(args[0])
+		if err != nil {
+			return check.Message{}, err
+		}
+		return check.Message{Text: text, FromFile: true}, nil
+	}
+
+	if titleFile == "" || bodyFile == "" {
+		return check.Message{}, failed("--pr needs both --title-file and --body-file")
+	}
+	title, err := readMessage(titleFile)
+	if err != nil {
+		return check.Message{}, err
+	}
+	body, err := readMessage(bodyFile)
+	if err != nil {
+		return check.Message{}, err
+	}
+	return check.Message{Text: check.PullRequestMessage(title, body), FromPullRequest: true}, nil
+}
+
+// readMessage tolerates bytes that are not UTF-8. Git stores whatever the
+// author's editor wrote, and refusing to decode them would replace a verdict
+// with a crash, which in CI fails a job documented as never failing.
+func readMessage(path string) (string, error) {
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return "", failed("%v", err)
+	}
+	return strings.ToValidUTF8(string(body), "�"), nil
+}
+
+func frontmatterCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var since string
+
+	cmd := &cobra.Command{
+		Use:   "frontmatter [dir]",
+		Short: "Check that every document in a tree opens with its frontmatter block",
+		Long: "frontmatter checks that every document opens with a name, a date, and\n" +
+			"a ULID that never changes, because an issue cites the document it came\n" +
+			"from by that identifier.\n\n" +
+			"The tree is named rather than guessed. Installed, the gate runs outside\n" +
+			"the repository being checked, and which directory holds a repository's\n" +
+			"documents is the repository's business: name it here, or name it once\n" +
+			"as \"documents\" in " + config.Name + ".\n\n" +
+			"--since compares each identifier against the same file at a git ref.\n" +
+			"Uniqueness within one tree is not immutability across time: an\n" +
+			"identifier edited in place leaves a tree that looks clean while every\n" +
+			"issue citing the old value points at nothing.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := printer(cmd)
+			root, err := documentsRoot(args)
+			if err != nil {
+				return err
+			}
+			if root == "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "no documents tree to check: name one, or set "+
+					"\"documents\" in %s\n", config.Name)
+				return nil
+			}
+			if info, err := os.Stat(root); err != nil || !info.IsDir() {
+				return failed("%s is not a directory", root)
+			}
+
+			checked, failures, err := check.Frontmatter(root)
+			if err != nil {
+				return failed("%v", err)
+			}
+			if since != "" {
+				since, err := check.FrontmatterSince(root, since)
+				if err != nil {
+					return failed("%v", err)
+				}
+				failures = append(failures, since...)
+			}
+			// Nothing found and everything correct produce the same empty
+			// list, and only one of them means the gate did its job.
+			if checked == 0 {
+				failures = append(failures, fmt.Sprintf("no documents found under %s", root))
+			}
+
+			if err := report(cmd.ErrOrStderr(), failures); err != nil {
+				return err
+			}
+			noun, verb := "documents", "carry"
+			if checked == 1 {
+				noun, verb = "document", "carries"
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %d %s under %s/ %s their frontmatter\n",
+				p.OK.Render("ok"), checked, noun, filepath.Base(root), verb)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&since, "since", "", "git ref to compare identifiers against")
+	return cmd
+}
+
+// documentsRoot is the tree to walk: the one named on the command line, else
+// the one the repository configured, else nothing at all.
+func documentsRoot(args []string) (string, error) {
+	if len(args) == 1 {
+		return args[0], nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return "", failed("%v", err)
+	}
+	settings, err := config.Load(cwd)
+	if err != nil {
+		return "", failed("%v", err)
+	}
+	return settings.DocumentsDir(), nil
+}
+
+func isolationCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	return &cobra.Command{
+		Use:   "isolation [dir]",
+		Short: "Check that no skill or role asks the harness for a worktree",
+		Long: "isolation checks that nothing in a tree of definitions asks its harness\n" +
+			"to provision a worktree.\n\n" +
+			"The harness makes one inside the repository root, where a build tool\n" +
+			"reaches the parent's configuration and builds into the parent's output\n" +
+			"directory. The `worktree` skill makes them outside it instead, and this\n" +
+			"gate is what keeps a frontmatter key from quietly overriding the skill.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := printer(cmd)
+			root := "."
+			if len(args) == 1 {
+				root = args[0]
+			}
+			if info, err := os.Stat(root); err != nil || !info.IsDir() {
+				return failed("%s is not a directory", root)
+			}
+
+			checked, failures, err := check.Isolation(root)
+			if err != nil {
+				return failed("%v", err)
+			}
+			if checked == 0 {
+				failures = append(failures, fmt.Sprintf("no definitions found under %s", root))
+			}
+
+			if err := report(cmd.ErrOrStderr(), failures); err != nil {
+				return err
+			}
+			noun, verb := "definitions", "ask"
+			if checked == 1 {
+				noun, verb = "definition", "asks"
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s %d %s under %s/ %s the harness for no worktree\n",
+				p.OK.Render("ok"), checked, noun, filepath.Base(root), verb)
+			return nil
+		},
+	}
+}
+
+// report prints every failure a tree produced, so one run covers the whole
+// tree rather than stopping at the first file.
+func report(stderr io.Writer, failures []string) error {
+	if len(failures) == 0 {
+		return nil
+	}
+	for _, failure := range failures {
+		fmt.Fprintln(stderr, failure)
+	}
+	return findings("%d failed", len(failures))
+}
+
+func pushCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var remote, branch string
+
+	cmd := &cobra.Command{
+		Use:   "push",
+		Short: "Push the current branch and prove the remote took it",
+		Long: "push runs the push and then checks the end state.\n\n" +
+			"`git push` exits 0 for a push that carried nothing. With a detached\n" +
+			"HEAD there is no ref to update, so git prints \"Everything up-to-date\"\n" +
+			"and succeeds, and no pre-push hook runs to catch it.\n\n" +
+			"--branch names the branch the run claimed. Two workers sharing a\n" +
+			"checkout share one HEAD, so the second to create a branch moves HEAD\n" +
+			"and carries the first's staged work onto it. Naming the branch makes\n" +
+			"that loud before the push rather than after the merge.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			p := printer(cmd)
+			line, err := check.Push(remote, branch, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			if err != nil {
+				return findings("%v", err)
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("pushed"), line)
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&remote, "remote", "origin", "remote to push to")
+	cmd.Flags().StringVar(&branch, "branch", "", "branch this run claimed; refuse to push from any other")
+	return cmd
+}
+
+func ulidCmd(_ func(*cobra.Command) *ui.Printer) *cobra.Command {
+	return &cobra.Command{
+		Use:   "ulid [count]",
+		Short: "Print a ULID for a new document",
+		Long: "ulid prints a 48-bit millisecond timestamp followed by 80 random bits,\n" +
+			"in Crockford base32.\n\n" +
+			"A document carries one for the life of the repository, and an issue\n" +
+			"cites the document by it, so it is generated once and never edited.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			count := 1
+			if len(args) == 1 {
+				parsed, err := strconv.Atoi(args[0])
+				if err != nil || parsed < 1 {
+					return failed("%q is not a count of identifiers to print", args[0])
+				}
+				count = parsed
+			}
+			for range count {
+				id, err := check.ULID()
+				if err != nil {
+					return failed("%v", err)
+				}
+				fmt.Fprintln(cmd.OutOrStdout(), id)
+			}
+			return nil
+		},
+	}
+}

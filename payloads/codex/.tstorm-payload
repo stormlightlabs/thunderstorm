@@ -24,11 +24,6 @@ prompts/storm.md
 prompts/thunderstorm.md
 prompts/triage.md
 rules/thunderstorm.rules
-scripts/check-commit-message.py
-scripts/check-frontmatter.py
-scripts/check-isolation.py
-scripts/push-verified.sh
-scripts/ulid.py
 skills/commits-and-prs/SKILL.md
 skills/decompose/SKILL.md
 skills/github-board/SKILL.md

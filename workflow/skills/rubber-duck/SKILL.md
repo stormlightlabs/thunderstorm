@@ -31,7 +31,7 @@ The conversation is not the artifact. When the discussion settles, or when the
 user asks, write an entry to `internal/ideas/`.
 
 ```sh
-python3 {{PLUGIN}}/scripts/ulid.py
+tstorm ulid
 ```
 
 ```markdown

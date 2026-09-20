@@ -7,8 +7,8 @@ description: Decide whether a unit of agent work needs its own git worktree, the
 
 One unit of work gets one branch and one owner. Whether it also gets its own
 worktree is decided under [Who gets one](#who-gets-one), and this skill is the
-only thing in the repository that makes one. `check-isolation.py` holds that in
-CI.
+only thing in the repository that makes one. `tstorm check isolation` holds that
+in CI.
 
 ## Who gets one
 

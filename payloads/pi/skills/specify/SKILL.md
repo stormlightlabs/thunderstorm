@@ -33,7 +33,7 @@ internal/features/<feature-name>/plan.md
 
 One directory per feature track, named for the feature rather than for the
 change. Every file under `internal/` carries the frontmatter that
-`${THUNDERSTORM_PLUGIN_ROOT}/scripts/check-frontmatter.py` requires:
+`tstorm check frontmatter` requires:
 
 ```yaml
 ---
@@ -43,7 +43,7 @@ id: <ULID>
 ---
 ```
 
-Generate the identifier with `${THUNDERSTORM_PLUGIN_ROOT}/scripts/ulid.py`. The idea the spec came
+Generate the identifier with `tstorm ulid`. The idea the spec came
 from cites its own identifier, and issues cut from the spec cite the spec's, so
 the trail reads from either end.
 

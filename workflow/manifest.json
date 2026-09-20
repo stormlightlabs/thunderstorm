@@ -238,46 +238,6 @@
       "requires": [
         "subagents"
       ]
-    },
-    {
-      "kind": "script",
-      "name": "check-commit-message.py",
-      "source": "scripts/check-commit-message.py",
-      "requires": [
-        "scripts"
-      ]
-    },
-    {
-      "kind": "script",
-      "name": "check-frontmatter.py",
-      "source": "scripts/check-frontmatter.py",
-      "requires": [
-        "scripts"
-      ]
-    },
-    {
-      "kind": "script",
-      "name": "check-isolation.py",
-      "source": "scripts/check-isolation.py",
-      "requires": [
-        "scripts"
-      ]
-    },
-    {
-      "kind": "script",
-      "name": "push-verified.sh",
-      "source": "scripts/push-verified.sh",
-      "requires": [
-        "scripts"
-      ]
-    },
-    {
-      "kind": "script",
-      "name": "ulid.py",
-      "source": "scripts/ulid.py",
-      "requires": [
-        "scripts"
-      ]
     }
   ]
 }

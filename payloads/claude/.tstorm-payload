@@ -20,11 +20,6 @@ commands/specify.md
 commands/storm.md
 commands/thunderstorm.md
 commands/triage.md
-scripts/check-commit-message.py
-scripts/check-frontmatter.py
-scripts/check-isolation.py
-scripts/push-verified.sh
-scripts/ulid.py
 settings.json
 skills/commits-and-prs/SKILL.md
 skills/decompose/SKILL.md

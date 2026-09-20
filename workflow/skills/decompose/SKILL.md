@@ -73,7 +73,7 @@ reader gets; `blocked_by` is what GitHub enforces on close.
 
 Where a plan document under `internal/features/` tracks the same work, name the
 milestone in its frontmatter as `milestone: <url>`, so either side of the link
-reaches the other. `check-frontmatter.py` checks the shape.
+reaches the other. `tstorm check frontmatter` checks the shape.
 
 ## The sub-issues
 

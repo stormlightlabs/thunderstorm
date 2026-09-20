@@ -305,8 +305,9 @@ A push is finished when the remote ref matches local `HEAD`, not when `git push`
 exits zero. The two come apart: with a detached `HEAD` the branch has not moved,
 so git finds no ref to update, prints `Everything up-to-date` and succeeds while
 carrying nothing. A pre-push hook cannot catch that, because with no ref to
-update git never runs one. `.claude/scripts/push-verified.sh` pushes and then
-compares, and refuses outright when `HEAD` is detached.
+update git never runs one. `tstorm push` pushes and then compares, and refuses
+outright when `HEAD` is detached or on a branch other than the one the run
+claimed.
 
 ## Recording a failure mode
 
@@ -320,7 +321,7 @@ that allowed it. Work through these in order:
 3. Delete the prose once a check covers it. Guidance that describes a failure
    something else now catches is read as optional and trains people to skim.
 
-The checks under `.claude/scripts/` exist for that reason, each having replaced
+The `tstorm check` gates exist for that reason, each having replaced
 a rule that was broken at least once while written down and believed. The
 clearest case is length: a target missed by 28 of 30 merges became a repository
 setting, and the prose explaining the arithmetic went with it.
@@ -328,8 +329,8 @@ setting, and the prose explaining the arithmetic went with it.
 ## Worktrees
 
 The `worktree` skill owns all of it, and is the only thing that creates one:
-`check-isolation.py` fails CI for any text under `.claude/` that asks the
-harness instead. Two rules sit here rather than there. A removal that fails on
+`tstorm check isolation` fails CI for any text in the workflow source that asks
+the harness instead. Two rules sit here rather than there. A removal that fails on
 uncommitted changes is an escalation, never forced. And a reviewer gets no
 worktree: it needs a tree that does not move while it reads, which is a commit
 rather than a directory.
@@ -346,7 +347,7 @@ id: <ULID>
 ---
 ```
 
-Generate the identifier with `.claude/scripts/ulid.py`. The identifier never
+Generate the identifier with `tstorm ulid`. The identifier never
 changes once assigned. Update `last_updated` when the content changes.
 
 A plan under `internal/features/` that a milestone tracks names it as well:
@@ -358,7 +359,7 @@ milestone: https://github.com/stormlightlabs/thunderus/milestone/1
 The key is optional and checked for shape when present, so a reader of the
 document reaches the work and a reader of the milestone reaches the reasoning.
 
-`.claude/scripts/check-frontmatter.py` checks the whole tree and runs in CI,
+`tstorm check frontmatter` checks the whole tree and runs in CI,
 where `--since` also compares each identifier against the pull request's base
 commit. The tree alone cannot show an identifier that changed, and a changed one
 orphans every issue citing it.

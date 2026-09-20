@@ -20,14 +20,14 @@ Nothing is released yet, and no version is tagged. Everything below is on
   close it ([#17]).
 - `tstorm render --check` reports whether the payload on disk still matches the
   source, and writes nothing.
-- The workflow itself, under `workflow/`: twelve skills, nine commands, four
-  agent definitions and five check scripts, with a manifest saying what each
-  artifact needs of a harness ([#17]).
+- The workflow itself, under `workflow/`: twelve skills, nine commands and four
+  agent definitions, with a manifest saying what each artifact needs of a
+  harness ([#17]).
 - A Claude Code payload under `payloads/claude`, and a marketplace at
   `.claude-plugin/marketplace.json` that installs it ([#1]).
 - Codex and Pi payloads. Codex gets a marketplace plugin with packaged roles
   and a command-policy hook; Pi gets an installable package with prompts,
-  skills, scripts, and role dispatch through `tstorm`.
+  skills, and role dispatch through `tstorm`.
 - `/forecast` as a second name for `/triage`, which describes what the stage
   produces rather than how a hospital sorts casualties.
 - `tstorm dispatch --role <role> --worktree <dir> --model <id>` runs one role
@@ -36,6 +36,18 @@ Nothing is released yet, and no version is tagged. Everything below is on
   directory holds the command, event stream, and exit status ([#8]).
 - `docs/internal/models.md` states what a harness must provide before it can
   carry a role ([#10]).
+- `tstorm check commit-message`, `tstorm check frontmatter` and `tstorm check
+  isolation` are the loop's gates, with `tstorm push` and `tstorm ulid` beside
+  them. Each exits 0 when it found nothing, 1 when it found something, and 2
+  when the gate itself could not run, so a hook can tell bad prose from an
+  unreadable file ([#16]).
+- `tstorm push --branch <branch>` refuses to push from any other branch. Two
+  workers sharing a checkout share one `HEAD`, so the second to create a branch
+  carries the first's staged work onto it, and nothing downstream notices
+  ([#5]).
+- `.tstorm.json` at a repository's root names the tree the frontmatter gate
+  walks, so the convention travels with the payload instead of assuming one
+  repository's `internal/` ([#3]).
 
 ### Changed
 
@@ -62,11 +74,18 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 - The `SessionStart` hook that warmed a Cargo registry. The payload ships no
   hook at all ([#1]).
+- The five Python and shell checks under `workflow/scripts/`, and the copies
+  each payload carried. A repository got them by copying, got a fix by copying
+  again, and needed a Python on `PATH` to run one at all. `tstorm check` runs
+  them now, and the skills call it by name ([#16]).
 
 [Unreleased]: https://github.com/stormlightlabs/thunderstorm/commits/main
 [#1]: https://github.com/stormlightlabs/thunderstorm/issues/1
+[#3]: https://github.com/stormlightlabs/thunderstorm/issues/3
+[#5]: https://github.com/stormlightlabs/thunderstorm/issues/5
 [#7]: https://github.com/stormlightlabs/thunderstorm/issues/7
 [#8]: https://github.com/stormlightlabs/thunderstorm/issues/8
 [#9]: https://github.com/stormlightlabs/thunderstorm/issues/9
 [#10]: https://github.com/stormlightlabs/thunderstorm/issues/10
+[#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17

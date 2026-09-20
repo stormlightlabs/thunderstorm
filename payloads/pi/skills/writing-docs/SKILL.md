@@ -63,8 +63,8 @@ The pull request body counts in lines because it is a commit body: this
 repository merges with `squash_merge_commit_message=PR_BODY`, so the body
 reaches `git log` verbatim and is written wrapped at 72 columns. The title is
 the subject, and 53 is 59 less the ` (#NN)` GitHub appends. `commits-and-prs`
-holds both, and `${THUNDERSTORM_PLUGIN_ROOT}/scripts/check-commit-message.py --pr` reports them on
-every pull request. The review and reply numbers live with `review` and
+holds both, and `tstorm check commit-message --pr` reports them on every pull
+request. The review and reply numbers live with `review` and
 `revise`, which is where they are read.
 
 A reference page that enumerates a surface, every configuration key or every
@@ -135,9 +135,8 @@ One instance of any of these can read as a human voice. Repetition is the tell.
 
 - Sentence case for new headings.
 - Files under `internal/` need `name`, `last_updated`, and a ULID `id` in
-  frontmatter. Generate identifiers with `${THUNDERSTORM_PLUGIN_ROOT}/scripts/ulid.py`, and check the
-  tree with `${THUNDERSTORM_PLUGIN_ROOT}/scripts/check-frontmatter.py <dir>`, naming the tree
-  your `AGENTS.md` says holds them.
+  frontmatter. Generate identifiers with `tstorm ulid`, and check the tree with
+  `tstorm check frontmatter`, which reads the directory from `.tstorm.json`.
 - Claims in research notes carry a confidence caveat. Do not strip it while
   editing for style.
 - `meta/tropes.md` and the corpus under `meta/examples/` are quoted source, not

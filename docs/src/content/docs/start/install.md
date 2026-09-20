@@ -104,8 +104,9 @@ tab in that session so the operator can watch and control it.
 
 ## The checks
 
-The checks the skills call are Python scripts inside the installed payload, so
-they need `python3`. Pi also needs `tstorm` for role dispatch. Install it with:
+The checks the skills call are `tstorm` subcommands, so the binary has to be on
+`PATH` wherever the loop runs. Pi needs it for role dispatch as well. Install
+it with:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
@@ -151,8 +152,8 @@ Claude Code reads them as one rule per command. Merge the payload's
 }
 ```
 
-A bare `git push` is denied because pushing goes through `push-verified.sh`,
-which compares the remote ref to what it is about to overwrite. Without these
+A bare `git push` is denied because pushing goes through `tstorm push`, which
+compares the remote ref to what it is about to overwrite. Without these
 rules the review sequence is a convention an agent can skip.
 
 The Codex payload also carries `rules/thunderstorm.rules`, one execution-policy

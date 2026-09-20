@@ -106,10 +106,17 @@ when it lands.
 | [#18] | Run a gate from a hook on Claude Code, Codex, and Pi              |
 | [#15] | `tstorm board`: move board writes off labels and onto Projects V2 |
 
-[#16] ports the gates, and [#18] wires one to a hook. [#18] is cheaper than it
-first looked: Codex's hook events and wire format turned out to be Claude
-Code's names almost exactly, so one script covers both behind thin adapters,
-and Pi's TypeScript extension is the only per-harness code to maintain. A
+[#16] is done on this branch. The five Python and shell checks are gone and
+`tstorm check` runs them, with `tstorm push` and `tstorm ulid` beside it; the
+payloads carry no `scripts/` directory at all. That closes [#5], which wanted a
+push to refuse a `HEAD` on another worker's branch, and the directory half of
+[#3]. It also means an installed payload needs `tstorm` on `PATH`, which is
+what puts [#19] ahead of the harness work in section 2.
+
+[#18] wires a gate to a hook, and is cheaper than it first looked: Codex's hook
+events and wire format turned out to be Claude Code's names almost exactly, so
+one script covers both behind thin adapters, and Pi's TypeScript extension is
+the only per-harness code to maintain. A
 Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a real
 install, so the renderer already has somewhere to put one.
 
@@ -120,14 +127,13 @@ install, so the renderer already has somewhere to put one.
 | Issue |                                                            |
 | ----- | ---------------------------------------------------------- |
 | [#2]  | Assign OpenCode Go and Cursor roles, or drop them          |
-| [#5]  | Make a stolen HEAD loud in `push-verified.sh`              |
 | [#6]  | Nothing checks that the review protocol agrees with itself |
 | [#12] | Nothing checks prose against the tells it catalogues       |
 
 Each of these is something the workflow asserts and nothing verifies: which
-model carries a role, that a push did not take another worker's commits, that
-the review protocol agrees with itself, that the prose meets the standard it
-publishes. [#2] is the one section 1 waits on, for Cursor.
+model carries a role, that the review protocol agrees with itself, that the
+prose meets the standard it publishes. [#5] was the fourth and closed with
+[#16]. [#2] is the one section 1 waits on, for Cursor.
 
 [#12] is blocked outside this repository. The tropius baseline is 387 findings,
 and on 2026-09-19 its rhetorical detectors reported nothing against prose that

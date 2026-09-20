@@ -54,13 +54,14 @@ those literal characters.
 Check the shape before committing:
 
 ```sh
-python3 workflow/scripts/check-commit-message.py <file>
+go run ./cmd/tstorm check commit-message <file>
 git config core.hooksPath .githooks   # once, to have git run it for you
 ```
 
-`.githooks/commit-msg` calls the same script. Set `core.hooksPath` only when
-you mean to: it replaces `.git/hooks` wholesale, so every hook you already had
-stops firing.
+`.githooks/commit-msg` runs the same check, using the installed `tstorm` when
+there is one and building from the tree when there is not. Set `core.hooksPath`
+only when you mean to: it replaces `.git/hooks` wholesale, so every hook you
+already had stops firing.
 
 It checks the type, the 60-character subject, the blank line, and the 72-column
 body, and exempts fenced blocks, trailers, and URLs from the column limit. The
@@ -97,9 +98,10 @@ catalogue and check the draft against it before committing, opening, or
 posting. The pass is not optional because the text is short, internal, or
 written by an agent.
 
-`check-commit-message.py` does not do this. It checks the type, the subject
-length, the blank line, and the column limit, and it will pass a message full
-of tells; a clean run from it means the shape is right and nothing more.
+`tstorm check commit-message` does not do this. It checks the type, the
+subject length, the blank line, and the column limit, and it will pass a
+message full of tells; a clean run from it means the shape is right and
+nothing more.
 
 What the pass looks for, in the catalogue's terms: bold-first bullets used as a
 template, ceremonial endings, the same point restated at three levels, a
