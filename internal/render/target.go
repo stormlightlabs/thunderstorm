@@ -108,8 +108,10 @@ func piTarget() *Target {
 		provides: map[string]bool{CapSkills: true, CapCommands: true},
 		dirs:     map[Kind]string{KindSkill: "skills", KindCommand: "prompts"},
 		why: map[string]string{
-			CapSubagents:       "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
-			string(KindAgent):  "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
+			CapSubagents: "Pi has no subagent mechanism; a role runs there as a pi session in a tmux pane, " +
+				"which tstorm dispatch starts from a copy of the definitions inside the binary",
+			string(KindAgent): "Pi has no subagent mechanism; a role runs there as a pi session in a tmux pane, " +
+				"which tstorm dispatch starts from a copy of the definitions inside the binary",
 			CapHooks:           "Pi's only hook equivalent is a TypeScript extension; see #18",
 			string(KindHook):   "Pi's only hook equivalent is a TypeScript extension; see #18",
 			CapScripts:         "a pi package has no slot for the check scripts; they move into tstorm in #16",

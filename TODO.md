@@ -57,10 +57,10 @@ Both harnesses install from GitHub already, checked on 2026-09-19:
 `pi install git:github.com/user/repo`. What they lack is a payload worth
 installing.
 
-[#8] is what both payloads now wait on, and part of it exists: a Pi reviewer
-dispatch completed on 2026-09-19 through a tmux pane with its own worktree,
-exit 0. It has to become something the loop drives rather than a script run by
-hand.
+[#8] is done on this branch: `tstorm dispatch` starts a pi session in a tmux
+pane for a role and hands the run its report, and `docs/internal/hosts.md`
+records what that role may reach there. The pi payload still stops on the check
+scripts, which is [#16].
 
 [#9] matters more than it did: an installed payload carries no permission on
 any harness, so the deny rules are a file a repository merges by hand
@@ -92,8 +92,8 @@ The payload builds and installs on Claude Code. What it has not done is run
 anywhere else: install on `trps`, confirm `/decomp` and `/impl` work there,
 then do the same on whichever of Codex and Pi section 1 finishes first.
 
-GitHub holds [#1] behind [#7] and [#8]. [#7] is done on this branch and closes
-when it lands, which leaves [#8].
+GitHub holds [#1] behind [#7] and [#8]. Both are done on this branch and close
+when it lands.
 
 ## 4. The rest of the checks: [#14]
 

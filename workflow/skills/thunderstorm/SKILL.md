@@ -85,6 +85,20 @@ The implementer and the reviewer never share a model within one run. Name the
 model on each dispatch: a pass that inherits whatever the run happens to be
 using records nothing a later reader can check.
 
+### Where there are no subagents
+
+On Claude Code a dispatch provisions a subagent from a definition. Pi has no
+such mechanism, so start the session yourself:
+
+```sh
+tstorm dispatch --role implementer --worktree <dir> \
+  --model <model> --thinking <level> -- '<issue number, criteria, ownership>'
+```
+
+It prints the role's report, which is what the next pass is handed, and names
+the directory holding the transcript. A non-zero exit is an escalation: read
+that transcript before dispatching anything else.
+
 ## Review
 
 Do not review the diff yourself. The `review` skill owns that, and the

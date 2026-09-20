@@ -45,7 +45,7 @@ asks for evidence and not only for the capability.
 | ----------- | ---------------------------------------------------------- | ------------------------------------------------ | ------------------------------------ | ------------------------------------------------ |
 | Claude Code | the subagent definition                                    | the subagent definition                          | subagents                            | the review comment's first line                  |
 | Codex       | `spawn_agent`, with `fork_turns` of `"none"` or an integer | `reasoning_effort` on the same call              | `spawn_agent`, three workers at once | the first line, if the dispatch forked correctly |
-| Pi          | `--model` on the pane's command                            | `--thinking`, read back as `$PI_REASONING_LEVEL` | one session per tmux pane            | the pane's command and its `events.jsonl`        |
+| Pi          | `--model` on the pane's command                            | `--thinking` on the same command                 | one session per tmux pane            | the `command` and `events.jsonl` a dispatch writes |
 | OpenCode Go | not assessed                                               | not assessed                                     | not assessed                         | not assessed                                     |
 | Cursor      | not assessed                                               | not assessed                                     | not assessed                         | not assessed                                     |
 

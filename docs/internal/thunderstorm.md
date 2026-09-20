@@ -253,6 +253,32 @@ failure the whole review sequence exists to prevent.
 
 The implementer and the reviewer never share a model in one run.
 
+### What starts a pass
+
+The sequence above is the same everywhere. What starts one of its passes is
+not, and [models.md](models.md) names the harnesses the loop will run at all.
+
+| Harness             | A pass is                                                        |
+| ------------------- | ---------------------------------------------------------------- |
+| Claude Code         | a subagent the harness provisions from a definition under `agents/` |
+| Codex               | `spawn_agent`, forked with `fork_turns` so the dispatch picks the model |
+| Pi                  | `tstorm dispatch`: one pi session in a detached tmux pane         |
+| OpenCode Go, Cursor | nothing. Both are unsupported, with the reason in `models.md`     |
+
+Pi ships no subagents, and the tmux route means it does not need to gain any.
+`tstorm dispatch --role <role> --worktree <dir> --model <id>` starts the
+session, waits for the pane, and prints the role's report for the next pass to
+read. Beside the report it leaves a directory holding the command it ran, the
+event stream and the exit status, which is what `models.md` asks for as
+evidence of the model a pass used.
+
+A definition's `tools:` line is a Claude Code allowlist, so what a role may
+reach on Pi is that list translated into pi's `--tools`, under
+[hosts.md](hosts.md)'s **Dispatch**. That translation is narrower than it
+looks: a reviewer loses `write` and `edit` and keeps `bash`, which writes. What
+separates one role's work from another's is the directory its pane starts in,
+because pi ships no sandbox.
+
 ## Branches
 
 | Branch      | Holds                                   | Accepts                            |
@@ -357,8 +383,10 @@ of gaps goes stale the moment one closes.
 frontmatter what it owns. That list is not copied here, because a copy drifts
 and the directory does not.
 
-Subagents for dispatch live in `.claude/agents/`: `implementer`, `reviewer`,
-`adversarial-reviewer`, and `reviser`, one per role the run dispatches.
+Role definitions live in `.claude/agents/`: `implementer`, `reviewer`,
+`adversarial-reviewer`, and `reviser`, one per role the run dispatches. Claude
+Code reads them as subagent definitions. `tstorm dispatch` reads the same four
+from a copy inside the binary, because a pi package has nowhere to put them.
 
 Each definition's `tools:` line is an allowlist, so a role reaches GitHub only
 through the tools it names. A cloud run is the case that exposes this: the

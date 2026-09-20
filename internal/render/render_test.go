@@ -221,8 +221,13 @@ func TestAMissingCapabilityStopsTheRender(t *testing.T) {
 	if unmet.Target != "pi" {
 		t.Errorf("unmet names %q", unmet.Target)
 	}
-	if !strings.Contains(err.Error(), "#8") {
+	if !strings.Contains(err.Error(), "#16") {
 		t.Errorf("the failure does not name the issue that would close it:\n%s", err)
+	}
+	// The subagent gap is the one with no issue behind it: a role runs on Pi
+	// through tstorm dispatch, so the reason says what to run instead.
+	if !strings.Contains(err.Error(), "tstorm dispatch") {
+		t.Errorf("the failure does not say what dispatches a role on Pi:\n%s", err)
 	}
 	if !strings.Contains(err.Error(), "agent reviewer") {
 		t.Errorf("the failure does not name the blocked artifact:\n%s", err)

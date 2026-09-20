@@ -33,6 +33,9 @@ Nothing is released yet, and no version is tagged. Everything below is on
   can carry a role: a model the dispatch chooses, a reasoning level it chooses
   and the role can name, a second context within one run, and evidence
   afterwards of which model each pass used ([#10]).
+- `tstorm dispatch --role <role> --worktree <dir> --model <id>` runs one role
+  as a pi session in a tmux pane and prints its report. The transcript
+  directory holds the command, the event stream and the exit status ([#8]).
 
 ### Changed
 
@@ -55,6 +58,9 @@ Nothing is released yet, and no version is tagged. Everything below is on
 - Codex and Pi are recorded as unsupported with the reason, rather than left
   looking like options nobody thought about. Neither has a place for a command
   ([#7]), and Pi has no subagents ([#8]).
+- `docs/internal/thunderstorm.md` says what starts a review pass on each
+  harness, and `docs/internal/hosts.md` says what a role may reach on Pi
+  ([#8]).
 
 ### Removed
 

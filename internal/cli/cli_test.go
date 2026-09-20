@@ -75,3 +75,25 @@ func TestRenderRejectsAnUnknownTarget(t *testing.T) {
 		t.Errorf("error does not list the targets that exist: %v", err)
 	}
 }
+
+func TestDispatchRefusesAHarnessItCannotDrive(t *testing.T) {
+	_, _, err := run(t, "dispatch", "--harness", "claude", "--role", "reviewer",
+		"--worktree", t.TempDir(), "--model", "m", "review it")
+	if err == nil {
+		t.Fatal("dispatch on claude returned nil, want an error")
+	}
+	if !strings.Contains(err.Error(), "subagent") {
+		t.Errorf("the error does not say what drives a role there: %v", err)
+	}
+}
+
+func TestDispatchRefusesAnUnknownRole(t *testing.T) {
+	_, _, err := run(t, "dispatch", "--role", "orchestrator",
+		"--worktree", t.TempDir(), "--model", "m", "run it")
+	if err == nil {
+		t.Fatal("dispatch of an unknown role returned nil, want an error")
+	}
+	if !strings.Contains(err.Error(), "implementer") {
+		t.Errorf("the error does not list the roles: %v", err)
+	}
+}

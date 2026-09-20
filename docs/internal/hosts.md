@@ -104,21 +104,46 @@ A skill becomes a dispatchable agent by carrying `agents/openai.yaml` beside its
 this way and is invoked as `$review-agent`.
 
 **Pi has no subagents and does not want them.** Its route is a session per tmux
-pane, and that route has been run: a reviewer dispatch completed here on
-2026-09-19, exit 0, against a worktree of its own. The shape was
+pane, and `tstorm dispatch` drives it. A reviewer dispatch completed here on
+2026-09-19, exit 0, in a directory of its own, answering from a file it found
+there. The command the pane runs is
 
 ```sh
-pi --mode json --print --approve --session-dir <dir>/sessions \
-   --model openai-codex/gpt-5.6-terra --thinking high \
-   --tools read,bash,grep,find,ls,mcp \
-   --append-system-prompt <dir>/system.md -- '<task>'
+pi --mode json --print --approve --session-dir <out>/sessions \
+   --model openai-codex/gpt-5.6-sol --thinking low \
+   --tools bash,find,grep,ls,read \
+   --append-system-prompt <out>/system.md -- '<task>'
 ```
 
-with the pane signalling completion through `tmux wait-for`, stdout captured as
-`events.jsonl`, and the exit status written to a file. The role prompt names the
-model through `$PI_MODEL` and `$PI_REASONING_LEVEL`, so a finding still reports
-where it came from. Per-role tool limits are `--tools` and `--exclude-tools`
-rather than a subagent's allowlist.
+with stdout redirected to `<out>/events.jsonl` and the shell's exit status
+written to `<out>/status` before the pane ends. Completion is `tmux has-session`
+asked every 200ms until it fails. `tmux wait-for` is woken only by a pane that
+reached the end of its script, so a pane killed from outside would hold the run
+open until the timeout. Each dispatch gets a tmux server of its own, because a
+shared server hands every later session the environment of whichever client
+started the server.
+
+Per-role tool limits are `--tools` and `--exclude-tools` rather than a
+subagent's allowlist, and `internal/dispatch/tools.go` holds the translation
+from the names a definition uses: `Read` to `read`, `Write` to `write`, `Edit`
+to `edit`, `Grep` to `grep`, `Glob` to `find` and `ls`, `Bash` to `bash`. Three
+names have no counterpart, and a dispatch prints them rather than dropping
+them. `Skill` is not a tool on pi, which discovers skills itself. `WebFetch`
+has no built-in equivalent. The GitHub MCP tools are the cloud transport, and a
+pane runs on the machine the operator is sitting at, where the transport is
+`gh` through bash.
+
+Narrowing the list is not what keeps a reviewer from editing the diff: it
+loses `write` and `edit` and keeps `bash`. Pi's own `docs/security.md` says it
+ships no sandbox and that isolation has to come from the operating system or a
+container, so what separates one role's work from another's is the directory
+its pane starts in. Sandboxing the process is
+`internal/ideas/remote-operation.md` under bwrap.
+
+The appended system prompt names the role's model and reasoning level, so a
+finding still reports where it came from, and `events.jsonl` records the
+provider and model that answered. `$PI_MODEL` and `$PI_REASONING_LEVEL` reach
+only the commands pi's bash tool runs, not the session's own environment.
 
 Codex can drive tmux the same way, since it has a shell and background
 terminals, but it has no reason to: `spawn_agent` is the better route there.

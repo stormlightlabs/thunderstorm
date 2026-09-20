@@ -42,6 +42,7 @@ func Root(stdout, stderr io.Writer) *cobra.Command {
 		return ui.New(cmd.OutOrStdout(), noColor)
 	}
 
+	root.AddCommand(dispatchCmd(printer))
 	root.AddCommand(renderCmd(printer))
 	root.AddCommand(versionCmd(printer))
 	return root
