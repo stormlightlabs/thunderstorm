@@ -1,0 +1,62 @@
+name: check
+
+on:
+  pull_request:
+  push:
+    branches: [main, edge]
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: gofmt -l . | tee /dev/stderr | (! read)
+      - run: go vet ./...
+      - run: go test ./...
+      - run: go mod tidy -diff
+
+  payload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      # The committed payload is what people install, and a hand edit there is
+      # lost at the next render. This is the check that catches one.
+      - run: go run ./cmd/tstorm render --target claude --check
+
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python3 workflow/scripts/check-commit-message-test.py
+      - run: python3 workflow/scripts/check-frontmatter-test.py
+      - run: python3 workflow/scripts/check-isolation-test.py
+      - run: python3 workflow/scripts/check-isolation.py workflow
+
+  site:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: docs/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test
