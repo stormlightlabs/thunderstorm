@@ -1,0 +1,16 @@
+# AGENTS.md and CLAUDE.md are ignored globally, and in most repositories that
+# is right. Here they are the product: the plugin ships them, and the rendered
+# per-host payloads carry their own copies. Re-include them at every depth.
+!AGENTS.md
+!**/AGENTS.md
+!CLAUDE.md
+!**/CLAUDE.md
+
+# Per-machine harness settings stay out, unlike the checked-in settings.json
+# a payload ships.
+**/.claude/settings.local.json
+.pi/settings.local.json
+
+# Scratch
+/scratch/
+*.log
