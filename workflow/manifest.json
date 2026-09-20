@@ -238,6 +238,17 @@
       "requires": [
         "subagents"
       ]
+    },
+    {
+      "kind": "hook",
+      "name": "check-documents.sh",
+      "source": "hooks/check-documents.sh",
+      "event": "PostToolUse",
+      "matcher": "Write|Edit",
+      "timeout": 10,
+      "requires": [
+        "hooks"
+      ]
     }
   ]
 }

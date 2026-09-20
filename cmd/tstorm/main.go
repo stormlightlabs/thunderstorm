@@ -26,7 +26,7 @@ func main() {
 	// cobra is told to stay silent so that one place decides how an error
 	// reaches the operator: on stderr, prefixed, and never on stdout, which
 	// a caller may be parsing.
-	if err := cli.Execute(ctx, os.Args[1:], os.Stdout, os.Stderr); err != nil {
+	if err := cli.Execute(ctx, os.Args[1:], os.Stdin, os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "tstorm:", err)
 		os.Exit(cli.ExitCode(err))
 	}

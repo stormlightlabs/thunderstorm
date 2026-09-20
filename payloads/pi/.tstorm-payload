@@ -1,5 +1,6 @@
 pi
 extensions/thunderstorm.ts
+hooks/check-documents.sh
 package.json
 prompts/adv-rev.md
 prompts/decomp.md

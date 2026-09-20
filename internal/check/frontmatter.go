@@ -371,3 +371,24 @@ func errorReason(err error) string {
 	}
 	return err.Error()
 }
+
+// FrontmatterFile checks one document and reports only what that document is
+// answerable for.
+//
+// The tree is still walked. An identifier is unique or not against every other
+// document, which one file on its own cannot say, and a hook that reported the
+// whole tree on every write would be ignored by the second week.
+func FrontmatterFile(root, path string) ([]string, error) {
+	_, failures, err := Frontmatter(root)
+	if err != nil {
+		return nil, err
+	}
+	prefix := relativeTo(root, path) + ": "
+	var mine []string
+	for _, failure := range failures {
+		if strings.HasPrefix(failure, prefix) {
+			mine = append(mine, strings.TrimPrefix(failure, prefix))
+		}
+	}
+	return mine, nil
+}

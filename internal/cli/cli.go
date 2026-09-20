@@ -11,8 +11,11 @@ import (
 	"github.com/stormlightlabs/thunderstorm/internal/ui"
 )
 
-// Root returns the tstorm command tree writing to stdout and stderr.
-func Root(stdout, stderr io.Writer) *cobra.Command {
+// Root returns the tstorm command tree reading stdin and writing to stdout
+// and stderr. Only the hook command reads stdin, and it is the reason the
+// stream is passed in rather than taken from the process: a test has to be
+// able to hand it an event.
+func Root(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	var noColor bool
 
 	root := &cobra.Command{
@@ -32,6 +35,7 @@ func Root(stdout, stderr io.Writer) *cobra.Command {
 		},
 	}
 
+	root.SetIn(stdin)
 	root.SetOut(stdout)
 	root.SetErr(stderr)
 	root.PersistentFlags().BoolVar(&noColor, "no-color", false, "disable color even on a terminal")
@@ -44,6 +48,7 @@ func Root(stdout, stderr io.Writer) *cobra.Command {
 
 	root.AddCommand(checkCmd(printer))
 	root.AddCommand(dispatchCmd(printer))
+	root.AddCommand(hookCmd(printer))
 	root.AddCommand(pushCmd(printer))
 	root.AddCommand(renderCmd(printer))
 	root.AddCommand(ulidCmd(printer))
@@ -65,8 +70,8 @@ func versionCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 }
 
 // Execute runs the command tree against args.
-func Execute(ctx context.Context, args []string, stdout, stderr io.Writer) error {
-	root := Root(stdout, stderr)
+func Execute(ctx context.Context, args []string, stdin io.Reader, stdout, stderr io.Writer) error {
+	root := Root(stdin, stdout, stderr)
 	root.SetArgs(args)
 	return root.ExecuteContext(ctx)
 }

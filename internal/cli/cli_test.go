@@ -9,8 +9,14 @@ import (
 
 func run(t *testing.T, args ...string) (string, string, error) {
 	t.Helper()
+	return runWith(t, "", args...)
+}
+
+// runWith is run with an event on stdin, which only the hook command reads.
+func runWith(t *testing.T, stdin string, args ...string) (string, string, error) {
+	t.Helper()
 	var stdout, stderr bytes.Buffer
-	err := Execute(context.Background(), args, &stdout, &stderr)
+	err := Execute(context.Background(), args, strings.NewReader(stdin), &stdout, &stderr)
 	return stdout.String(), stderr.String(), err
 }
 

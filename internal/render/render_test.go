@@ -40,6 +40,7 @@ func fixture(t *testing.T, artifacts string) string {
 	write("commands/revise.md", "Use the `revise` skill.\n")
 	write("agents/reviewer.md", "---\nname: reviewer\ndescription: Review the change.\ntools: Skill, Bash, Read\n---\n\nYou review.\n")
 	write("hooks/session-start.sh", "#!/bin/sh\necho hello\n")
+	write("hooks/check-documents.sh", "#!/bin/sh\nexec tstorm hook\n")
 	write("scripts/check.py", "print('ok')\n")
 	write("manifest.json", `{
   "name": "thunderstorm",
@@ -58,18 +59,14 @@ const allArtifacts = `
     {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
     {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "requires": ["hooks"],
      "event": "SessionStart", "matcher": "startup", "timeout": 1200},
+    {"kind": "hook", "name": "check-documents.sh", "source": "hooks/check-documents.sh", "requires": ["hooks"],
+     "event": "PostToolUse", "matcher": "Write|Edit", "timeout": 10},
     {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
 
 // commandOnly keeps tests about one generated file independent of the other
 // artifact formats.
 const commandOnly = `
     {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]}`
-
-const piArtifacts = `
-    {"kind": "skill", "name": "review", "source": "skills/review", "requires": ["skills"]},
-    {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]},
-    {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
-    {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
 
 func planFor(t *testing.T, target, artifacts string) (*Payload, string, error) {
 	t.Helper()
@@ -377,7 +374,7 @@ func TestPiEnforcesTheDeniedCommands(t *testing.T) {
 }
 
 func TestPiCarriesTheWholeCurrentWorkflowShape(t *testing.T) {
-	p, _, err := planFor(t, "pi", piArtifacts)
+	p, _, err := planFor(t, "pi", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
@@ -409,25 +406,60 @@ func TestPiCarriesTheWholeCurrentWorkflowShape(t *testing.T) {
 	}
 }
 
-// Pi still has no generic hook format. A hook in the source must stop its
-// render until the extension adapter in #18 exists.
-func TestPiReportsAnUnsupportedHook(t *testing.T) {
+// Pi has no hooks. The payload carries the same scripts the other two
+// harnesses register, and the package extension is what runs them, so a gate
+// written once reaches all three.
+func TestPiRunsAHookThroughItsExtension(t *testing.T) {
 	p, _, err := planFor(t, "pi", allArtifacts)
-	if p != nil {
-		t.Fatal("pi produced a payload despite having no hook adapter")
+	if err != nil {
+		t.Fatalf("plan: %v", err)
 	}
-	var unmet *Unmet
-	if !errors.As(err, &unmet) {
-		t.Fatalf("error is %T (%v), want *Unmet", err, err)
+	body(t, p, "hooks/check-documents.sh")
+
+	extension := string(body(t, p, "extensions/thunderstorm.ts"))
+	for _, want := range []string{
+		`"name":"check-documents.sh"`,
+		`"matcher":"Write|Edit"`,
+		`"timeout":10`,
+		`pi.on("tool_result"`,
+	} {
+		if !strings.Contains(extension, want) {
+			t.Errorf("the extension does not carry %s:\n%s", want, extension)
+		}
 	}
-	if unmet.Target != "pi" {
-		t.Errorf("unmet names %q", unmet.Target)
+	// Pi's tool names are lower case, so a matcher written in Claude Code's
+	// names has to reach them.
+	if !strings.Contains(extension, `"^(" + gate.matcher + ")$", "i"`) {
+		t.Errorf("the extension matches Pi's tool names case-sensitively:\n%s", extension)
 	}
-	if !strings.Contains(err.Error(), "#18") {
-		t.Errorf("the failure does not name the issue that would close it:\n%s", err)
+}
+
+// Both events register together on Codex: the workflow's own gate and the
+// command policy that exists because Codex has no deny setting.
+func TestCodexRegistersTheWorkflowHooksBesideItsPolicy(t *testing.T) {
+	p, _, err := planFor(t, "codex", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
 	}
-	if !strings.Contains(err.Error(), "hook session-start.sh") {
-		t.Errorf("the failure does not name the blocked artifact:\n%s", err)
+	var hooks struct {
+		Hooks map[string][]struct {
+			Matcher string
+			Hooks   []struct{ Command string }
+		}
+	}
+	if err := json.Unmarshal(body(t, p, "hooks/hooks.json"), &hooks); err != nil {
+		t.Fatalf("hooks.json: %v", err)
+	}
+	post := hooks.Hooks["PostToolUse"]
+	if len(post) != 1 || post[0].Matcher != "Write|Edit" {
+		t.Fatalf("PostToolUse registrations are %+v", post)
+	}
+	if got := post[0].Hooks[0].Command; got != "${PLUGIN_ROOT}/hooks/check-documents.sh" {
+		t.Errorf("the gate resolves to %q", got)
+	}
+	pre := hooks.Hooks["PreToolUse"]
+	if len(pre) != 1 || pre[0].Matcher != "Bash" {
+		t.Fatalf("the command policy registration is %+v", pre)
 	}
 }
 
@@ -471,14 +503,25 @@ func TestANameThatEscapesThePayloadIsRejected(t *testing.T) {
 }
 
 // Cursor is in the table so that asking for it answers, rather than looking
-// like an option nobody thought about.
+// like an option nobody thought about. It is also the one target that still
+// refuses everything, which is what keeps the loud-failure path covered.
 func TestCursorReportsAnUnverifiedContract(t *testing.T) {
-	_, _, err := planFor(t, "cursor", allArtifacts)
-	if err == nil {
+	p, _, err := planFor(t, "cursor", allArtifacts)
+	if p != nil {
 		t.Fatal("cursor rendered a payload from an unverified contract")
+	}
+	var unmet *Unmet
+	if !errors.As(err, &unmet) {
+		t.Fatalf("error is %T (%v), want *Unmet", err, err)
+	}
+	if unmet.Target != "cursor" {
+		t.Errorf("unmet names %q", unmet.Target)
 	}
 	if !strings.Contains(err.Error(), "unverified") || !strings.Contains(err.Error(), "#13") {
 		t.Errorf("cursor's refusal does not say why:\n%s", err)
+	}
+	if !strings.Contains(err.Error(), "hook check-documents.sh") {
+		t.Errorf("the refusal does not name every blocked artifact:\n%s", err)
 	}
 }
 
@@ -761,5 +804,41 @@ func TestManifestRejectsWhatWouldRenderWrong(t *testing.T) {
 				t.Errorf("error is %q, want it to mention %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// The renderer's job is to refuse a payload that would underperform silently.
+// A Codex hook matched on tool names Codex does not have installs and never
+// fires, which is the same failure one step quieter, so the render says so.
+func TestCodexReportsAHookThatWillNotFire(t *testing.T) {
+	p, _, err := planFor(t, "codex", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	var found string
+	for _, limit := range p.Limits {
+		if strings.Contains(limit, "check-documents.sh") {
+			found = limit
+		}
+	}
+	if found == "" {
+		t.Fatalf("the render claims a gate Codex will not run: %v", p.Limits)
+	}
+	if !strings.Contains(found, "exec") || !strings.Contains(found, "#18") {
+		t.Errorf("the limit does not say why or where it is tracked: %q", found)
+	}
+}
+
+// Claude Code has the tools the matcher names, so the same hook is not a limit
+// there. A report that cried wolf on every target would be skipped.
+func TestClaudeReportsNoHookLimit(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	for _, limit := range p.Limits {
+		if strings.Contains(limit, "check-documents.sh") {
+			t.Errorf("claude reports a limit it does not have: %q", limit)
+		}
 	}
 }

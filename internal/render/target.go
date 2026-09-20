@@ -39,6 +39,10 @@ type Target struct {
 	// issue that would close it. Its text is what an operator reads.
 	why    map[string]string
 	extras func(Manifest, []Artifact) ([]File, error)
+	// limits reports what the payload carries here without working, where the
+	// render goes ahead anyway. An artifact the target cannot carry stops the
+	// render; one it carries and cannot fire is a line in the report.
+	limits func([]Artifact) []string
 	// transform rewrites a source artifact when the harness reads a different
 	// file format. Most targets copy source bytes unchanged.
 	transform func(Artifact, []byte) ([]byte, error)
@@ -75,6 +79,11 @@ func TargetNames() string {
 // directory, in a hook command and in rendered prose alike.
 const claudePluginRoot = "${CLAUDE_PLUGIN_ROOT}"
 
+// codexPluginRoot is what Codex expands to the installed plugin's directory in
+// a hook command. It is not the "\.\." the skills resolve against, which is a
+// path relative to the file naming it rather than a value the runtime expands.
+const codexPluginRoot = "${PLUGIN_ROOT}"
+
 func claudeTarget() *Target {
 	return &Target{
 		Name:   "claude",
@@ -106,6 +115,7 @@ func codexTarget() *Target {
 			KindHook: "hooks", KindScript: "scripts",
 		},
 		extras:    codexExtras,
+		limits:    codexLimits,
 		transform: codexTransform,
 		pluginFor: func(a Artifact) string {
 			if a.Kind == KindSkill {
@@ -123,14 +133,11 @@ func piTarget() *Target {
 		Plugin: "${THUNDERSTORM_PLUGIN_ROOT}",
 		provides: map[string]bool{
 			CapSkills: true, CapCommands: true, CapSubagents: true,
-			CapScripts: true, CapPermissions: true,
+			CapHooks: true, CapScripts: true, CapPermissions: true,
 		},
 		dirs: map[Kind]string{
-			KindSkill: "skills", KindCommand: "prompts", KindAgent: "roles", KindScript: "scripts",
-		},
-		why: map[string]string{
-			CapHooks:         "Pi's only hook equivalent is a TypeScript extension; see #18",
-			string(KindHook): "Pi's only hook equivalent is a TypeScript extension; see #18",
+			KindSkill: "skills", KindCommand: "prompts", KindAgent: "roles",
+			KindHook: "hooks", KindScript: "scripts",
 		},
 		extras: piExtras,
 	}
@@ -206,29 +213,7 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 		return nil, err
 	}
 
-	type command struct {
-		Type    string `json:"type"`
-		Command string `json:"command"`
-		Timeout int    `json:"timeout,omitempty"`
-	}
-	type registration struct {
-		Matcher string    `json:"matcher,omitempty"`
-		Hooks   []command `json:"hooks"`
-	}
-	events := map[string][]registration{}
-	for _, a := range present {
-		if a.Kind != KindHook {
-			continue
-		}
-		events[a.Event] = append(events[a.Event], registration{
-			Matcher: a.Matcher,
-			Hooks: []command{{
-				Type:    "command",
-				Command: claudePluginRoot + "/hooks/" + a.Name,
-				Timeout: a.Timeout,
-			}},
-		})
-	}
+	events := hookEvents(present, claudePluginRoot+"/hooks/")
 
 	deny := make([]string, 0, len(m.Policy.Deny))
 	for _, cmd := range m.Policy.Deny {
@@ -256,13 +241,49 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 	return files, nil
 }
 
+// hookCommand is one command a harness runs for an event. Claude Code and
+// Codex read the same three fields.
+type hookCommand struct {
+	Type          string `json:"type"`
+	Command       string `json:"command"`
+	Timeout       int    `json:"timeout,omitempty"`
+	StatusMessage string `json:"statusMessage,omitempty"`
+}
+
+// hookRegistration groups the commands one matcher runs.
+type hookRegistration struct {
+	Matcher string        `json:"matcher,omitempty"`
+	Hooks   []hookCommand `json:"hooks"`
+}
+
+// hookEvents turns the manifest's hook artifacts into the registration both
+// harnesses read, with each command written against the directory prefix that
+// harness expands to the installed payload.
+func hookEvents(present []Artifact, prefix string) map[string][]hookRegistration {
+	events := map[string][]hookRegistration{}
+	for _, a := range present {
+		if a.Kind != KindHook {
+			continue
+		}
+		events[a.Event] = append(events[a.Event], hookRegistration{
+			Matcher: a.Matcher,
+			Hooks: []hookCommand{{
+				Type:    "command",
+				Command: prefix + a.Name,
+				Timeout: a.Timeout,
+			}},
+		})
+	}
+	return events
+}
+
 // codexExtras packages the workflow for Codex and writes its command policy
 // twice. The plugin hook applies while the plugin is enabled. The execpolicy
 // file remains available to repositories that also want the policy outside a
 // Thunderstorm session.
 //
 // Verified with codex execpolicy check on codex-cli 0.146.0, 2026-09-19.
-func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
+func codexExtras(m Manifest, present []Artifact) ([]File, error) {
 	var b strings.Builder
 	b.WriteString("# thunderstorm: a session does not merge or approve its own work.\n")
 	b.WriteString("#\n")
@@ -317,19 +338,20 @@ func codexExtras(m Manifest, _ []Artifact) ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
-	hooks, err := marshal(map[string]any{
-		"hooks": map[string]any{
-			"PreToolUse": []any{map[string]any{
-				"matcher": "Bash",
-				"hooks": []any{map[string]any{
-					"type":          "command",
-					"command":       "python3 ${PLUGIN_ROOT}/hooks/deny-command.py",
-					"timeout":       5,
-					"statusMessage": "Checking Thunderstorm command policy",
-				}},
-			}},
-		},
+	// The workflow's own hooks register beside the command policy, which is
+	// Codex's alone: the policy exists because Codex has no deny setting for a
+	// repository to carry, and no other harness renders it.
+	events := hookEvents(present, codexPluginRoot+"/hooks/")
+	events["PreToolUse"] = append(events["PreToolUse"], hookRegistration{
+		Matcher: "Bash",
+		Hooks: []hookCommand{{
+			Type:          "command",
+			Command:       "python3 " + codexPluginRoot + "/hooks/deny-command.py",
+			Timeout:       5,
+			StatusMessage: "Checking Thunderstorm command policy",
+		}},
 	})
+	hooks, err := marshal(map[string]any{"hooks": events})
 	if err != nil {
 		return nil, err
 	}
@@ -373,6 +395,28 @@ for prefix in DENIED:
 		{Path: "plugin.json", Body: portable},
 		{Path: "rules/thunderstorm.rules", Body: []byte(b.String())},
 	}, nil
+}
+
+// codexLimits reports the hooks Codex registers and will not run.
+//
+// Codex has no Write or Edit tool. A session writes through `exec`, so a
+// PostToolUse matcher written in Claude Code's tool names never fires there,
+// and the registration installs and does nothing. Verified against a real
+// install on 2026-09-20; docs/internal/hosts.md holds the session it came
+// from, and #18 is where the extraction that fixes it goes.
+func codexLimits(present []Artifact) []string {
+	var out []string
+	for _, a := range present {
+		if a.Kind != KindHook || a.Event != "PostToolUse" {
+			continue
+		}
+		if strings.Contains(a.Matcher, "Write") || strings.Contains(a.Matcher, "Edit") {
+			out = append(out, fmt.Sprintf(
+				"%s will not fire here: it matches %s, and Codex writes through exec; see #18",
+				a.Name, a.Matcher))
+		}
+	}
+	return out
 }
 
 // codexTransform gives plugin skills relative paths and turns each shared role
@@ -442,8 +486,9 @@ func roleParts(text string) (map[string]string, string, error) {
 }
 
 // piExtras makes the payload a Pi package. The extension records its package
-// root for the shared prose and refuses the command prefixes in the manifest.
-func piExtras(m Manifest, _ []Artifact) ([]File, error) {
+// root for the shared prose, refuses the command prefixes in the manifest, and
+// runs the workflow's hooks, which Pi has no other way to reach.
+func piExtras(m Manifest, present []Artifact) ([]File, error) {
 	pkg, err := marshal(map[string]any{
 		"name":        m.Name,
 		"version":     m.Version,
@@ -464,10 +509,16 @@ func piExtras(m Manifest, _ []Artifact) ([]File, error) {
 	if err != nil {
 		return nil, err
 	}
-	extension := `import { dirname, resolve } from "node:path";
+	gates, err := json.Marshal(piGates(present))
+	if err != nil {
+		return nil, err
+	}
+	extension := `import { spawn } from "node:child_process";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const denied = ` + string(denied) + `;
+const gates = ` + string(gates) + `;
 
 function shellWord(word: string): string {
 	const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -479,9 +530,37 @@ function commandPattern(prefix: string): RegExp {
 	return new RegExp("(^|[;&|()\\n]\\s*)" + words + "(?=\\s|$|[;&|()])");
 }
 
+// Pi has no hooks, so a write reaches the gate through the same script the
+// other two harnesses register, with this handler translating Pi's event into
+// the shape that script reads and its reply back into a tool result.
+function runGate(root: string, gate: { name: string; timeout: number }, event: object): Promise<string> {
+	return new Promise((done) => {
+		const child = spawn(resolve(root, "hooks", gate.name), [], { stdio: ["pipe", "pipe", "inherit"] });
+		const timer = setTimeout(() => child.kill("SIGKILL"), gate.timeout * 1000);
+		let out = "";
+		child.stdout.on("data", (chunk) => {
+			out += chunk;
+		});
+		child.on("error", () => {
+			clearTimeout(timer);
+			done("");
+		});
+		child.on("close", () => {
+			clearTimeout(timer);
+			done(out);
+		});
+		child.stdin.on("error", () => {});
+		child.stdin.end(JSON.stringify(event));
+	});
+}
+
 export default function (pi) {
-	process.env.THUNDERSTORM_PLUGIN_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+	const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+	process.env.THUNDERSTORM_PLUGIN_ROOT = root;
 	const patterns = denied.map((prefix) => ({ prefix, pattern: commandPattern(prefix) }));
+	const writeGates = gates
+		.filter((gate) => gate.event === "PostToolUse")
+		.map((gate) => ({ ...gate, tools: new RegExp("^(" + gate.matcher + ")$", "i") }));
 
 	pi.on("tool_call", async (event) => {
 		if (event.toolName !== "bash") return undefined;
@@ -493,12 +572,47 @@ export default function (pi) {
 			reason: match.prefix + " is reserved for a human in a thunderstorm run.",
 		};
 	});
+
+	pi.on("tool_result", async (event) => {
+		const gate = writeGates.find((candidate) => candidate.tools.test(event.toolName));
+		if (!gate) return undefined;
+		const reply = await runGate(root, gate, {
+			hook_event_name: "PostToolUse",
+			tool_name: event.toolName,
+			cwd: process.cwd(),
+			tool_input: event.input,
+		});
+		if (!reply.trim()) return undefined;
+		let context: string | undefined;
+		try {
+			context = JSON.parse(reply)?.hookSpecificOutput?.additionalContext;
+		} catch {
+			return undefined;
+		}
+		if (!context) return undefined;
+		return { content: [...event.content, { type: "text", text: context }] };
+	});
 }
 `
 	return []File{
 		{Path: "extensions/thunderstorm.ts", Body: []byte(extension)},
 		{Path: "package.json", Body: pkg},
 	}, nil
+}
+
+// piGates is what the extension needs to run each hook artifact: the file to
+// spawn, the event it answers, the tools it covers, and how long to wait.
+func piGates(present []Artifact) []map[string]any {
+	out := []map[string]any{}
+	for _, a := range present {
+		if a.Kind != KindHook {
+			continue
+		}
+		out = append(out, map[string]any{
+			"name": a.Name, "event": a.Event, "matcher": a.Matcher, "timeout": a.Timeout,
+		})
+	}
+	return out
 }
 
 func marshal(v any) ([]byte, error) {

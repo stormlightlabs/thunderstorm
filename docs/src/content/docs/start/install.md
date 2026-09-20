@@ -118,9 +118,21 @@ github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest` is the same thing
 through the module proxy. Homebrew is the other route planned, and it is the
 only other one.
 
+One check runs on its own. Claude Code registers a `PostToolUse` hook from the
+payload, and Pi's package extension does the same job from TypeScript: a
+document written under your configured tree is checked for the frontmatter an
+issue cites it by, and what it finds is reported to the session. It never
+refuses a write. Where the payload puts the binary is a setting: `TSTORM_BIN`
+first, then the payload's own `bin/`, then `PATH`, and a binary it cannot find
+is a warning rather than a blocked editor.
+
+Codex installs the same hook and does not yet run it. Codex writes files
+through its `exec` tool rather than a `Write` or `Edit` tool, so the matcher
+does not reach it, and `tstorm render --target codex` says so in its report.
+
 ## What the package does not carry
 
-The loop is the same everywhere. What it runs against is not, so four things
+The loop is the same everywhere. What it runs against is not, so five things
 stay with the repository rather than arriving with the install.
 
 ### Your gates
@@ -129,6 +141,22 @@ The `implement` and `revise` skills run the narrowest relevant test and then
 the gates your `AGENTS.md` names. Name them there: the formatter, the linter
 and the strictness you hold it to, and the test command. A repository that
 names none leaves an agent to guess.
+
+### Your documents tree
+
+The `specify` skill writes plans and ideas that issues cite by identifier, and
+`tstorm check frontmatter` is what keeps those identifiers real. Which
+directory holds them is yours. Name it in `.tstorm.json` at the repository
+root:
+
+```json
+{
+  "documents": "docs/internal"
+}
+```
+
+A repository that names none is a clean skip: the check has nothing to walk,
+and says so rather than failing.
 
 ### The deny rules
 

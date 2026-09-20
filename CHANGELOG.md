@@ -48,6 +48,15 @@ Nothing is released yet, and no version is tagged. Everything below is on
 - `.tstorm.json` at a repository's root names the tree the frontmatter gate
   walks, so the convention travels with the payload instead of assuming one
   repository's `internal/` ([#3]).
+- `tstorm hook` answers a harness's tool hook, reading the event on stdin and
+  writing the reply on stdout. A document written under the configured tree is
+  checked for the frontmatter an issue cites it by, and what it finds is
+  reported rather than refused ([#18]).
+- The payload registers that gate itself. Claude Code reads it from
+  `hooks/hooks.json`; Pi's package extension runs the same script, since Pi has
+  no hooks. The script finds the binary through `TSTORM_BIN`, the payload's own
+  `bin/`, then `PATH`, and warns rather than blocking when it finds none
+  ([#18]).
 
 ### Changed
 
@@ -88,4 +97,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#9]: https://github.com/stormlightlabs/thunderstorm/issues/9
 [#10]: https://github.com/stormlightlabs/thunderstorm/issues/10
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
+[#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17

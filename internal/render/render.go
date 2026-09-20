@@ -133,6 +133,9 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 		}
 		p.Files = append(p.Files, extras...)
 	}
+	if t.limits != nil {
+		p.Limits = append(p.Limits, t.limits(present)...)
+	}
 	if !t.provides[CapPermissions] {
 		p.Limits = append(p.Limits, fmt.Sprintf("nothing stops the denied commands here: %s",
 			t.reason(CapPermissions)))

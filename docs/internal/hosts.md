@@ -183,6 +183,30 @@ rejects.
 A `settings.json` in a payload is read by nothing. The same install reported
 `Hooks (0)` while the payload carried its hook registration there.
 
+A Codex plugin carries hooks the same way, verified on 2026-09-20 with
+codex-cli 0.146.0: `codex plugin add thunderstorm@stormlightlabs` placed
+`hooks/hooks.json` and both hook scripts under
+`~/.codex/plugins/cache/<marketplace>/<plugin>/<version>/`, registrations
+intact, from a marketplace added by local path. The `plugin-creator` scaffold's
+validator rejects a `hooks` field in the manifest, and that is the field rather
+than the file.
+
+Two things about Codex hooks the same day settled differently than the shared
+contract suggested.
+
+Codex has no `Write` or `Edit` tool. A session asked to create a file wrote it
+through `exec`, recorded in the rollout as one `custom_tool_call` named `exec`,
+with the patch inside the call. A `PostToolUse` matcher written in Claude
+Code's tool names therefore never fires on Codex, and a gate that wants the
+path a session just wrote has to read it out of that call instead.
+
+No plugin hook ran under `codex exec` at all. With the matcher widened to `.*`
+and the command replaced by one that records its input, a full non-interactive
+session wrote its file and the recorder was never called; the rollout mentions
+no hook. That matches the install page's instruction to review and allow the
+plugin hook in a new session: a run that cannot be asked cannot approve one.
+Confirming a Codex hook fires needs an interactive session.
+
 ## Permissions
 
 Only a human merges, and each host enforces that rule differently. Claude Code
