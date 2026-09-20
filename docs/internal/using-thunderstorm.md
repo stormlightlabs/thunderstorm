@@ -56,6 +56,40 @@ it, and ends by printing the command to type next. It writes nothing.
 When a pull request comes back with findings, the run handles them. You step in
 where it stops and asks.
 
+### On each harness
+
+The command bodies are written once and rendered per harness, because the
+layer that names a skill and passes an argument is the layer that is not
+portable. One source, three filenames.
+
+| Harness     | Where a command lands       | What you type |
+| ----------- | --------------------------- | ------------- |
+| Claude Code | `commands/` in the payload  | `/storm 26`   |
+| Pi          | `prompts/` in the package   | `/storm 26`   |
+| Codex       | `~/.codex/prompts/`         | `/storm 26`   |
+| Cursor      | `.cursor/commands/`         | `/storm 26`   |
+
+Pi reads prompt templates from a package's `prompts/` directory, and its
+format is the one already written: `description` and `argument-hint` in the
+frontmatter, `$ARGUMENTS` in the body, filename as the command name. Nothing
+had to be translated.
+
+Codex reads `~/.codex/prompts/`, which is a user directory rather than
+anything a plugin writes, so the payload carries the files and installing them
+is one copy:
+
+```sh
+cp <payload>/prompts/*.md ~/.codex/prompts/
+```
+
+That path is from Codex's documentation and has not been run here. Cursor's
+`.cursor/commands/` is documented too and equally unexercised; Cursor is
+retiring commands in favour of skills, so check before relying on it.
+
+Where a harness has no command mechanism, name the skill in the prompt
+instead. "Use the triage skill" does what `/triage` does, because the command
+body is one line that says the same thing. That is the fallback, not the plan.
+
 ## What a run does
 
 `/storm <n>` claims a sub-issue, gives it a worktree, dispatches an

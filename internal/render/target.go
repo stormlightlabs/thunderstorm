@@ -12,6 +12,10 @@ import (
 // Everything here comes from docs/internal/hosts.md, verified on 2026-09-19
 // against Claude Code, pi 0.85.1, and codex-cli 0.146.0. A harness the fixture
 // did not cover provides nothing, which is not a claim that it cannot.
+//
+// Commands render for every harness that has somewhere to read one. Where a
+// harness reads them from a user directory rather than from the payload,
+// docs/internal/using-thunderstorm.md carries the one copy that install takes.
 type Target struct {
 	Name string
 	// Root replaces {{ROOT}} in rendered prose: the harness's own directory in
@@ -84,12 +88,12 @@ func codexTarget() *Target {
 		Name: "codex",
 		Root: ".codex",
 		provides: map[string]bool{
-			CapSkills: true, CapSubagents: true, CapHooks: true, CapScripts: true,
+			CapSkills: true, CapCommands: true, CapSubagents: true, CapHooks: true, CapScripts: true,
 		},
-		dirs: map[Kind]string{KindSkill: "skills", KindHook: "hooks", KindScript: "scripts"},
+		dirs: map[Kind]string{
+			KindSkill: "skills", KindCommand: "prompts", KindHook: "hooks", KindScript: "scripts",
+		},
 		why: map[string]string{
-			CapCommands:         "Codex reads prompts from ~/.codex/prompts, which a plugin does not write; see #7",
-			string(KindCommand): "Codex reads prompts from ~/.codex/prompts, which a plugin does not write; see #7",
 			string(KindAgent): "Codex dispatches a skill carrying agents/openai.yaml rather than an agent file; " +
 				"writing that sidecar is #8",
 			CapDenyRules: "merge denial is a Claude Code setting today; see #9",
@@ -101,18 +105,16 @@ func piTarget() *Target {
 	return &Target{
 		Name:     "pi",
 		Root:     ".pi",
-		provides: map[string]bool{CapSkills: true},
-		dirs:     map[Kind]string{KindSkill: "skills"},
+		provides: map[string]bool{CapSkills: true, CapCommands: true},
+		dirs:     map[Kind]string{KindSkill: "skills", KindCommand: "prompts"},
 		why: map[string]string{
-			CapCommands:         "a pi package declares extensions and skills, not prompts; see #7",
-			string(KindCommand): "a pi package declares extensions and skills, not prompts; see #7",
-			CapSubagents:        "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
-			string(KindAgent):   "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
-			CapHooks:            "Pi's only hook equivalent is a TypeScript extension; see #18",
-			string(KindHook):    "Pi's only hook equivalent is a TypeScript extension; see #18",
-			CapScripts:          "a pi package has no slot for the check scripts; they move into tstorm in #16",
-			string(KindScript):  "a pi package has no slot for the check scripts; they move into tstorm in #16",
-			CapDenyRules:        "merge denial is a Claude Code setting today; see #9",
+			CapSubagents:       "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
+			string(KindAgent):  "Pi has no subagent mechanism; its dispatch is a session per tmux pane, which is #8",
+			CapHooks:           "Pi's only hook equivalent is a TypeScript extension; see #18",
+			string(KindHook):   "Pi's only hook equivalent is a TypeScript extension; see #18",
+			CapScripts:         "a pi package has no slot for the check scripts; they move into tstorm in #16",
+			string(KindScript): "a pi package has no slot for the check scripts; they move into tstorm in #16",
+			CapDenyRules:       "merge denial is a Claude Code setting today; see #9",
 		},
 	}
 }

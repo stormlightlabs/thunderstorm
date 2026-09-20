@@ -46,7 +46,7 @@ Skills are the portable part. The rest varies, but less than it first appears.
 
 | Resource  | Claude Code             | Pi                   | Codex                   |
 | --------- | ----------------------- | -------------------- | ----------------------- |
-| Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`   | `~/.codex/prompts/*.md` |
+| Commands  | `.claude/commands/*.md` | `.pi/prompts/*.md`, or a package's `prompts/` | `~/.codex/prompts/*.md` |
 | Subagents | `.claude/agents/*.md`   | none; tmux instead   | built in, on by default |
 | Hooks     | `.claude/settings.json` | extensions (TS/JS)   | `hooks.json`            |
 | Themes    | none                    | `.pi/themes/*.json`  | `config.toml`           |
@@ -55,6 +55,22 @@ Pi's project resource roots are `.pi/{extensions,skills,prompts,themes}` and its
 user roots are `~/.pi/agent/{extensions,skills,prompts,themes}`. Codex prompts
 live at `~/.codex/prompts`; that path is from Codex's documentation and was not
 exercised here, because the directory does not exist on this machine.
+
+A pi package ships prompts. Its manifest takes `prompts` beside `extensions`,
+`skills` and `themes`, and pi also loads a package's bare `prompts/`
+directory; both are in pi's own bundled documentation at
+`docs/packages.md` and `docs/prompt-templates.md`, read on 2026-09-19. The
+template format is the one Claude Code already uses: `description` and
+`argument-hint` in the frontmatter, the filename as the command name, and
+`$ARGUMENTS` in the body, alongside `$1` and `${1:-default}`. So a command
+body crosses to Pi untranslated.
+
+Whether a Codex plugin can ship prompts is still open. A plugin carrying a
+`prompts/` directory installs, and the whole directory is copied into
+`~/.codex/plugins/cache/...`, but nothing here shows Codex reading it, and
+the official `linear` plugin declares only `skills`, `apps` and `mcpServers`.
+Treat `~/.codex/prompts` as the install target until a session proves
+otherwise.
 
 ## Dispatch
 
@@ -145,8 +161,11 @@ Three manifest formats, one shape.
 | Pi          | `package.json`, under a `pi` key | npm, or a git URL                      |
 
 Codex's manifest carries `name`, `version`, `description`, `author`, and an
-`interface` block of presentation metadata; `version` must be strict semver, and
-the validator rejects unknown fields. Pi's is an npm package whose `pi` key
+`interface` block of presentation metadata, and the official `linear` plugin
+adds `skills`, `apps` and `mcpServers` as path keys. `version` must be strict
+semver. The validator does **not** reject unknown fields: a manifest carrying
+a `wombat` key added and installed without complaint on 2026-09-19, so
+acceptance of a key is no evidence that anything reads it. Pi's is an npm package whose `pi` key
 names its extensions and skill directories:
 
 ```json

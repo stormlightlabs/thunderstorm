@@ -229,6 +229,25 @@ func TestAMissingCapabilityStopsTheRender(t *testing.T) {
 	}
 }
 
+// Commands render wherever a harness has somewhere to read one. Pi and Codex
+// both do; what stops them is the review fan-out, not the command layer.
+func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
+	for _, name := range []string{"claude", "codex", "pi"} {
+		t.Run(name, func(t *testing.T) {
+			target, err := Lookup(name)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !target.provides[CapCommands] {
+				t.Errorf("%s does not provide commands", name)
+			}
+			if dir := target.dirs[KindCommand]; dir == "" {
+				t.Errorf("%s has nowhere to put a command", name)
+			}
+		})
+	}
+}
+
 // Cursor is in the table so that asking for it answers, rather than looking
 // like an option nobody thought about.
 func TestCursorReportsAnUnverifiedContract(t *testing.T) {
