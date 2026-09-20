@@ -16,10 +16,9 @@ import (
 	"github.com/muesli/termenv"
 )
 
-// Printer carries the styles for one output stream.
+// Printer carries the styles for one output stream. An error goes to stderr
+// unstyled, from one place in main, so there is no error style here.
 type Printer struct {
-	Error   lipgloss.Style
-	Warn    lipgloss.Style
 	OK      lipgloss.Style
 	Subtle  lipgloss.Style
 	Bold    lipgloss.Style
@@ -35,8 +34,6 @@ func New(w io.Writer, forceNoColor bool) *Printer {
 		renderer.SetColorProfile(termenv.Ascii)
 	}
 	return &Printer{
-		Error:   renderer.NewStyle().Foreground(lipgloss.Color("1")).Bold(true),
-		Warn:    renderer.NewStyle().Foreground(lipgloss.Color("3")),
 		OK:      renderer.NewStyle().Foreground(lipgloss.Color("2")),
 		Subtle:  renderer.NewStyle().Foreground(lipgloss.Color("8")),
 		Bold:    renderer.NewStyle().Bold(true),

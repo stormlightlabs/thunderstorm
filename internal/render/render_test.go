@@ -155,8 +155,9 @@ func TestAnUnvaluedTokenStopsTheRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	claude, _ := Lookup("claude")
-	claude.Plugin = ""
-	if _, err := Plan(m, claude, root); err == nil {
+	unverified := *claude
+	unverified.Plugin = ""
+	if _, err := Plan(m, &unverified, root); err == nil {
 		t.Fatal("rendered prose carrying a token the target cannot resolve")
 	} else if !strings.Contains(err.Error(), pluginToken) {
 		t.Errorf("the failure does not name the token: %v", err)

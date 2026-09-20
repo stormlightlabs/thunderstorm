@@ -10,6 +10,7 @@
 package render
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -63,11 +64,14 @@ type Author struct {
 }
 
 // Policy is the permission rules the workflow depends on rather than merely
-// prefers. The deny rules are the ones that keep an agent from approving or
-// merging its own work; see docs/internal/thunderstorm.md.
+// prefers: the ones that keep an agent from approving or merging its own work.
+// See docs/internal/thunderstorm.md.
+//
+// Deny only. An allow rule is a literal command prefix, and where an installed
+// payload puts its scripts is not knowable when the manifest is written, so a
+// rendered allow list would be wrong on every machine that installed it.
 type Policy struct {
-	Deny  []string `json:"deny"`
-	Allow []string `json:"allow,omitempty"`
+	Deny []string `json:"deny"`
 }
 
 // Artifact is one file or directory of the source, with the capabilities a
@@ -102,10 +106,14 @@ func Load(root string) (Manifest, error) {
 	if err != nil {
 		return m, fmt.Errorf("read manifest: %w", err)
 	}
-	dec := json.NewDecoder(strings.NewReader(string(raw)))
+	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&m); err != nil {
 		return m, fmt.Errorf("parse manifest: %w", err)
+	}
+	// A second document after the first is a bad merge, not a manifest.
+	if dec.More() {
+		return m, fmt.Errorf("parse manifest: more than one JSON document")
 	}
 	if err := m.validate(root); err != nil {
 		return m, err
@@ -133,8 +141,8 @@ func (m Manifest) validate(root string) error {
 			return fmt.Errorf("artifact %q requires nothing; say which capability it needs", a.Name)
 		case a.Kind == KindHook && a.Event == "":
 			return fmt.Errorf("hook %q has no event; a harness cannot register it", a.Name)
-		case a.Kind != KindHook && a.Event != "":
-			return fmt.Errorf("artifact %q is a %s, which has no event", a.Name, a.Kind)
+		case a.Kind != KindHook && (a.Event != "" || a.Matcher != "" || a.Timeout != 0):
+			return fmt.Errorf("artifact %q is a %s, which has no event, matcher, or timeout", a.Name, a.Kind)
 		case len(a.Aliases) > 0 && a.Kind != KindCommand:
 			return fmt.Errorf("artifact %q is a %s; only a command carries aliases", a.Name, a.Kind)
 		}

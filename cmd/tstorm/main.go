@@ -10,14 +10,16 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/signal"
 
 	"github.com/stormlightlabs/thunderstorm/internal/cli"
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	// NotifyContext, with nothing reading the context, replaced SIGINT's
+	// default with nothing at all and made Ctrl-C a no-op. A render is short
+	// and writes through a staging directory, so the default is right: die,
+	// and leave the previous payload where it is.
+	ctx := context.Background()
 
 	// cobra is told to stay silent so that one place decides how an error
 	// reaches the operator: on stderr, prefixed, and never on stdout, which

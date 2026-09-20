@@ -168,7 +168,7 @@ func (t *Target) reason(key string) string {
 // hooks at all. It is written only when the workflow has a hook to register,
 // which it does not today. settings.json stays for the deny rules, which no
 // plugin mechanism can carry: a repository merges them into its own settings,
-// and docs/start/install.md says so.
+// and docs/src/content/docs/start/install.md says so.
 func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 	plugin, err := marshal(map[string]any{
 		"name":        m.Name,

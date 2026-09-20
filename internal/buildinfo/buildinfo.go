@@ -6,9 +6,18 @@ import "runtime/debug"
 // Version is the released version, set at link time by the release build. A
 // build without it falls back to what the module system recorded, so a binary
 // from `go install` still names itself rather than reporting "dev".
+//
+// The symbol path is what -X has to match, and a wrong one is silently a
+// no-op:
+//
+//	-X github.com/stormlightlabs/thunderstorm/internal/buildinfo.Version=v0.1.0
+//	-X github.com/stormlightlabs/thunderstorm/internal/buildinfo.Commit=$(git rev-parse HEAD)
+//
+// Check a release build with `tstorm version` before publishing it.
 var Version = ""
 
-// Commit is the revision the binary was built from, set at link time.
+// Commit is the revision the binary was built from, set at link time. See
+// Version for the symbol path.
 var Commit = ""
 
 // String returns a one-line description of this build.

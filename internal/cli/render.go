@@ -51,8 +51,15 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 					return err
 				}
 				if len(diff) > 0 {
-					return fmt.Errorf("%s is not what the source renders:\n  %s\n\nRun tstorm render --target %s",
-						out, strings.Join(diff, "\n  "), t.Name)
+					rerun := fmt.Sprintf("tstorm render --target %s", t.Name)
+					if out != filepath.Join("payloads", t.Name) {
+						rerun += " --out " + out
+					}
+					if source != "workflow" {
+						rerun += " --source " + source
+					}
+					return fmt.Errorf("%s is not what the source renders:\n  %s\n\nRun %s",
+						out, strings.Join(diff, "\n  "), rerun)
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("up to date"), payload.Summary())
 				return nil
