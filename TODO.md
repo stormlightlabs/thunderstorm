@@ -1,29 +1,24 @@
 # Roadmap
 
-What is left, ordered by what unblocks the most. Finished work is in
+What is left, in the order the week runs. Finished work is in
 [CHANGELOG.md](CHANGELOG.md).
 
 Four issues are tracks rather than work: [#4], [#11], [#14] and, at the top of
-its own tree, [#1]. Each section below is one of them, and the table under it
-holds the issues you actually pick up. The board is the **Thunderstorm** track
-of [project 13](https://github.com/orgs/stormlightlabs/projects/13).
-
-## Before anything else
-
-The workflow source lives at `workflow/` now. It is the `trps` copy, which
-carries the Projects V2 migration that `docs/internal/thunderstorm.md` still
-describes as labels. Settling that description is still open, and so is folding in what `thndrs`
-has and `trps` does not: the `release` command and skill, `sync-labels.py`,
-and `tui-capture.sh`. Neither has an issue.
+its own tree, [#1]. Most sections below are one of those, with the issues you
+pick up in the table under it. Section 2 is a single issue lifted out of [#14]
+because of when it has to happen, and section 6 holds what has no parent. The
+board is the **Thunderstorm** track of
+[project 13](https://github.com/orgs/stormlightlabs/projects/13).
 
 ## Publishing waits a week
 
-Not before 2026-09-26, and later if the work below is not done.
+The tag comes no earlier than 2026-09-26, and later if the work below is not
+done.
 
 A git tag does not publish anything by itself. The first fetch through
-proxy.golang.org does, and that version is then immutable and permanent: the
-README it carries is what pkg.go.dev serves for it from then on, so the
-README, the install page and the payload are right before the tag.
+proxy.golang.org does, and that version is immutable: the README it carries is
+what pkg.go.dev serves for it from then on. The README, the install page and
+the payload are what a tag freezes, so they come first.
 
 Nothing is blocked in the meantime. `go install` reaches GitHub directly
 without the proxy, checked on 2026-09-19:
@@ -32,75 +27,92 @@ without the proxy, checked on 2026-09-19:
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 ```
 
-That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`. Until the
-tag, that command and a GitHub release are the two routes, and both are
-[#19].
+That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
 
-## 1. Install it somewhere: [#1]
+## Before anything else
 
-The payload builds and installs on Claude Code. What it has not done is run
-anywhere else: install on `trps`, confirm `/decomp` and `/impl` work there.
+The workflow source lives at `workflow/` now. It is the `trps` copy, which
+carries the Projects V2 migration that `docs/internal/thunderstorm.md` still
+describes as labels. Settling that description is still open, and so is
+folding in what `thndrs` has and `trps` does not: the `release` command and
+skill, `sync-labels.py`, and `tui-capture.sh`. Neither has an issue.
 
-GitHub holds [#1] behind [#7] and [#8]. [#7] is done on this branch and closes
-when it lands, which leaves [#8].
+## 1. The other three harnesses: [#11]
 
-## 2. The checks: [#14]
+| Issue |                                             |
+| ----- | ------------------------------------------- |
+| [#8]  | Dispatch on Pi is tmux panes, not subagents |
+| [#9]  | Merge denial is a Claude Code setting only  |
+| [#13] | Nothing in the loop reaches Cursor          |
 
-| Issue |                                                                    |
-| ----- | ------------------------------------------------------------------ |
-| [#19] | Release tstorm: `go install` and Homebrew                          |
-| [#16] | `tstorm check`: port the Python gates to one binary                |
-| [#18] | Run a gate from a hook on Claude Code, Codex, and Pi               |
-| [#15] | `tstorm board`: move board writes off labels and onto Projects V2  |
+This is the week's work, and it comes first because publishing now would ship
+a loop that runs on Claude Code and nothing else.
 
-[#19] first, and its GitHub half before its go.dev half. A release carrying
-built binaries is what a hook on any harness can fetch, and it needs neither
-the module proxy nor a permanent tag. Homebrew and the tagged module follow at
-the end of the week. [#19] also blocks [#20].
-
-[#16] then ports the gates, and [#18] wires one to a hook. [#18] is cheaper
-than it first looked: Codex's hook events and wire format turned out to be
-Claude Code's names almost exactly, so one script covers both behind thin
-adapters, and Pi's TypeScript extension is the only per-harness code to
-maintain. A Claude Code plugin carries hooks in `hooks/hooks.json`, verified
-against a real install, so the renderer already has somewhere to put one.
-
-[#15] last, and it is the largest of the four.
-
-## 3. The other three harnesses: [#11]
-
-| Issue |                                                 |
-| ----- | ----------------------------------------------- |
-| [#8]  | Dispatch on Pi is tmux panes, not subagents     |
-| [#9]  | Merge denial is a Claude Code setting only      |
-| [#13] | Nothing in the loop reaches Cursor              |
-
-These three and [#7] all waited on [#10], which is closed. They are the
-week's work, and [#7] is already done on this branch: commands render into
-`prompts/` for Codex and Pi, so the renderer stops on the review fan-out for
-both.
+These three and [#7] all waited on [#10], which is closed. [#7] is done on
+this branch: commands render into `prompts/` for Codex and Pi, so the renderer
+stops on the review fan-out for both.
 
 Both harnesses install from GitHub already, checked on 2026-09-19:
 `codex plugin marketplace add owner/repo[@ref]` then `codex plugin add`, and
-`pi install git:github.com/user/repo`. Neither is waiting on a delivery
-mechanism. They are waiting on a payload worth delivering.
+`pi install git:github.com/user/repo`. What they lack is a payload worth
+installing.
+
+[#8] is what both payloads now wait on, and part of it exists: a Pi reviewer
+dispatch completed on 2026-09-19 through a tmux pane with its own worktree,
+exit 0. It has to become something the loop drives rather than a script run by
+hand.
 
 [#9] matters more than it did: an installed payload carries no permission on
 any harness, so the deny rules are a file a repository merges by hand
 everywhere.
 
-[#8] is what both payloads now wait on, and part of it exists: a Pi reviewer
-dispatch completed on 2026-09-19 through a tmux pane with its own worktree,
-exit 0. What it needs is to become something the loop drives.
-
-[#13] is cheaper than it looked. Cursor reads `.agents/skills/`, the same
+[#13] costs less than it looked. Cursor reads `.agents/skills/`, the same
 directory the Codex and Pi payloads need, so its skills cost a target in the
 renderer rather than a third copy of the source. It has subagents as of its
 2.4 release. All of that is from Cursor's documentation, and nothing here has
 run it, which is the first thing [#13] should fix. [#2] still decides whether
 Cursor and OpenCode Go carry roles at all.
 
-## 4. Keeping it honest: [#4]
+## 2. Ship the binary from GitHub: [#19]
+
+A GitHub release carrying built binaries for linux and macOS, with the version
+and commit set at link time. A hook on any harness can fetch one, and it needs
+no module proxy and no permanent tag.
+
+That is the half of [#19] the week needs. Homebrew and the tagged module are
+the same issue's other half, and they come after the harness work, alongside
+the tag. [#19] also blocks [#20].
+
+[#19] belongs to [#14] below, and sits here because the binary has to be
+reachable before anything asks a harness to run it.
+
+## 3. Install it somewhere: [#1]
+
+The payload builds and installs on Claude Code. What it has not done is run
+anywhere else: install on `trps`, confirm `/decomp` and `/impl` work there,
+then do the same on whichever of Codex and Pi section 1 finishes first.
+
+GitHub holds [#1] behind [#7] and [#8]. [#7] is done on this branch and closes
+when it lands, which leaves [#8].
+
+## 4. The rest of the checks: [#14]
+
+| Issue |                                                                   |
+| ----- | ----------------------------------------------------------------- |
+| [#16] | `tstorm check`: port the Python gates to one binary               |
+| [#18] | Run a gate from a hook on Claude Code, Codex, and Pi              |
+| [#15] | `tstorm board`: move board writes off labels and onto Projects V2 |
+
+[#16] ports the gates, and [#18] wires one to a hook. [#18] is cheaper than it
+first looked: Codex's hook events and wire format turned out to be Claude
+Code's names almost exactly, so one script covers both behind thin adapters,
+and Pi's TypeScript extension is the only per-harness code to maintain. A
+Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a real
+install, so the renderer already has somewhere to put one.
+
+[#15] last, and it is the largest of the three.
+
+## 5. Claims nothing checks: [#4]
 
 | Issue |                                                            |
 | ----- | ---------------------------------------------------------- |
@@ -108,6 +120,11 @@ Cursor and OpenCode Go carry roles at all.
 | [#5]  | Make a stolen HEAD loud in `push-verified.sh`              |
 | [#6]  | Nothing checks that the review protocol agrees with itself |
 | [#12] | Nothing checks prose against the tells it catalogues       |
+
+Each of these is something the workflow asserts and nothing verifies: which
+model carries a role, that a push did not take another worker's commits, that
+the review protocol agrees with itself, that the prose meets the standard it
+publishes. [#2] is the one section 1 waits on, for Cursor.
 
 [#12] is blocked outside this repository. The tropius baseline is 387 findings,
 and on 2026-09-19 its rhetorical detectors reported nothing against prose that
@@ -117,7 +134,7 @@ Wiring the gate before those land ships a check people learn to ignore.
 
 [#4] also holds three issues in `stormlightlabs/thunderus`.
 
-## 5. No parent
+## 6. No parent
 
 | Issue |                                                              |
 | ----- | ------------------------------------------------------------ |
@@ -127,9 +144,9 @@ Wiring the gate before those land ships a check people learn to ignore.
 
 [#21] waited on the renderer and is free now. [#20] waits on [#19].
 
-## Dogfood
+## Run it on this repository
 
-The payload installs, so run the loop on this repository. The issues above
+The payload installs, so run the loop here. The issues above
 become its first real workload, and whatever breaks is a finding you would
 otherwise meet on somebody else's repository.
 
