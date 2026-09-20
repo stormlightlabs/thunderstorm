@@ -1,11 +1,11 @@
 /*
- * Black and blue in the dark, white and blue in the light.
+ * Starlight builds its surface from the gray ramp and three accent steps, so
+ * redefining those covers most of the theme. The explicit background and
+ * hairline values after them are the places where the stock ramp reads too warm
+ * beside a blue accent.
  *
- * Starlight builds its whole surface out of the gray ramp and the three accent
- * steps below, so setting those is enough; the handful of explicit overrides at
- * the end are the places where the default ramp reads too warm against a blue
- * accent. Dark is the default here, and light is defined under the attribute
- * Starlight stamps on the root when a reader picks it.
+ * Dark is the default. Light is defined under the attribute Starlight stamps on
+ * the root element when a reader picks it.
  */
 
 :root {

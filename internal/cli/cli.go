@@ -19,9 +19,10 @@ func Root(stdout, stderr io.Writer) *cobra.Command {
 		Use:   "tstorm",
 		Short: "Run the thunderstorm workflow's checks and board operations",
 		Long: "tstorm runs the thunderstorm workflow's checks and board operations.\n\n" +
-			"The skills a harness loads are prose, and prose cannot fail a run.\n" +
-			"This is the other half: the checks that hold the loop to what the\n" +
-			"prose says, and the board writes too racy to leave to a model.",
+			"An agent reads the workflow as instructions and can skip one without\n" +
+			"leaving a record. These checks exit non-zero instead. The board\n" +
+			"commands write to GitHub Projects, where a lost race has to be\n" +
+			"detected rather than hoped away.",
 		SilenceUsage:      true,
 		SilenceErrors:     true,
 		DisableAutoGenTag: true,

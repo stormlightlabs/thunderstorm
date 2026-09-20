@@ -1,8 +1,9 @@
 // Command tstorm runs the thunderstorm workflow's checks and board operations.
 //
-// The skills a harness loads are prose, and prose cannot fail a run. Everything
-// here is the other half: the checks that hold the loop to what the prose says,
-// and the board writes that are too racy to leave to a model.
+// A coding agent reads the workflow as instructions and can skip one without
+// leaving a record. The checks here exit non-zero instead. The board commands
+// are here for a different reason: they are compare-and-swap writes against
+// GitHub Projects, which an agent has no way to perform.
 package main
 
 import (

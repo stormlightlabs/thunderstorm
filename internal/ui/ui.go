@@ -1,10 +1,10 @@
 // Package ui renders tstorm's terminal output.
 //
-// Color is a convenience for a person reading a terminal and noise for
-// everything else, so it is off unless the output really is a terminal. Three
-// things turn it off: NO_COLOR set to anything, --no-color, and a destination
-// that is not a TTY, which covers a pipe, a file, a hook's captured output and
-// CI all at once. https://clig.dev and https://no-color.org both ask for this.
+// Escape sequences help a person at a terminal and corrupt anything that parses
+// the output, so color stays off unless the destination is a terminal. It is
+// also off whenever NO_COLOR is present or --no-color is passed. The TTY test
+// covers a pipe, a file, a hook's captured output and a CI log together.
+// See https://clig.dev and https://no-color.org.
 package ui
 
 import (

@@ -1,15 +1,13 @@
 ---
 /**
- * Starlight's Hero, overridden so the home page carries the install commands
- * beside the title instead of under it.
+ * Starlight's Hero, overridden to put the install commands beside the title.
  *
- * The stock Hero reserves its second column for an image. There is no image
- * worth putting there, and what a reader wants in the first few seconds is the
- * command for their own agent, so the column holds that and the stage list.
+ * The stock Hero keeps its second column for an image. This site has none, and
+ * the command for a reader's own agent is more use there, so the column holds
+ * the install tabs and the stage list.
  *
- * Both columns are sized to sit inside one viewport on a desktop. Below the
- * breakpoint the grid collapses and the height constraint is dropped, because
- * a phone should scroll rather than compress.
+ * tests/layout.spec.ts checks that the result stays inside a 1440x720 viewport
+ * and collapses to one column on a phone.
  */
 import { Code, LinkButton, TabItem, Tabs } from "@astrojs/starlight/components";
 
@@ -127,7 +125,7 @@ const stages: [string, string][] = [
   }
 
   .label {
-    margin: 1.5rem 0 0;
+    margin: 1.25rem 0 0;
     font-size: var(--sl-text-xs);
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -144,7 +142,7 @@ const stages: [string, string][] = [
     grid-template-columns: 7rem 1fr;
     gap: 0.75rem;
     align-items: baseline;
-    padding: 0.35rem 0.1rem;
+    padding: 0.25rem 0.1rem;
     border-bottom: 1px solid var(--sl-color-hairline);
   }
 
@@ -168,9 +166,10 @@ const stages: [string, string][] = [
   }
 
   /*
-   * One screen, but only where there is a screen's worth of width to split.
-   * svh rather than vh so a mobile browser's collapsing chrome cannot push the
-   * actions under the fold.
+   * Two columns once there is width to split. The hero takes the height of its
+   * taller column and no more: pinning it to the viewport meant measuring the
+   * header, the panel's padding and the footer, and a page that fits already
+   * does not need the arithmetic.
    */
   @media (min-width: 62rem) {
     .hero {
@@ -178,9 +177,6 @@ const stages: [string, string][] = [
       gap: 4rem;
       align-items: center;
       text-align: start;
-      /* ContentPanel wraps this with 1.5rem top and bottom; zeroing our own
-         block padding makes that 3rem the whole of the chrome to subtract. */
-      min-height: calc(100svh - var(--sl-nav-height) - 3rem);
       padding-block: 0;
     }
 
