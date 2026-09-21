@@ -13,28 +13,23 @@ import (
 	"strings"
 )
 
-// Tropius is the binary this gate runs. Detection is its work, not tstorm's:
-// it carries the catalogue, the project dictionary, and the structural
-// detectors, and this gate runs it, drops the rules a repository has muted,
-// and prints what is left.
+// Tropius is the binary this gate runs. It carries the catalogue, the project
+// dictionary and the detectors; this gate runs it and drops the muted rules.
 const Tropius = "trps"
 
-// TropiusHome is where a caller that does not have it goes to get it.
+// TropiusHome is where to get it.
 const TropiusHome = "https://github.com/stormlightlabs/trps"
 
-// ProseNotInstalled is what a caller gets when the binary is not there. The
-// gate reports rather than blocks, and a session with no tropius installed is
-// a session with no prose findings, not a stopped one.
+// ProseNotInstalled is returned when the binary is not there. Callers report
+// it and carry on; nothing here blocks on a missing detector.
 var ProseNotInstalled = errors.New(Tropius + " is not installed, so prose was not checked")
 
-// ProseRules is what a repository tells the gate about the rules themselves.
+// ProseRules is what a repository tells the gate about the rules.
 type ProseRules struct {
-	// Dictionary is the project dictionary tropius applies, or empty to let
-	// it search from the working directory as it does on its own.
+	// Dictionary is the project dictionary tropius applies. Empty lets
+	// tropius run its own search from the working directory.
 	Dictionary string
-	// Mute drops a rule by id. A muted rule is one this repository cannot
-	// read yet, not one it disagrees with, so each id is worth a reason
-	// beside it in the file that names it.
+	// Mute drops a rule by id.
 	Mute []string
 }
 
@@ -49,9 +44,8 @@ type ProseFinding struct {
 }
 
 func (f ProseFinding) String() string {
-	// A structural finding quotes the whole run it matched, which is three
-	// bullets or a paragraph. One line of it locates the passage; the file
-	// holds the rest.
+	// A structural finding quotes the whole run it matched, which can be a
+	// paragraph. One line locates it.
 	matched := f.Matched
 	if cut := strings.IndexAny(matched, "\n\r"); cut >= 0 {
 		matched = matched[:cut] + " ..."
@@ -78,15 +72,12 @@ type proseReport struct {
 // proseReportVersion is the report shape this gate was written against.
 const proseReportVersion = 1
 
-// ProseFiles are the extensions this gate reads. Tropius grades prose, and a
-// repository's prose is its Markdown: the site pages, the skills, the
-// changelog and the roadmap.
+// ProseFiles are the extensions a walked directory yields.
 var ProseFiles = []string{".md", ".mdx"}
 
-// proseInputs expands a directory into the files under it this gate reads,
-// because tropius takes files. A path named directly is passed through
-// whatever it is called, so a file with an unusual extension can still be
-// checked by naming it.
+// proseInputs expands a directory into the files under it, since tropius
+// takes files. A path named directly is passed through whatever its
+// extension.
 func proseInputs(paths []string) ([]string, error) {
 	var out []string
 	for _, path := range paths {
@@ -103,8 +94,6 @@ func proseInputs(paths []string) ([]string, error) {
 				return err
 			}
 			name := d.Name()
-			// A dot directory is tooling rather than writing, and node_modules
-			// is somebody else's prose in any case.
 			if d.IsDir() {
 				if p != path && (strings.HasPrefix(name, ".") || name == "node_modules") {
 					return filepath.SkipDir
@@ -123,9 +112,8 @@ func proseInputs(paths []string) ([]string, error) {
 	return out, nil
 }
 
-// ProseText runs the gate over text that is not a file yet, which is what a
-// commit message is when the hook sees it. Tropius reads stdin under the name
-// "-", and the findings come back located in the text.
+// ProseText runs the gate over text that is not a file yet, a commit message
+// being the one that matters. Findings come back with an empty Path.
 func ProseText(text string, rules ProseRules) ([]ProseFinding, error) {
 	file, err := os.CreateTemp("", "tstorm-prose-*.md")
 	if err != nil {
@@ -147,9 +135,8 @@ func ProseText(text string, rules ProseRules) ([]ProseFinding, error) {
 }
 
 // Prose runs tropius over paths and returns what it found, minus the muted
-// rules. A directory is walked for the files this gate reads. A file tropius
-// excludes through the project dictionary produces nothing, which is not an
-// error.
+// rules. Directories are walked. A path the project dictionary excludes
+// produces nothing, which is not an error.
 func Prose(paths []string, rules ProseRules) ([]ProseFinding, error) {
 	paths, err := proseInputs(paths)
 	if err != nil {

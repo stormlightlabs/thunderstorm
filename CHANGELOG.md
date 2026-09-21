@@ -76,6 +76,11 @@ Nothing is released yet, and no version is tagged. Everything below is on
 - One hook script answers both events, so `hooks/check-documents.sh` is
   `hooks/gate.sh` and the manifest's hook artifact carries a list of
   registrations. `tstorm hook` picks the gate by event name ([#26]).
+- `tstorm check version` fails a payload that changed since the last tag
+  without a version bump, and a release whose tag disagrees with the manifest.
+  A harness caches an installed plugin by version and reports it current while
+  that string is unchanged, so the bump is what carries a re-render to a
+  machine that already installed one ([#34]).
 - `tstorm check policy` compares a repository's settings against the commands
   the workflow reserves for a person, names every one that is not denied, and
   says what to add. The expected list comes from the manifest, or from a
@@ -93,11 +98,6 @@ Nothing is released yet, and no version is tagged. Everything below is on
   refuses: a trope count is not a quality score ([#12]).
 - Tropius missing is a warning and exit 0, with `TRPS_BIN` naming it where it
   is not on `PATH` ([#12]).
-- [The gates](https://thunderstorm.stormlightlabs.org/reference/gates/) on the
-  site says what each check reads, what its exit code means, which harness
-  runs which, and what to type in the hours when none of them runs: a session
-  older than the install, a machine without the binary, a commit written in an
-  editor ([#31]).
 - This repository installs its own payload. `.claude/settings.json` declares
   the marketplace beside it and enables the plugin at project scope, so a
   session here runs the loop it renders and a re-render reaches the next
@@ -109,6 +109,17 @@ Nothing is released yet, and no version is tagged. Everything below is on
   ([#18]).
 
 ### Changed
+
+- Both review passes read the change's communication, not only the prose in
+  its diff: the pull request title and body, the branch's commit messages, and
+  the comments the run posted, with `tstorm check prose` run over what it
+  reads. A catalogued tell is `medium` where it was a nit, and a pattern
+  repeated through a document is one finding naming the pattern.
+
+- `render --out` defaults to the harness's own directory: `.claude` for Claude
+  Code, `.codex` for Codex, `.pi` for Pi. Installing the workflow into a
+  repository is `tstorm render --target claude` and nothing else, and building
+  the payloads this repository publishes is the case that names `--out`.
 
 - `render --out --adopt` takes over a directory carrying no marker, which is
   every repository that installed the workflow by copying. It replaces the
@@ -177,4 +188,4 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25
 [#26]: https://github.com/stormlightlabs/thunderstorm/issues/26
 [#27]: https://github.com/stormlightlabs/thunderstorm/issues/27
-[#31]: https://github.com/stormlightlabs/thunderstorm/issues/31
+[#34]: https://github.com/stormlightlabs/thunderstorm/issues/34

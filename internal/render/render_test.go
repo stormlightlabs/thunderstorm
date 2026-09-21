@@ -594,9 +594,7 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 	}
 }
 
-// A repository keeps its own settings, hooks and worktrees in the directory it
-// installs the payload into. The marker decides what a render may replace, and
-// everything else survives it.
+// A repository keeps settings, hooks and worktrees beside the payload.
 func TestWriteLeavesWhatTheMarkerDoesNotList(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
@@ -647,8 +645,7 @@ func TestWriteLeavesWhatTheMarkerDoesNotList(t *testing.T) {
 	}
 }
 
-// Picking a winner where both want the same path is how a settings file
-// disappears.
+// Both wanting the same path is how a settings file disappears.
 func TestWriteRefusesAPathTheRepositoryAlsoOwns(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
@@ -720,8 +717,7 @@ func TestWriteRefusesADirectoryHoldingAnotherTargetsPayload(t *testing.T) {
 	}
 }
 
-// A repository that installed by copying has skills, commands and scripts from
-// whatever version it copied, and no marker saying which files those are.
+// A copied install has files from some older payload and no marker.
 func TestAdoptTakesOverADirectoryCarryingNoMarker(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
@@ -937,8 +933,7 @@ func TestDiffNamesStaleAndUnexpectedFiles(t *testing.T) {
 	}
 }
 
-// A payload directory that lost a file still reports it, because the marker
-// lists it and the render no longer writes it.
+// A file the marker lists and the directory lost is still a difference.
 func TestDiffNamesAMissingPayloadFile(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {

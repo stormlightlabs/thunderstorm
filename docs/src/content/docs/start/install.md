@@ -141,13 +141,19 @@ merge and push command prefixes. `tstorm dispatch` starts each role in its own
 Pi session. When Pi runs inside tmux or Zellij, dispatch opens a new window or
 tab in that session so the operator can watch and control it.
 
-## Commit the payload instead of installing it
+## Commit the payload instead
 
-A repository that wants the workflow in its own tree renders it there:
+A repository that wants the workflow in its own tree renders it there. Target
+names the destination:
 
 ```sh
-tstorm render --target claude --out .claude
+tstorm render --target claude   # .claude
+tstorm render --target codex    # .codex
+tstorm render --target pi       # .pi
 ```
+
+`--out <dir>` takes somewhere else, which is what thunderstorm itself does to
+build the payloads it publishes.
 
 The render writes its own files and leaves every other file in the directory
 alone, so a settings file, a hook and a worktrees directory beside the payload
@@ -163,8 +169,8 @@ that installed the workflow before `tstorm render` existed. `--adopt` takes
 one over:
 
 ```sh
-tstorm render --target claude --out .claude --adopt --check   # says what it would do
-tstorm render --target claude --out .claude --adopt
+tstorm render --target claude --adopt --check   # says what it would do
+tstorm render --target claude --adopt
 ```
 
 It replaces the files the payload writes, leaves the rest, and writes the
@@ -178,11 +184,10 @@ read by a plugin install, so a repository rendering into `.claude` registers
 the hook in its own `settings.json`, against
 `$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh`.
 
-## The checks
+## Checks
 
-The checks the skills call are `tstorm` subcommands, so the binary has to be on
-`PATH` wherever the loop runs. Pi needs it for role dispatch as well. Install
-it with:
+Skills call `tstorm` subcommands, so the binary has to be on `PATH` wherever
+the loop runs. Pi needs it for role dispatch as well. Install it with:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
@@ -215,30 +220,63 @@ catalogue lists, and both are reported into the session rather than refused. A
 will not read in `git log --oneline` cannot be fixed afterwards.
 
 Hooks load when a session starts, so the session you install from gets none of
-this. Start a new one. Where the payload puts the binary is a setting:
-`TSTORM_BIN` first, then the payload's own `bin/`, then `PATH`, and a binary it
-cannot find is one line on stderr rather than a blocked editor.
+this. Start a new one. A binary the hook cannot find lets everything through
+and says so once per machine, since it runs on every shell command a session
+makes.
 
-[The gates](/reference/gates/) says what each check reads, what its exit code
+[Checks](/reference/checks/) says what each check reads, what its exit code
 means, which harness runs which, and what to type where none of them runs.
 
-## What the package does not carry
+### From a checkout
+
+Working on the loop means building what you are editing:
+
+```sh
+git clone https://github.com/stormlightlabs/thunderstorm
+cd thunderstorm
+go install ./cmd/tstorm     # to $GOBIN, or ~/go/bin
+tstorm version
+```
+
+A build from a checkout takes its version from the repository's tags, so
+`tstorm version` on a clone that has fetched none reports `(devel)`. `go build
+-o ~/.local/bin/tstorm ./cmd/tstorm` puts it somewhere else. `TSTORM_BIN`
+names the binary for the hooks where it is on neither `PATH` nor the payload's
+`bin/`, which is how to run a build under test without installing it.
+
+### Prose gate
+
+`tstorm check prose` runs [tropius](https://github.com/stormlightlabs/trps),
+which is a separate Rust binary and an optional one: without it the gate
+reports nothing and says so. Install it from source, which is the only route
+it has today:
+
+```sh
+cargo install --git https://github.com/stormlightlabs/trps trps-cli
+```
+
+`--rev <sha>` pins it, which is what CI does so a detector change does not
+land under a job nobody ran. From a checkout, `cargo install --path
+crates/cli` builds the tree you have. `TRPS_BIN` points at it when it lives outside
+`PATH`.
+
+## Not in the package
 
 The loop is the same everywhere. What it runs against is not, so five things
 stay with the repository rather than arriving with the install.
 
-### Your gates
+### Test and lint commands
 
-The `implement` and `revise` skills run the narrowest relevant test and then
-the gates your `AGENTS.md` names. Name them there: the formatter, the linter
-and the strictness you hold it to, and the test command. A repository that
-names none leaves an agent to guess.
+`implement` and `revise` run the narrowest relevant test, then the gates
+`AGENTS.md` names. Name them there: formatter, linter and the strictness it
+runs at, test command. A repository that names none leaves an agent to
+guess.
 
-### Your documents tree
+### Documents tree
 
-The `specify` skill writes plans and ideas that issues cite by identifier, and
-`tstorm check frontmatter` is what keeps those identifiers real. Which
-directory holds them is yours. Name it in `.tstorm.json` at the repository
+`specify` writes plans and ideas that issues cite by identifier, and `tstorm
+check frontmatter` keeps those identifiers real. Which directory holds them is
+a repository's own choice. Name it in `.tstorm.json` at the repository
 root:
 
 ```json
@@ -250,14 +288,14 @@ root:
 A repository that names none is a clean skip: the check has nothing to walk,
 and says so rather than failing.
 
-### The deny rules
+### Deny rules
 
 Claude Code carries a settings file for the repository to merge. Codex loads a
 `PreToolUse` hook from the enabled plugin. Pi loads its command gate from the
 package extension.
 
 Claude Code reads them as one rule per command. Merge the payload's
-`settings.json` into your repository's `.claude/settings.json`:
+`settings.json` into `.claude/settings.json`:
 
 ```json
 {
@@ -300,12 +338,11 @@ command prefixes before its `bash` tool runs. The extension is not process
 isolation: keep Pi inside an operating-system sandbox or container when the
 repository needs one.
 
-### Your board
+### Board
 
-`tstorm board` reads and writes a GitHub Projects board, and the `github-board`
-and `triage` skills decide what it writes. The board and the single-select
-field carrying status are yours to create. Name them in the same
-`.tstorm.json`:
+`tstorm board` reads and writes a GitHub Projects board, and `github-board`
+and `triage` decide what it writes. Create the board and the single-select
+field carrying status, then name them in the same `.tstorm.json`:
 
 ```json
 {
@@ -322,22 +359,22 @@ field carrying status are yours to create. Name them in the same
 }
 ```
 
-The three option names are whatever your board calls the states the loop moves
-an issue between. A project carrying several repositories' work adds
+The three option names are whatever the board calls the states an issue moves
+between. A project carrying several repositories' work adds
 `groupField` and `groupValue` to separate them; a project that is this
 repository's alone leaves both out. Reads are filtered to the repository the
 command runs in, taken from its `origin` remote unless `repository` names one.
 
-A repository that configures none of this gets an error naming every setting it
-left out. Reading and writing a project also needs the `project` scope on the
-token: `gh auth status` lists what yours carries, and `gh auth refresh -s
-project` adds it.
+A repository that configures none of this gets an error naming every setting
+it left out. Reading and writing a project also needs the `project` scope on
+the token: `gh auth status` lists the scopes, `gh auth refresh -s project`
+adds it.
 
-### Your model assignments
+### Model assignments
 
 Which model runs which role is a decision per organization, not per package.
-Pass either `--model provider/model` or separate `--provider` and `--model`
-values to `tstorm dispatch`. The values come from `pi --list-models`, including
+Pass `--model provider/model` to `tstorm dispatch`, or `--provider` and
+`--model` separately. The values come from `pi --list-models`, including
 custom providers declared in `~/.pi/agent/models.json`. Pi's `models.json`
 supports OpenAI-, Anthropic-, and Google-compatible endpoints; a Pi extension
 can register other APIs or OAuth flows.

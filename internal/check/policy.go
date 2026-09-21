@@ -14,17 +14,12 @@ type Settings struct {
 	} `json:"permissions"`
 }
 
-// DenyRule is how a command prefix reaches a settings file. Claude Code reads
-// a tool call rather than a shell string, so the prefix arrives wrapped.
+// DenyRule wraps a command prefix as Claude Code spells it in settings.
 func DenyRule(prefix string) string { return fmt.Sprintf("Bash(%s:*)", prefix) }
 
 // Policy reports the denied commands a repository's settings do not carry.
-//
-// The workflow states four commands a session may not run, and no plugin
-// mechanism carries a permission, so a repository merges them into its own
-// settings by hand. A rule added to the workflow reaches every payload and no
-// repository's settings, and the gap is silent: the session that should have
-// been refused runs the command instead.
+// No plugin mechanism carries a permission, so the rules are merged by hand
+// and nothing else notices when the workflow gains one.
 func Policy(settingsFile string, denied []string) ([]string, error) {
 	body, err := os.ReadFile(settingsFile)
 	if err != nil {
@@ -49,8 +44,7 @@ func Policy(settingsFile string, denied []string) ([]string, error) {
 }
 
 // PolicyOf reads the deny list out of a rendered payload's settings file,
-// which is what an installed repository has where it does not have the
-// workflow source.
+// which an installed repository has where it has no workflow source.
 func PolicyOf(settingsFile string) ([]string, error) {
 	body, err := os.ReadFile(settingsFile)
 	if err != nil {

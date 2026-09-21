@@ -10,7 +10,7 @@ import (
 
 // documented builds a repository whose documents tree is configured, and
 // returns its root. Tropius is pointed at nothing, so these cases answer for
-// the frontmatter gate wherever they run; the prose gate has its own.
+// the frontmatter gate wherever they run.
 func documented(t *testing.T, files map[string]string) string {
 	t.Helper()
 	noTropius(t)
@@ -31,16 +31,14 @@ func documented(t *testing.T, files map[string]string) string {
 	return root
 }
 
-// noTropius makes the prose gate inert, the way a machine without it
-// installed does.
+// noTropius makes the prose gate inert, as a machine without it would.
 func noTropius(t *testing.T) {
 	t.Helper()
 	t.Setenv("TRPS_BIN", filepath.Join(t.TempDir(), "absent"))
 }
 
-// tropiusSaying puts a script on TRPS_BIN that reports one finding against
-// whatever it is given, so the case answers for the hook rather than for the
-// detector.
+// tropiusSaying puts a script on TRPS_BIN that reports one finding, so the
+// case answers for the hook rather than for the detector.
 func tropiusSaying(t *testing.T, rule, matched string) {
 	t.Helper()
 	report := `{"version": 1, "findings": [{"rule_id": "` + rule +
@@ -55,8 +53,7 @@ func tropiusSaying(t *testing.T, rule, matched string) {
 	t.Setenv("TRPS_BIN", path)
 }
 
-// A write to Markdown gets the writing pass it is owed, at the moment it is
-// owed, rather than whenever somebody remembers the skill.
+// A write to Markdown gets the writing pass at the moment it is owed.
 func TestAWrittenMarkdownFileReportsItsTells(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "notes.md"), []byte("# Notes\n"), 0o644); err != nil {
@@ -73,8 +70,7 @@ func TestAWrittenMarkdownFileReportsItsTells(t *testing.T) {
 	}
 }
 
-// Findings are reported and never refused. A hook that blocks a write gets
-// uninstalled, and the exit code is what a harness reads first.
+// Findings are reported and never refused.
 func TestTheProseGateNeverRefusesAWrite(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "notes.md"), []byte("# Notes\n"), 0o644); err != nil {
@@ -90,8 +86,7 @@ func TestTheProseGateNeverRefusesAWrite(t *testing.T) {
 	}
 }
 
-// Prose is Markdown. A hook that ran a prose detector over source would
-// report the comments in it.
+// A prose detector run over source would report the comments in it.
 func TestTheProseGateLeavesCodeAlone(t *testing.T) {
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
@@ -107,8 +102,7 @@ func TestTheProseGateLeavesCodeAlone(t *testing.T) {
 	}
 }
 
-// A message that will not read in `git log --oneline` costs nothing to fix
-// before the commit and cannot be fixed after it.
+// A message that will not read in `git log --oneline` is refused.
 func TestACommitWhoseMessageFailsTheShapeGateIsDenied(t *testing.T) {
 	noTropius(t)
 	stdout, _, err := runWith(t, command(t, t.TempDir(), `git commit -m "bad subject"`), "hook")
@@ -151,8 +145,7 @@ func TestACommitThatPassesBothGatesRunsUnremarked(t *testing.T) {
 	}
 }
 
-// Every other command a session runs passes through untouched. A gate that
-// weighs in on `ls` is a gate somebody turns off.
+// Every other command passes through untouched.
 func TestACommandThatIsNotACommitIsLeftAlone(t *testing.T) {
 	noTropius(t)
 	for _, c := range []string{"ls -la", "go test ./...", "git push", "git log --oneline"} {

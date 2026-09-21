@@ -7,14 +7,9 @@
 // gate is written once and each harness's difference is absorbed where it
 // arises. See docs/internal/hosts.md.
 //
-// A write is never refused. A gate that bricks an editor gets uninstalled, and
-// a document with a broken block is worth saying once rather than stopping
-// work over.
-//
-// A commit is the exception, and the only one. A message whose shape is wrong
-// costs nothing to fix before git takes it and cannot be fixed after, so that
-// one is refused. What the prose gate finds in the same message is put to the
-// person instead: a trope count is not a verdict.
+// A write is never refused; the gates report and the session decides. A
+// commit is the exception: a message whose shape is wrong is denied, and what
+// the prose gate finds in it is put to the person as an ask.
 package hook
 
 import (
@@ -42,11 +37,8 @@ type Answer struct {
 	HookSpecificOutput *Output `json:"hookSpecificOutput,omitempty"`
 }
 
-// Output carries the reply fields both harnesses read.
-//
-// additionalContext is what a write gets: the gate reports and the session
-// decides. permissionDecision is what a commit gets, and it is the one place
-// the loop refuses rather than reports.
+// Output carries the reply fields both harnesses read. A write answers with
+// additionalContext, a commit with permissionDecision.
 type Output struct {
 	HookEventName            string `json:"hookEventName"`
 	AdditionalContext        string `json:"additionalContext,omitempty"`
@@ -54,15 +46,15 @@ type Output struct {
 	PermissionDecisionReason string `json:"permissionDecisionReason,omitempty"`
 }
 
-// The events the gates answer on. A write arrives on PostToolUse and a
-// command on PreToolUse, under the same names on Claude Code and Codex.
+// The events the gates answer on, under the same names on Claude Code and
+// Codex.
 const (
 	PostToolUse = "PostToolUse"
 	PreToolUse  = "PreToolUse"
 )
 
-// What a PreToolUse answer can say. Deny stops the command; Ask puts it to
-// the person, which is where a finding that cannot be certain belongs.
+// What a PreToolUse answer can say. Deny stops the command, Ask puts it to
+// the person.
 const (
 	Deny = "deny"
 	Ask  = "ask"
@@ -81,13 +73,8 @@ func Decide(e Event) (Answer, error) {
 	}
 }
 
-// decideCommand answers for a command a session is about to run. The only one
-// it has anything to say about is a commit.
-//
-// Shape refuses: a message that will not read in `git log --oneline` costs
-// nothing to fix now and cannot be fixed later. Prose asks instead, because a
-// trope count is not a verdict and the person is the one who decides whether
-// the message says what it means.
+// decideCommand answers for a commit, and says nothing about any other
+// command. Shape denies; prose asks.
 func decideCommand(e Event) (Answer, error) {
 	command, _ := e.ToolInput["command"].(string)
 	if command == "" {
@@ -119,9 +106,7 @@ func decideCommand(e Event) (Answer, error) {
 	}
 	findings, err := check.ProseText(text, settings.Rules())
 	if err != nil || len(findings) == 0 {
-		// Tropius missing reads the same as a clean message here. A commit
-		// stopped because a detector is not installed is a commit nobody
-		// waits for twice.
+		// A missing tropius reads the same as a clean message.
 		return Answer{}, nil
 	}
 	var b strings.Builder
@@ -133,8 +118,7 @@ func decideCommand(e Event) (Answer, error) {
 	return decision(Ask, b.String()), nil
 }
 
-// decision is a PreToolUse answer with nothing to add to the session's
-// context: what the harness shows is the reason.
+// decision is a PreToolUse answer; the harness shows the reason.
 func decision(what, why string) Answer {
 	return Answer{HookSpecificOutput: &Output{
 		HookEventName:            PreToolUse,
@@ -200,12 +184,8 @@ func decideWrite(e Event) (Answer, error) {
 	}}, nil
 }
 
-// prose reports what tropius found in a file a session just wrote. Tropius
-// not being installed, and a file it has nothing to say about, read the same
-// here: nothing to add.
-//
-// The findings are reported and never refused. A trope count is not a quality
-// score, and the writing-docs skill is what teaches the writing.
+// prose reports what tropius found in a file a session just wrote. A missing
+// tropius and a clean file read the same: nothing to add.
 func prose(settings config.Config, cwd, path string) string {
 	if !slices.Contains(check.ProseFiles, strings.ToLower(filepath.Ext(path))) {
 		return ""

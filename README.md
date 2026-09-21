@@ -68,9 +68,7 @@ live, as exit codes rather than as prose:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
-tstorm render --target claude
-tstorm render --target codex
-tstorm render --target pi
+tstorm render --target claude   # writes .claude, the install
 tstorm version
 ```
 
@@ -91,10 +89,10 @@ and means its own thing by a subagent. The workflow is written once under
 `workflow/`, and `tstorm render` builds one payload per harness from it:
 
 ```sh
-tstorm render --target claude          # writes payloads/claude
-tstorm render --target claude --check  # does the committed payload still match?
-tstorm render --target codex           # writes payloads/codex
-tstorm render --target pi              # writes payloads/pi
+tstorm render --target claude                       # installs into .claude
+tstorm render --target pi                           # installs into .pi
+tstorm render --target claude --out payloads/claude # builds what this repo ships
+tstorm render --target claude --out payloads/claude --check
 ```
 
 A path that differs between harnesses is written `{{ROOT}}` in the source, and

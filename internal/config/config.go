@@ -38,8 +38,8 @@ type Config struct {
 	// names none gets an error from the board commands rather than a guess.
 	Board Board `json:"board"`
 
-	// Prose is what the prose gate runs with. A repository that names nothing
-	// gets tropius under its own defaults, which is a usable gate.
+	// Prose is what the prose gate runs with. A repository that names
+	// nothing gets tropius under its own defaults.
 	Prose Prose `json:"prose"`
 
 	// dir is the directory the file was read from, so a relative setting
@@ -74,17 +74,14 @@ type Board struct {
 }
 
 // Prose configures the gate that runs tropius over a repository's writing.
-//
-// The detection is tropius's. What a repository decides here is which of its
-// rules it can read yet: a detector that reports 77 findings against prose a
-// reader calls clean costs more attention than it saves, and a muted rule is
-// one to fix upstream rather than one to argue with.
+// The detection is tropius's; what a repository decides here is which of its
+// rules it mutes.
 type Prose struct {
 	// Dictionary is the project dictionary, relative to this file. Left
 	// empty, tropius searches for its own from the working directory.
 	Dictionary string `json:"dictionary"`
 
-	// Mute drops a rule by id, with the reason beside it.
+	// Mute drops a rule by id.
 	Mute []MutedRule `json:"mute"`
 
 	// Paths are the trees the gate reads when no path is given, relative to

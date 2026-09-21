@@ -2,7 +2,6 @@ package cli
 
 import (
 	"fmt"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -18,8 +17,7 @@ func printLimits(cmd *cobra.Command, p *ui.Printer, payload *render.Payload) {
 	}
 }
 
-// leftInPlace says what the render did not write, so an operator reads that
-// the repository's own configuration survived rather than assuming it.
+// leftInPlace says what the render did not write.
 func leftInPlace(kept []string) string {
 	switch len(kept) {
 	case 0:
@@ -32,9 +30,7 @@ func leftInPlace(kept []string) string {
 }
 
 // reportAdoption says what adoption takes over and what it leaves, before
-// anything is written. What it leaves is where an older payload's files show
-// up: a render removes what it wrote, and a directory with no marker has no
-// record of that.
+// anything is written.
 func reportAdoption(cmd *cobra.Command, p *ui.Printer, payload *render.Payload, out string) error {
 	a, err := payload.Adopt(out)
 	if err != nil {
@@ -67,6 +63,9 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			"needs something the target does not provide stops the render and\n" +
 			"names the gap, because a payload that installs and then skips the\n" +
 			"review fan-out is worse than no payload.\n\n" +
+			"The destination defaults to the harness's own directory in this\n" +
+			"repository: .claude, .codex, .pi. Building the payload this\n" +
+			"repository commits is the other case, and it names --out.\n\n" +
 			"A destination carrying no marker is refused, because a directory\n" +
 			"with no record of what wrote it may be somebody's work. --adopt\n" +
 			"says otherwise: the files this payload writes are taken over, the\n" +
@@ -88,7 +87,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				return err
 			}
 			if out == "" {
-				out = filepath.Join("payloads", t.Name)
+				out = t.Root
 			}
 
 			if check && adopt {
@@ -102,7 +101,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				}
 				if len(diff) > 0 {
 					rerun := fmt.Sprintf("tstorm render --target %s", t.Name)
-					if out != filepath.Join("payloads", t.Name) {
+					if out != t.Root {
 						rerun += " --out " + out
 					}
 					if source != "workflow" {
@@ -139,7 +138,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 
 	cmd.Flags().StringVar(&target, "target", "", "harness to build for: "+render.TargetNames())
 	cmd.Flags().StringVar(&source, "source", "workflow", "canonical workflow source directory")
-	cmd.Flags().StringVar(&out, "out", "", "where to write the payload (default payloads/<target>)")
+	cmd.Flags().StringVar(&out, "out", "", "where to write the payload (default: the harness directory, .claude for claude)")
 	cmd.Flags().BoolVar(&check, "check", false, "report whether the payload on disk matches the source, and write nothing")
 	cmd.Flags().BoolVar(&adopt, "adopt", false, "take over a directory carrying no marker, replacing the payload's own files and leaving the rest")
 	if err := cmd.MarkFlagRequired("target"); err != nil {

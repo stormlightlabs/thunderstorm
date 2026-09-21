@@ -21,12 +21,17 @@ on every pull request and every push to `main` and `edge`.
 A change under `workflow/` is not done until the payload is rendered again:
 
 ```sh
-go run ./cmd/tstorm render --target claude
-go run ./cmd/tstorm render --target claude --check   # what CI will ask
+go run ./cmd/tstorm render --target claude --out payloads/claude
+go run ./cmd/tstorm render --target claude --out payloads/claude --check
 ```
 
 `payloads/` is generated. Edit `workflow/` and re-render; a hand edit there is
-lost at the next render, and `--check` is what catches it.
+lost at the next render, and `--check` is what catches it. Bump `version` in
+`workflow/manifest.json` with the render: a harness caches an installed plugin
+by version and reports it current while that string is unchanged.
+`tstorm check version` fails a payload that changed without one. `--out` is not
+optional here: a bare `render --target claude` writes into `.claude`, which is
+where a repository installs the loop rather than where this one builds it.
 
 ## The board
 

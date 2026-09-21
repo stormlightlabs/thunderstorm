@@ -22,8 +22,7 @@ func settings(t *testing.T, deny ...string) string {
 	return path
 }
 
-// The payload this repository renders is the list every install merges by
-// hand, so it is what the gate reads where the source is not at hand.
+// The rendered payload is the list every install merges by hand.
 const payloadSettings = "../../payloads/claude/settings.json"
 
 func TestSettingsCarryingEveryDeniedCommandPass(t *testing.T) {
@@ -38,8 +37,7 @@ func TestSettingsCarryingEveryDeniedCommandPass(t *testing.T) {
 	}
 }
 
-// A rule added to the workflow reaches every payload and no repository's
-// settings. This is the gate that says which repository is behind.
+// A rule added to the workflow reaches no repository's settings on its own.
 func TestAMissingDenyRuleIsNamedWithWhatToAdd(t *testing.T) {
 	file := settings(t, "Bash(gh pr merge:*)", "Bash(gh pr review:*)", "Bash(git merge:*)")
 	_, stderr, err := run(t, "check", "policy", "--expected", payloadSettings, file)
@@ -51,8 +49,7 @@ func TestAMissingDenyRuleIsNamedWithWhatToAdd(t *testing.T) {
 	}
 }
 
-// A settings file with no permissions block is a repository that never did
-// the merge, which reads the same as one that undid it.
+// No permissions block reads the same as a merge that was undone.
 func TestSettingsWithNoPermissionsBlockFail(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "settings.json")
 	if err := os.WriteFile(path, []byte(`{"enabledPlugins": {}}`), 0o644); err != nil {
@@ -67,8 +64,7 @@ func TestSettingsWithNoPermissionsBlockFail(t *testing.T) {
 	}
 }
 
-// A file it cannot read is the gate failing, not the settings failing, and a
-// caller reading only "non-zero" would treat the two the same.
+// A file it cannot read is the gate failing, not the settings.
 func TestAnUnreadableSettingsFileIsTheGateFailing(t *testing.T) {
 	_, _, err := run(t, "check", "policy", "--expected", payloadSettings,
 		filepath.Join(t.TempDir(), "absent.json"))
@@ -77,8 +73,7 @@ func TestAnUnreadableSettingsFileIsTheGateFailing(t *testing.T) {
 	}
 }
 
-// The repository this runs in did the merge, and the check that says so is
-// the one CI runs.
+// The check CI runs, over the settings this repository committed.
 func TestThisRepositoryCarriesTheDenyRules(t *testing.T) {
 	_, _, err := run(t, "check", "policy", "--source", "../../workflow", "../../.claude/settings.json")
 	if err != nil {

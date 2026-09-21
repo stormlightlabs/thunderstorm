@@ -29,7 +29,45 @@ func checkCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer),
-		policyCmd(printer), proseCmd(printer))
+		policyCmd(printer), proseCmd(printer), payloadVersionCmd(printer))
+	return cmd
+}
+
+func payloadVersionCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var (
+		source   string
+		payloads string
+		tag      string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "version",
+		Short: "Check that the payload's version moved with the payload",
+		Long: "version compares the version in the workflow manifest against the\n" +
+			"last tag and against the tree the payload was rendered from.\n\n" +
+			"A harness caches an installed plugin by version and reports it\n" +
+			"current while that string is unchanged, so a payload that changed\n" +
+			"without a bump never reaches a machine that already installed it.\n\n" +
+			"--tag names the tag being built, which has to match the manifest.",
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			p := printer(cmd)
+			findings, err := check.Version(check.Release{Source: source, Payloads: payloads, Tag: tag})
+			if err != nil {
+				return failed("%v", err)
+			}
+			if err := report(cmd.ErrOrStderr(), findings); err != nil {
+				return err
+			}
+			fmt.Fprintf(cmd.OutOrStdout(), "%s the payload's version answers for what it carries\n",
+				p.OK.Render("ok"))
+			return nil
+		},
+	}
+
+	cmd.Flags().StringVar(&source, "source", "workflow", "workflow source directory holding the manifest")
+	cmd.Flags().StringVar(&payloads, "payloads", "payloads", "directory holding the rendered payloads")
+	cmd.Flags().StringVar(&tag, "tag", "", "tag being built, which has to match the manifest version")
 	return cmd
 }
 
@@ -42,16 +80,13 @@ func policyCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy [settings.json]",
 		Short: "Check that a repository's settings carry the workflow's denied commands",
-		Long: "policy compares a repository's permissions against the commands the\n" +
-			"workflow reserves for a person.\n\n" +
-			"No plugin mechanism carries a permission, so the deny rules are\n" +
-			"merged into a repository's own settings by hand and nothing\n" +
-			"afterwards reads the result. A rule added to the workflow reaches\n" +
-			"every payload and no repository's settings, and the gap is silent:\n" +
-			"the session that should have been refused runs the command.\n\n" +
+		Long: "policy compares a repository's permissions against the commands\n" +
+			"the workflow reserves for a person. No plugin mechanism carries a\n" +
+			"permission, so the rules are merged by hand and nothing else\n" +
+			"notices when the workflow gains one.\n\n" +
 			"The expected list comes from the workflow manifest, or from a\n" +
 			"rendered payload's settings.json with --expected, which is what an\n" +
-			"installed repository has where it does not have the source.",
+			"installed repository has.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p := printer(cmd)
@@ -108,15 +143,11 @@ func proseCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		Short: "Report the writing tells tropius finds in a file or a tree",
 		Long: "prose runs tropius over what it is given and reports what comes\n" +
 			"back, minus the rules " + config.Name + " mutes.\n\n" +
-			"The detection is tropius's: it carries the catalogue, the project\n" +
-			"dictionary and the structural detectors, and this gate runs it. A\n" +
-			"muted rule is one this repository cannot read yet, listed with its\n" +
-			"reason beside it, and the list shrinks as the detector improves.\n\n" +
-			"It reports a subset of the writing-docs catalogue and judges\n" +
-			"nothing. A clean run means those rules matched nothing, not that\n" +
-			"the prose is good; the skill is what teaches the writing.\n\n" +
-			"Tropius not being installed is a warning and exit 0. A gate that\n" +
-			"stops a session over prose it could not read gets uninstalled.",
+			"It covers part of the writing-docs catalogue: phrase patterns,\n" +
+			"bold-first leads, tricolons, negative parallelism, and the words\n" +
+			"that name a judgment. A clean run means those rules matched\n" +
+			"nothing.\n\n" +
+			"Tropius not being installed is a warning and exit 0.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p := printer(cmd)
 			settings, err := config.Load(".")

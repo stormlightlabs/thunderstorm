@@ -28,9 +28,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # The committed payload is what people install, and a hand edit there is
-      # lost at the next render. This is the check that catches one.
-      - run: go run ./cmd/tstorm render --target claude --check
+      - run: go run ./cmd/tstorm render --target claude --out payloads/claude --check
 
   release:
     runs-on: ubuntu-latest
@@ -53,12 +51,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # The gates run over this repository, which is the tree they were
-      # written against. `go test ./...` in the job above covers them against
-      # fixtures written to be wrong.
       - run: go run ./cmd/tstorm check isolation workflow
       - run: go run ./cmd/tstorm check frontmatter
       - run: go run ./cmd/tstorm check policy
+      - run: go run ./cmd/tstorm check version
 
   prose:
     runs-on: ubuntu-latest

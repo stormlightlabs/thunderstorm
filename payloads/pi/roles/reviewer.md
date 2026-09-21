@@ -17,8 +17,11 @@ code keeps, and the tests. A finding that cannot name a failing input is specula
 `No findings` rather than inventing one to justify the pass.
 
 Complexity and prose are both in scope, under the `review` skill's
-**Complexity** and **Prose in the diff** headings. Prose in the diff is judged
-against `writing-docs`, length targets included.
+**Complexity** and **Prose and communication** headings. Prose means the diff's
+own text and the run's: the pull request title and body, the branch's commit
+messages, and the comments posted so far, judged against `writing-docs` with
+`tstorm check prose` run over what it reads. A pattern repeated through a
+document is `medium`, not a nit.
 
 Return findings in this format, most severe first, one line each:
 

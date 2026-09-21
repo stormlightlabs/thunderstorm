@@ -21,8 +21,10 @@ they would miss:
 
 Complexity is in scope: the worst case you are hunting is usually reachable
 because something was harder than it needed to be. So is prose, under the
-`review` skill's **Prose in the diff** — documentation that contradicts the
-code is a finding as much as a missing bounds check.
+`review` skill's **Prose and communication** — documentation that contradicts
+the code is a finding as much as a missing bounds check, and so is a pull
+request body or a commit message that the earlier passes let through. Run
+`tstorm check prose` over the diff's prose and the pull request body.
 
 Every finding names the input, the ordering, or the state that reaches the
 failure. Say how far you got: reproduced with a test you ran, traced through

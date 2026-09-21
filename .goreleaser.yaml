@@ -15,8 +15,6 @@ builds:
       - CGO_ENABLED=0
     goos: [linux, darwin]
     goarch: [amd64, arm64]
-    # The symbol paths are the ones internal/buildinfo documents. A wrong one
-    # is silently a no-op, so check `tstorm version` on a snapshot.
     ldflags:
       - -s -w
       - -X github.com/stormlightlabs/thunderstorm/internal/buildinfo.Version=v{{.Version}}
@@ -47,8 +45,6 @@ homebrew_casks:
     repository:
       owner: stormlightlabs
       name: homebrew-tap
-    # The tap is not created yet, so the cask is built and held rather than
-    # pushed at a repository that is not there. Drop this line to publish.
     skip_upload: true
     homepage: https://github.com/stormlightlabs/thunderstorm
     description: Checks and board operations for the thunderstorm workflow

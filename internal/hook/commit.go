@@ -7,13 +7,9 @@ import (
 	"strings"
 )
 
-// commitMessage is the message a shell command would commit, and whether the
-// command commits at all.
-//
-// A session writes its own `git commit`, so this is where a message can be
-// read before git has it. What cannot be read here reaches the commit-msg
-// hook instead: a message written in an editor, and one built by a command
-// substitution this does not run.
+// commitMessage is the message a shell command would commit, and whether it
+// commits at all. What cannot be read here reaches the commit-msg hook
+// instead.
 func commitMessage(command, cwd string) (string, bool) {
 	words, ok := split(command)
 	if !ok {
@@ -41,8 +37,8 @@ func commitMessage(command, cwd string) (string, bool) {
 			return readMessage(strings.TrimPrefix(word, "--file="), cwd)
 		}
 	}
-	// An editor commit, an amend with no message, a -C reusing another
-	// commit: nothing to read, and the commit-msg hook is what covers them.
+	// An editor commit, an amend with no message, a -C reusing another: there
+	// is nothing to read.
 	return "", false
 }
 
@@ -57,14 +53,12 @@ func readMessage(path, cwd string) (string, bool) {
 	return string(body), true
 }
 
-// separators are the words that end one command and start the next. A word
-// after one of them is a command; a word after anything else is an argument,
-// which is what keeps `echo git commit -m ...` from being read as a commit.
+// separators end one command and start the next, so that `echo git commit -m
+// ...` is not read as a commit.
 var separators = []string{"&&", "||", ";", "|", "&", "(", ")", "{", "}", "\n", "then", "else", "do"}
 
 // after finds a run of words at the start of a command and returns what
-// follows it. A command joining several with && or ; is searched whole, so
-// the commit in `git add -A && git commit -m ...` is found.
+// follows it. `git add -A && git commit -m ...` is searched whole.
 func after(words []string, prefix ...string) ([]string, bool) {
 	for i := 0; i+len(prefix) <= len(words); i++ {
 		if i > 0 && !slices.Contains(separators, words[i-1]) {
@@ -90,10 +84,8 @@ func slicesEqual(a, b []string) bool {
 }
 
 // split breaks a command into words the way a shell would, enough to read an
-// argument out of one. It reports false for anything it cannot read that way:
-// a command substitution, an unclosed quote, a heredoc. A message this cannot
-// see is a message this gate says nothing about, which is the safe direction
-// for a gate that refuses commits.
+// argument out of one. It reports false for a command substitution, an
+// unclosed quote or a heredoc, which the caller treats as nothing to check.
 func split(command string) ([]string, bool) {
 	if strings.Contains(command, "$(") || strings.Contains(command, "`") || strings.Contains(command, "<<") {
 		return nil, false
@@ -110,8 +102,7 @@ func split(command string) ([]string, bool) {
 				word.Reset()
 				held = false
 			}
-			// A newline ends a command the way a semicolon does, and the
-			// word after one is a command rather than an argument.
+			// A newline ends a command the way a semicolon does.
 			if c == '\n' {
 				words = append(words, "\n")
 			}
@@ -149,9 +140,8 @@ func split(command string) ([]string, bool) {
 	return words, true
 }
 
-// doubleQuoted reads one double-quoted span, honouring the backslash escapes
-// a shell honours inside one, and returns the text and how much of the input
-// it consumed.
+// doubleQuoted reads one double-quoted span with the escapes a shell honours
+// inside one, and returns the text and how much input it consumed.
 func doubleQuoted(s string) (string, int, bool) {
 	var out strings.Builder
 	for i := 1; i < len(s); i++ {

@@ -1,6 +1,6 @@
 {
   "name": "thunderstorm",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.2",
   "description": "Run GitHub issues through triage, decomposition, implementation, review, and revision.",
   "author": {
     "name": "Stormlight Labs",

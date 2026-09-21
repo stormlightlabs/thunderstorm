@@ -82,22 +82,44 @@ A finding needs a source. Rank them:
 
 Taste alone is a `nit` at most. Model disagreement is not a finding.
 
-### Prose in the diff
+### Prose and communication
 
 A diff touching `internal/`, `meta/`, `README.md`, or `.pi/` is a change
-under review like any other. Judge its prose against the
-`writing-docs` skill.
+under review like any other. So is the text around it: the pull request title
+and body, the commit messages on the branch, and every comment the run posted.
+Judge all of it against the `writing-docs` skill, and run the gate over what
+you can:
 
-| What you find                                    | Severity |
-| ------------------------------------------------ | -------- |
-| Documentation contradicts the code it describes  | `high`   |
-| User-visible behavior changed, documents did not | `medium` |
-| Past a soft limit or a length target             | `low`    |
-| Writing tells, heading case, term drift          | `nit`    |
+```sh
+tstorm check prose <changed prose paths>
+gh pr view <n> --json body -q .body >/tmp/body.md && tstorm check prose /tmp/body.md
+```
+
+| What you find                                     | Severity |
+| ------------------------------------------------- | -------- |
+| Documentation contradicts the code it describes   | `high`   |
+| User-visible behavior changed, documents did not  | `medium` |
+| A catalogued tell, or one pattern used throughout | `medium` |
+| Past a soft limit or a length target              | `low`    |
+| Heading case, term drift                          | `nit`    |
+
+The gate reports a subset of the catalogue, so read the rest yourself. Each of
+these is a finding:
+
+- a pull request body that restates the diff;
+- a commit message explaining what the reader can already see;
+- a comment that opens by repeating the request;
+- a lead-in sentence before every paragraph;
+- a closing section saying the document has ended.
+
+A pattern repeated through a document is one finding naming the pattern, not
+ten naming its instances.
 
 Length is a finding when a reader reaches the answer only by scrolling past
 something that repeats the code, the tests, or another page. Name that part and
 what it repeats. "Too long" on its own is not a finding.
+
+Your own comment gets the same pass before you post it.
 
 ## Finding format
 

@@ -11,12 +11,13 @@
 # payload's own bin/, then PATH. A payload staged somewhere unexpected is a
 # setting away from working rather than a bug.
 #
-# A missing binary lets everything through. The gates report what they find and
-# refuse only a commit message that will not read in git log, and a hook that
-# fails closed on a machine missing a binary gets uninstalled by the end of the
-# day. Nothing below runs an external command before the binary is found, for
-# the same reason: a hook on a stripped PATH should still degrade rather than
-# fail.
+# A missing binary lets everything through, and says so once: this runs on
+# every shell command a session makes, so a warning per call would be the
+# loudest thing in the transcript. The stamp file lives in TMPDIR, so the
+# reminder comes back after a reboot.
+#
+# Nothing below runs an external command before the binary is found: a hook on
+# a stripped PATH should degrade rather than fail.
 set -eu
 
 here=${0%/*}
@@ -31,8 +32,12 @@ elif [ -x "$here/../bin/tstorm" ]; then
 elif command -v tstorm >/dev/null 2>&1; then
   tstorm=tstorm
 else
-  echo "thunderstorm: tstorm is not installed, so the loop's gates did not run." >&2
-  echo "thunderstorm: install it, or point TSTORM_BIN at it." >&2
+  stamp="${TMPDIR:-/tmp}/tstorm-gate-missing.$(id -u 2>/dev/null || echo 0)"
+  if [ ! -f "$stamp" ]; then
+    echo "thunderstorm: tstorm is not installed, so the loop's gates did not run." >&2
+    echo "thunderstorm: install it, or point TSTORM_BIN at it." >&2
+    : >"$stamp" 2>/dev/null || true
+  fi
   exit 0
 fi
 

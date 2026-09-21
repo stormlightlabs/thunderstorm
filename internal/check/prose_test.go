@@ -9,9 +9,8 @@ import (
 	"testing"
 )
 
-// fakeTropius puts a script on TRPS_BIN that writes what the real one would,
-// so these cases cover the gate rather than the detector. The report shape is
-// tropius's --json output, version 1.
+// fakeTropius puts a script on TRPS_BIN that writes a version 1 --json
+// report, so these cases cover the gate rather than the detector.
 func fakeTropius(t *testing.T, status int, stdout string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "trps")
@@ -60,8 +59,7 @@ func TestProseReportsWhatTropiusFound(t *testing.T) {
 	}
 }
 
-// A muted rule is one this repository cannot read yet. Dropping it here keeps
-// the decision in one file instead of in whoever is reading the output.
+// Muting happens here so the decision lives in one file.
 func TestProseDropsAMutedRule(t *testing.T) {
 	fakeTropius(t, 1, twoFindings)
 	found, err := Prose([]string{write(t, "a.md", "# A\n")}, ProseRules{
@@ -75,8 +73,7 @@ func TestProseDropsAMutedRule(t *testing.T) {
 	}
 }
 
-// A gate that stops a session because a tool is missing gets uninstalled, so
-// the caller is told which case this is and decides.
+// The caller is told a missing tool apart from a clean run, and decides.
 func TestProseSaysWhenTropiusIsNotInstalled(t *testing.T) {
 	t.Setenv("TRPS_BIN", filepath.Join(t.TempDir(), "absent"))
 	_, err := Prose([]string{write(t, "a.md", "# A\n")}, ProseRules{})
@@ -85,8 +82,7 @@ func TestProseSaysWhenTropiusIsNotInstalled(t *testing.T) {
 	}
 }
 
-// Exit 2 is tropius saying it could not run, which is not the same answer as
-// a clean file and must not be read as one.
+// Exit 2 is tropius unable to run, which is not a clean file.
 func TestProseCarriesAFailureOutOfTropius(t *testing.T) {
 	fakeTropius(t, 2, "")
 	_, err := Prose([]string{write(t, "a.md", "# A\n")}, ProseRules{})
@@ -95,9 +91,8 @@ func TestProseCarriesAFailureOutOfTropius(t *testing.T) {
 	}
 }
 
-// The report shape carries a version tropius raises when a consumer would
-// have to change. Reading a later one as if it were this one loses findings
-// quietly.
+// Tropius raises the report version when a consumer has to change. Reading
+// a later one as this one would lose findings quietly.
 func TestProseRefusesAReportShapeItDoesNotKnow(t *testing.T) {
 	fakeTropius(t, 1, `{"version": 2, "findings": []}`)
 	_, err := Prose([]string{write(t, "a.md", "# A\n")}, ProseRules{})
@@ -106,8 +101,7 @@ func TestProseRefusesAReportShapeItDoesNotKnow(t *testing.T) {
 	}
 }
 
-// A directory is walked for the files this gate reads, because tropius takes
-// files and the configured trees are directories.
+// Tropius takes files, and the configured paths are directories.
 func TestProseWalksATreeForMarkdown(t *testing.T) {
 	root := t.TempDir()
 	for _, rel := range []string{"a.md", "deep/b.mdx", "c.go", ".hidden/d.md"} {

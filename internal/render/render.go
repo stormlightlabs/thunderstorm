@@ -40,10 +40,9 @@ type File struct {
 	Path string
 	Body []byte
 	Mode fs.FileMode
-	// Seed marks a file the payload provides and the repository then owns.
-	// settings.json is the one: a permissions block is merged by hand, so a
-	// render writes it where there is none and leaves the one it finds. Every
-	// other path the payload wants and the repository holds stops the render.
+	// Seed is written where the destination has no such file and left alone
+	// where it does. settings.json is the only one: its permissions block is
+	// merged by hand.
 	Seed bool
 }
 
@@ -159,8 +158,7 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 }
 
 // markerBody is the target and everything the render writes, one per line.
-// A path in skip was not written this time, which happens to a seed the
-// repository already holds, so the marker does not claim it.
+// Paths in skip were not written and are left out.
 func (p *Payload) markerBody(skip map[string]bool) []byte {
 	var b strings.Builder
 	b.WriteString(p.Target.Name)
@@ -263,11 +261,6 @@ func readSource(root, src string) ([]byte, fs.FileMode, error) {
 // deleted file by file: an earlier version of this wrote each file in place
 // and then removed whatever it had not written, which deleted a git
 // repository that happened to hold a marker file.
-//
-// A directory the repository also keeps files in is the usual case outside
-// this repository, where .claude holds a settings file, a hook and a
-// worktrees directory beside the payload. Those files are moved across into
-// the new tree rather than copied, so a worktree costs a rename.
 func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
 	dir, kept, err := p.claim(dir, adopt)
 	if err != nil {
@@ -295,7 +288,6 @@ func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
 		}
 	}
 	for _, f := range p.Files {
-		// A seed the repository already holds is carried across instead.
 		if skipped[f.Path] {
 			continue
 		}
@@ -341,17 +333,13 @@ func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
 		return nil, err
 	}
 	if err := carry(previous, dir, kept); err != nil {
-		// The repository's files are still under previous, whole, so the
-		// error names it rather than leaving them to be looked for.
 		return nil, fmt.Errorf("%w; the files this render did not write are in %s", err, previous)
 	}
 	return kept, os.RemoveAll(previous)
 }
 
 // carry moves the files the render does not own from the replaced directory
-// into the new one. They are moved rather than copied: a repository keeps
-// worktrees in the same directory, and a rename costs the same whatever they
-// hold.
+// into the new one. Moved, not copied: a .claude can hold worktrees.
 func carry(from, to string, paths []string) error {
 	for _, rel := range paths {
 		src := filepath.Join(from, filepath.FromSlash(rel))
@@ -369,17 +357,10 @@ func carry(from, to string, paths []string) error {
 // claim decides whether dir may be replaced, and returns the path to replace
 // along with the files in it this render does not own.
 //
-// The marker decides ownership. A file it lists is tstorm's to replace, and to
-// delete when the source stops producing it. Every other file is the
-// repository's: a settings file, a hook, a worktree. Those are left alone,
-// which is what lets a repository keep its harness configuration in the same
-// directory as the payload.
-//
-// A directory carrying no marker is refused unless adopt is set. It may be a
-// copied payload, and it may be somebody's work; nothing in it says which, and
-// deleting it is not a render's decision. Adopting it says the caller has
-// decided: the files this payload writes are taken over, and every other file
-// is treated the way an unlisted file is treated anywhere else.
+// The marker decides ownership: a file it lists is tstorm's to replace and to
+// delete once the source stops producing it, and every other file is the
+// repository's. A directory carrying no marker is refused unless adopt is
+// set, which takes over the paths this payload writes and leaves the rest.
 func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err == nil {
@@ -411,9 +392,9 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	held, err := os.ReadFile(filepath.Join(dir, marker))
 	switch {
 	case err != nil && adopt:
-		// Nothing says which files an unmarked directory's payload wrote, so
-		// the payload's own paths are what adoption takes over. A seed it
-		// finds is the repository's, the same as anywhere else.
+		// An unmarked directory has no record of its payload, so the paths
+		// this one writes are what adoption takes over. Seeds stay the
+		// repository's.
 		owned = map[string]bool{}
 		for path := range writing {
 			owned[path] = !seeds[path]
@@ -454,8 +435,6 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	if err != nil {
 		return "", nil, err
 	}
-	// Picking a winner is how a settings file disappears, so a path the
-	// repository owns and the payload wants stops the render instead.
 	if collision != "" {
 		return "", nil, fmt.Errorf("%s holds %s, which this render also writes; move it aside or choose another --out",
 			dir, collision)
@@ -468,10 +447,8 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 // tell whether the committed output still matches the source. An empty result
 // means they agree.
 //
-// A file the marker does not list is the repository's. It is reported
-// separately rather than as a difference: a settings file beside the payload
-// is not a disagreement between the source and what was rendered from it, and
-// a file that appeared in a payload directory is still worth naming.
+// A file the marker does not list is the repository's, and is reported in
+// left rather than as a difference.
 func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 	var out []string
 	owned, err := rendered(dir)
@@ -479,8 +456,7 @@ func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 		return nil, nil, err
 	}
 	seen := map[string]bool{}
-	// A seed the marker does not list belongs to the repository, which is free
-	// to have edited it, and the marker on disk is right not to claim it.
+	// A seed the marker does not list is the repository's, edits and all.
 	skipped := map[string]bool{}
 	for _, f := range p.Files {
 		if f.Seed && owned != nil && !owned[f.Path] {
@@ -550,10 +526,9 @@ func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 	return out, left, nil
 }
 
-// Adoption is what a render would do to a directory carrying no marker: the
-// files it takes over, and the files it leaves for the repository to decide
-// about. The second list is where an older payload's leftovers show up, since
-// a render removes only what it wrote.
+// Adoption is what a render would do to a directory carrying no marker.
+// Leave is where an older payload's files show up: a render removes only what
+// it wrote, so they survive it and are the operator's to delete.
 type Adoption struct {
 	Replace []string
 	Leave   []string
@@ -597,8 +572,7 @@ func (p *Payload) Adopt(dir string) (*Adoption, error) {
 }
 
 // rendered reads the marker at dir and reports the paths it lists, the marker
-// included. It returns nil where the directory carries no marker, which leaves
-// every file in it the render's to account for.
+// included, or nil where there is no marker.
 func rendered(dir string) (map[string]bool, error) {
 	held, err := os.ReadFile(filepath.Join(dir, marker))
 	if errors.Is(err, fs.ErrNotExist) {

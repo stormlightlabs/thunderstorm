@@ -32,8 +32,7 @@ func TestTheMessageIsReadOutOfTheCommand(t *testing.T) {
 	}
 }
 
-// What the gate cannot read, it says nothing about. Refusing a commit on a
-// message this guessed at is worse than the commit it was guarding.
+// What the gate cannot read, it says nothing about.
 func TestACommandWhoseMessageCannotBeReadIsLeftAlone(t *testing.T) {
 	for name, command := range map[string]string{
 		"an editor commit":       `git commit`,
