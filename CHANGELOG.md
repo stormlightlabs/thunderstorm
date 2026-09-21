@@ -62,6 +62,11 @@ Nothing is released yet, and no version is tagged. Everything below is on
   separates one repository's work from another's on a shared project. A
   repository that configures none of it gets an error naming what is missing
   ([#15]).
+- A tagged release publishes `tstorm` for linux and macOS on amd64 and arm64,
+  with checksums, built by GoReleaser with the version and commit set at link
+  time so `tstorm version` names the build it came from. Every branch builds a
+  snapshot, so a release does not fail for a reason a branch could have
+  caught. The Homebrew cask is written and held until the tap exists ([#19]).
 - A commit whose message fails the shape gate is refused before git takes it.
   The hook reads the message out of the `git commit` a session is about to
   run, denies on a shape a reader cannot recover from, and puts the prose
@@ -160,6 +165,7 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#15]: https://github.com/stormlightlabs/thunderstorm/issues/15
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
+[#19]: https://github.com/stormlightlabs/thunderstorm/issues/19
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17
 [#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
 [#23]: https://github.com/stormlightlabs/thunderstorm/issues/23

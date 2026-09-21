@@ -188,10 +188,24 @@ it with:
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 ```
 
-Nothing is tagged yet, so that fetches the current `main` straight from GitHub
-and builds it. Once a version is tagged, `go install
-github.com/stormlightlabs/thunderstorm/cmd/tstorm@latest` is the same thing
-through the module proxy. Homebrew is the other route planned, and it is the
+That fetches the current `main` straight from GitHub and builds it, which is
+what `@latest` does not do yet: the only tag is the `v0.1.0-rc.1` prerelease,
+and the module proxy resolves `@latest` to a release. `@v0.1.0-rc.1` takes the
+prerelease.
+
+A machine with no Go toolchain takes a binary from the
+[releases](https://github.com/stormlightlabs/thunderstorm/releases) instead.
+Each release carries linux and macOS builds for amd64 and arm64, with
+`checksums.txt` beside them:
+
+```sh
+tar -xzf tstorm_0.1.0-rc.1_linux_amd64.tar.gz
+install -m 755 tstorm ~/.local/bin/tstorm
+tstorm version
+```
+
+`tstorm version` names the tag and the commit it was built from. Homebrew is
+the other route planned, through a tap in this organization, and it is the
 only other one.
 
 One check runs on its own. Claude Code registers a `PostToolUse` hook from the

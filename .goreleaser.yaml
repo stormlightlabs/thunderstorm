@@ -1,0 +1,55 @@
+version: 2
+
+project_name: tstorm
+
+before:
+  hooks:
+    - go mod tidy
+    - go test ./...
+
+builds:
+  - id: tstorm
+    main: ./cmd/tstorm
+    binary: tstorm
+    env:
+      - CGO_ENABLED=0
+    goos: [linux, darwin]
+    goarch: [amd64, arm64]
+    # The symbol paths are the ones internal/buildinfo documents. A wrong one
+    # is silently a no-op, so check `tstorm version` on a snapshot.
+    ldflags:
+      - -s -w
+      - -X github.com/stormlightlabs/thunderstorm/internal/buildinfo.Version=v{{.Version}}
+      - -X github.com/stormlightlabs/thunderstorm/internal/buildinfo.Commit={{.FullCommit}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
+    files:
+      - LICENSE
+      - README.md
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-snapshot"
+
+changelog:
+  disable: true
+
+release:
+  prerelease: auto
+  draft: false
+
+homebrew_casks:
+  - name: tstorm
+    repository:
+      owner: stormlightlabs
+      name: homebrew-tap
+    # The tap is not created yet, so the cask is built and held rather than
+    # pushed at a repository that is not there. Drop this line to publish.
+    skip_upload: true
+    homepage: https://github.com/stormlightlabs/thunderstorm
+    description: Checks and board operations for the thunderstorm workflow
+    license: apache-2.0

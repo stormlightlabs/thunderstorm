@@ -63,10 +63,8 @@ example, `$thunderstorm:thunderstorm Run issue 123` starts the full loop.
 
 A skill is an instruction. When an agent ignores one, nothing records that it
 happened, which is how a review protocol contradicted itself across seven files
-with CI green throughout. `tstorm` is where the parts that have to be true are
-going to live.
-
-Today it renders payloads:
+with CI green throughout. `tstorm` is where the parts that have to be true
+live, as exit codes rather than as prose:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
@@ -76,17 +74,17 @@ tstorm render --target pi
 tstorm version
 ```
 
-The binary also dispatches Pi roles through tmux or Zellij. The checks a run
-depends on — commit and pull request shape, document identity, worktree
-isolation — are Python scripts
-the payload installs, which the skills call by path;
-[#16](https://github.com/stormlightlabs/thunderstorm/issues/16) ports them
-here, and board writes and the prose check follow in
-[#15](https://github.com/stormlightlabs/thunderstorm/issues/15) and
-[#12](https://github.com/stormlightlabs/thunderstorm/issues/12). Nothing is
-tagged, so that fetches `main` from GitHub directly; `@latest` through the
-module proxy, a GitHub release, and Homebrew all arrive with
-[#19](https://github.com/stormlightlabs/thunderstorm/issues/19).
+The binary also dispatches Pi roles through tmux or Zellij, and carries the
+checks a run depends on: commit and pull request shape, document identity,
+worktree isolation, the denied commands a repository has to merge into its own
+settings, and the writing tells
+[tropius](https://github.com/stormlightlabs/trps) reports. It reads and writes
+the board as well.
+
+The only tag is a prerelease, so `@main` is what the line above fetches.
+Releases carry linux and macOS binaries; `@latest` through the module proxy
+and Homebrew arrive with `v0.1.0`
+([#19](https://github.com/stormlightlabs/thunderstorm/issues/19)).
 
 Each harness reads skills from its own directory, names commands its own way,
 and means its own thing by a subagent. The workflow is written once under

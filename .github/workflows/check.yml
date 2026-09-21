@@ -32,6 +32,20 @@ jobs:
       # lost at the next render. This is the check that catches one.
       - run: go run ./cmd/tstorm render --target claude --check
 
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: build --snapshot --clean
+
   checks:
     runs-on: ubuntu-latest
     steps:
@@ -44,8 +58,6 @@ jobs:
       # fixtures written to be wrong.
       - run: go run ./cmd/tstorm check isolation workflow
       - run: go run ./cmd/tstorm check frontmatter
-      # The deny rules are merged into a repository's settings by hand, so
-      # this is what notices when the workflow gains one and .claude does not.
       - run: go run ./cmd/tstorm check policy
 
   prose:
@@ -55,12 +67,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      # Pinned, because a detector that changes under the job reports a
-      # different repository every week. Raise it deliberately, and rerun the
-      # count in CHANGELOG.md when you do.
       - run: cargo install --git https://github.com/stormlightlabs/trps --rev 5e9333be101bb2c2e4150de419494bd9d65f6ae4 trps-cli
-      # --warn reports and exits 0. A trope count is not a quality score, and
-      # a check that cannot be certain must not be the one that blocks.
       - run: go run ./cmd/tstorm check prose --warn
 
   site:

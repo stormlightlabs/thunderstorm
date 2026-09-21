@@ -9,8 +9,11 @@ one of them or under nothing.
 
 ## Before the tag
 
-The tag comes no earlier than 2026-09-26, and later if the work below is not
-done. A git tag publishes nothing by itself: the first fetch through
+`v0.1.0` comes no earlier than 2026-09-26, and later if the work below is not
+done. `v0.1.0-rc.1` is tagged and is not that tag: a prerelease publishes
+binaries without becoming what `@latest` resolves to.
+
+A git tag publishes nothing by itself: the first fetch through
 proxy.golang.org does, and that version is immutable, so the README it carries
 is what pkg.go.dev serves from then on. The README, the install page and the
 payload are what a tag freezes.
@@ -26,11 +29,11 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
 
 ## The sequence
 
-1. [#19], the release. Linux and macOS binaries with the version set at link
-   time, so a hook can fetch one without a module proxy. The skills call
-   `tstorm` by name now, and the payloads carry no scripts, so everything after
-   this assumes the binary is on `PATH`. Homebrew and the tagged module are the
-   same issue's second half and come with the tag.
+1. [#19]'s second half. GoReleaser, the release workflow and the snapshot
+   build landed, and `v0.1.0-rc.1` proves the path: a prerelease publishes
+   binaries and `go install @latest` keeps resolving to `main`, so the README
+   and the install page stay editable. What is left is `v0.1.0`, which the
+   module proxy freezes, and the Homebrew tap the cask is waiting for.
 
 2. A real run outside Claude Code, which is what [#11] waits for. Install on
    `trps` through the marketplace, which takes a local path, confirm `/decomp`
