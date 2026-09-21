@@ -62,6 +62,15 @@ Nothing is released yet, and no version is tagged. Everything below is on
   separates one repository's work from another's on a shared project. A
   repository that configures none of it gets an error naming what is missing
   ([#15]).
+- A commit whose message fails the shape gate is refused before git takes it.
+  The hook reads the message out of the `git commit` a session is about to
+  run, denies on a shape a reader cannot recover from, and puts the prose
+  findings to the person instead of deciding for them. A message it cannot
+  read, an editor commit among them, reaches `.githooks/commit-msg` as before
+  ([#26]).
+- One hook script answers both events, so `hooks/check-documents.sh` is
+  `hooks/gate.sh` and the manifest's hook artifact carries a list of
+  registrations. `tstorm hook` picks the gate by event name ([#26]).
 - `tstorm check policy` compares a repository's settings against the commands
   the workflow reserves for a person, names every one that is not denied, and
   says what to add. The expected list comes from the manifest, or from a
@@ -155,4 +164,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
 [#23]: https://github.com/stormlightlabs/thunderstorm/issues/23
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25
+[#26]: https://github.com/stormlightlabs/thunderstorm/issues/26
 [#27]: https://github.com/stormlightlabs/thunderstorm/issues/27

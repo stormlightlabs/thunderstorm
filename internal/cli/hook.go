@@ -18,8 +18,12 @@ func hookCmd(_ func(*cobra.Command) *ui.Printer) *cobra.Command {
 			"Claude Code and Codex send the same event and read the same reply, so\n" +
 			"one registration covers both. Pi has no hooks; its package extension\n" +
 			"translates its own event into this shape and calls the same command.\n\n" +
-			"It exits 0 whatever it finds. A gate that refuses a write gets\n" +
-			"uninstalled, so this one reports and leaves the session to decide.",
+			"A write is read for the frontmatter an issue cites it by and for the\n" +
+			"tells the catalogue lists, and both are reported. A commit message is\n" +
+			"read for its shape, which is the one thing here that refuses: a\n" +
+			"subject that will not read in git log cannot be fixed later.\n\n" +
+			"It exits 0 whatever it finds. The answer is in the reply, and a hook\n" +
+			"that fails on its own findings tells the harness nothing it can use.",
 		Args:         cobra.NoArgs,
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {

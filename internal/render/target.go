@@ -265,14 +265,16 @@ func hookEvents(present []Artifact, prefix string) map[string][]hookRegistration
 		if a.Kind != KindHook {
 			continue
 		}
-		events[a.Event] = append(events[a.Event], hookRegistration{
-			Matcher: a.Matcher,
-			Hooks: []hookCommand{{
-				Type:    "command",
-				Command: prefix + a.Name,
-				Timeout: a.Timeout,
-			}},
-		})
+		for _, e := range a.Events {
+			events[e.Event] = append(events[e.Event], hookRegistration{
+				Matcher: e.Matcher,
+				Hooks: []hookCommand{{
+					Type:    "command",
+					Command: prefix + a.Name,
+					Timeout: e.Timeout,
+				}},
+			})
+		}
 	}
 	return events
 }
@@ -407,13 +409,18 @@ for prefix in DENIED:
 func codexLimits(present []Artifact) []string {
 	var out []string
 	for _, a := range present {
-		if a.Kind != KindHook || a.Event != "PostToolUse" {
+		if a.Kind != KindHook {
 			continue
 		}
-		if strings.Contains(a.Matcher, "Write") || strings.Contains(a.Matcher, "Edit") {
-			out = append(out, fmt.Sprintf(
-				"%s will not fire here: it matches %s, and Codex writes through exec; see #18",
-				a.Name, a.Matcher))
+		for _, e := range a.Events {
+			if e.Event != "PostToolUse" {
+				continue
+			}
+			if strings.Contains(e.Matcher, "Write") || strings.Contains(e.Matcher, "Edit") {
+				out = append(out, fmt.Sprintf(
+					"%s answers %s on %s, which Codex never sends: it writes through exec; see #18",
+					a.Name, e.Event, e.Matcher))
+			}
 		}
 	}
 	return out
@@ -558,19 +565,44 @@ export default function (pi) {
 	const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 	process.env.THUNDERSTORM_PLUGIN_ROOT = root;
 	const patterns = denied.map((prefix) => ({ prefix, pattern: commandPattern(prefix) }));
+	const tools = (gate) => new RegExp("^(" + gate.matcher + ")$", "i");
 	const writeGates = gates
 		.filter((gate) => gate.event === "PostToolUse")
-		.map((gate) => ({ ...gate, tools: new RegExp("^(" + gate.matcher + ")$", "i") }));
+		.map((gate) => ({ ...gate, tools: tools(gate) }));
+	const commandGates = gates
+		.filter((gate) => gate.event === "PreToolUse")
+		.map((gate) => ({ ...gate, tools: tools(gate) }));
 
 	pi.on("tool_call", async (event) => {
 		if (event.toolName !== "bash") return undefined;
 		const command = event.input.command as string;
 		const match = patterns.find(({ pattern }) => pattern.test(command));
-		if (!match) return undefined;
-		return {
-			block: true,
-			reason: match.prefix + " is reserved for a human in a thunderstorm run.",
-		};
+		if (match) {
+			return {
+				block: true,
+				reason: match.prefix + " is reserved for a human in a thunderstorm run.",
+			};
+		}
+		// Pi blocks or allows, with nothing between, so a gate that asks is
+		// read as an allow here and its finding is lost. Only a refusal
+		// crosses. See docs/internal/hosts.md.
+		const gate = commandGates.find((candidate) => candidate.tools.test("Bash"));
+		if (!gate) return undefined;
+		const reply = await runGate(root, gate, {
+			hook_event_name: "PreToolUse",
+			tool_name: "Bash",
+			cwd: process.cwd(),
+			tool_input: event.input,
+		});
+		if (!reply.trim()) return undefined;
+		let answer;
+		try {
+			answer = JSON.parse(reply)?.hookSpecificOutput;
+		} catch {
+			return undefined;
+		}
+		if (answer?.permissionDecision !== "deny") return undefined;
+		return { block: true, reason: answer.permissionDecisionReason };
 	});
 
 	pi.on("tool_result", async (event) => {
@@ -608,9 +640,11 @@ func piGates(present []Artifact) []map[string]any {
 		if a.Kind != KindHook {
 			continue
 		}
-		out = append(out, map[string]any{
-			"name": a.Name, "event": a.Event, "matcher": a.Matcher, "timeout": a.Timeout,
-		})
+		for _, e := range a.Events {
+			out = append(out, map[string]any{
+				"name": a.Name, "event": e.Event, "matcher": e.Matcher, "timeout": e.Timeout,
+			})
+		}
 	}
 	return out
 }

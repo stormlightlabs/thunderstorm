@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -40,7 +41,7 @@ func fixture(t *testing.T, artifacts string) string {
 	write("commands/revise.md", "Use the `revise` skill.\n")
 	write("agents/reviewer.md", "---\nname: reviewer\ndescription: Review the change.\ntools: Skill, Bash, Read\n---\n\nYou review.\n")
 	write("hooks/session-start.sh", "#!/bin/sh\necho hello\n")
-	write("hooks/check-documents.sh", "#!/bin/sh\nexec tstorm hook\n")
+	write("hooks/gate.sh", "#!/bin/sh\nexec tstorm hook\n")
 	write("scripts/check.py", "print('ok')\n")
 	write("manifest.json", `{
   "name": "thunderstorm",
@@ -58,9 +59,10 @@ const allArtifacts = `
     {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]},
     {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
     {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "requires": ["hooks"],
-     "event": "SessionStart", "matcher": "startup", "timeout": 1200},
-    {"kind": "hook", "name": "check-documents.sh", "source": "hooks/check-documents.sh", "requires": ["hooks"],
-     "event": "PostToolUse", "matcher": "Write|Edit", "timeout": 10},
+     "events": [{"event": "SessionStart", "matcher": "startup", "timeout": 1200}]},
+    {"kind": "hook", "name": "gate.sh", "source": "hooks/gate.sh", "requires": ["hooks"],
+     "events": [{"event": "PostToolUse", "matcher": "Write|Edit", "timeout": 10},
+                {"event": "PreToolUse", "matcher": "Bash", "timeout": 10}]},
     {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
 
 // commandOnly keeps tests about one generated file independent of the other
@@ -414,11 +416,11 @@ func TestPiRunsAHookThroughItsExtension(t *testing.T) {
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
-	body(t, p, "hooks/check-documents.sh")
+	body(t, p, "hooks/gate.sh")
 
 	extension := string(body(t, p, "extensions/thunderstorm.ts"))
 	for _, want := range []string{
-		`"name":"check-documents.sh"`,
+		`"name":"gate.sh"`,
 		`"matcher":"Write|Edit"`,
 		`"timeout":10`,
 		`pi.on("tool_result"`,
@@ -454,12 +456,27 @@ func TestCodexRegistersTheWorkflowHooksBesideItsPolicy(t *testing.T) {
 	if len(post) != 1 || post[0].Matcher != "Write|Edit" {
 		t.Fatalf("PostToolUse registrations are %+v", post)
 	}
-	if got := post[0].Hooks[0].Command; got != "${PLUGIN_ROOT}/hooks/check-documents.sh" {
+	if got := post[0].Hooks[0].Command; got != "${PLUGIN_ROOT}/hooks/gate.sh" {
 		t.Errorf("the gate resolves to %q", got)
 	}
+	// Two registrations on the same event: the workflow's gate, which reads
+	// the commit message a command is about to make, and the command policy,
+	// which refuses the four commands reserved for a person.
 	pre := hooks.Hooks["PreToolUse"]
-	if len(pre) != 1 || pre[0].Matcher != "Bash" {
-		t.Fatalf("the command policy registration is %+v", pre)
+	if len(pre) != 2 {
+		t.Fatalf("PreToolUse registrations are %+v", pre)
+	}
+	var commands []string
+	for _, registration := range pre {
+		if registration.Matcher != "Bash" {
+			t.Errorf("a PreToolUse registration matches %q", registration.Matcher)
+		}
+		commands = append(commands, registration.Hooks[0].Command)
+	}
+	for _, want := range []string{"${PLUGIN_ROOT}/hooks/gate.sh", "python3 ${PLUGIN_ROOT}/hooks/deny-command.py"} {
+		if !slices.Contains(commands, want) {
+			t.Errorf("PreToolUse runs %v, which leaves out %s", commands, want)
+		}
 	}
 }
 
@@ -520,7 +537,7 @@ func TestCursorReportsAnUnverifiedContract(t *testing.T) {
 	if !strings.Contains(err.Error(), "unverified") || !strings.Contains(err.Error(), "#13") {
 		t.Errorf("cursor's refusal does not say why:\n%s", err)
 	}
-	if !strings.Contains(err.Error(), "hook check-documents.sh") {
+	if !strings.Contains(err.Error(), "hook gate.sh") {
 		t.Errorf("the refusal does not name every blocked artifact:\n%s", err)
 	}
 }
@@ -990,7 +1007,7 @@ func TestCodexReportsAHookThatWillNotFire(t *testing.T) {
 	}
 	var found string
 	for _, limit := range p.Limits {
-		if strings.Contains(limit, "check-documents.sh") {
+		if strings.Contains(limit, "gate.sh") {
 			found = limit
 		}
 	}
@@ -1010,7 +1027,7 @@ func TestClaudeReportsNoHookLimit(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	for _, limit := range p.Limits {
-		if strings.Contains(limit, "check-documents.sh") {
+		if strings.Contains(limit, "gate.sh") {
 			t.Errorf("claude reports a limit it does not have: %q", limit)
 		}
 	}

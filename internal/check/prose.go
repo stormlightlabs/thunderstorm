@@ -123,6 +123,29 @@ func proseInputs(paths []string) ([]string, error) {
 	return out, nil
 }
 
+// ProseText runs the gate over text that is not a file yet, which is what a
+// commit message is when the hook sees it. Tropius reads stdin under the name
+// "-", and the findings come back located in the text.
+func ProseText(text string, rules ProseRules) ([]ProseFinding, error) {
+	file, err := os.CreateTemp("", "tstorm-prose-*.md")
+	if err != nil {
+		return nil, err
+	}
+	defer os.Remove(file.Name())
+	if _, err := file.WriteString(text); err != nil {
+		file.Close()
+		return nil, err
+	}
+	if err := file.Close(); err != nil {
+		return nil, err
+	}
+	found, err := Prose([]string{file.Name()}, rules)
+	for i := range found {
+		found[i].Path = ""
+	}
+	return found, err
+}
+
 // Prose runs tropius over paths and returns what it found, minus the muted
 // rules. A directory is walked for the files this gate reads. A file tropius
 // excludes through the project dictionary produces nothing, which is not an

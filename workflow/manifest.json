@@ -241,13 +241,22 @@
     },
     {
       "kind": "hook",
-      "name": "check-documents.sh",
-      "source": "hooks/check-documents.sh",
-      "event": "PostToolUse",
-      "matcher": "Write|Edit",
-      "timeout": 10,
+      "name": "gate.sh",
+      "source": "hooks/gate.sh",
       "requires": [
         "hooks"
+      ],
+      "events": [
+        {
+          "event": "PostToolUse",
+          "matcher": "Write|Edit",
+          "timeout": 10
+        },
+        {
+          "event": "PreToolUse",
+          "matcher": "Bash",
+          "timeout": 10
+        }
       ]
     }
   ]

@@ -176,7 +176,7 @@ what the workflow replaced.
 Hooks are the one thing the copy route does not carry. `hooks/hooks.json` is
 read by a plugin install, so a repository rendering into `.claude` registers
 the hook in its own `settings.json`, against
-`$CLAUDE_PROJECT_DIR/.claude/hooks/check-documents.sh`.
+`$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh`.
 
 ## The checks
 

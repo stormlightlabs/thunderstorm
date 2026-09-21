@@ -207,6 +207,22 @@ no hook. That matches the install page's instruction to review and allow the
 plugin hook in a new session: a run that cannot be asked cannot approve one.
 Confirming a Codex hook fires needs an interactive session.
 
+### What a decision means on each host
+
+A `PreToolUse` reply can allow, deny, or ask. Claude Code and Codex read all
+three; Pi's extension answers a tool call with `block` and a reason, and has no
+third state, so a gate that asks is read there as an allow and its reason is
+lost.
+
+| Host        | deny                      | ask                                  |
+| ----------- | ------------------------- | ------------------------------------ |
+| Claude Code | the command does not run  | the person is asked                  |
+| Codex       | the command does not run  | the person is asked                  |
+| Pi          | `block` with the reason   | allowed, and the reason is dropped   |
+
+That is why the commit gate refuses on shape and asks on prose rather than the
+other way round. The half that has to hold everywhere is the half that denies.
+
 ## Permissions
 
 Only a human merges, and each host enforces that rule differently. Claude Code

@@ -89,10 +89,17 @@ type Artifact struct {
 	Aliases  []string `json:"aliases,omitempty"`
 	Requires []string `json:"requires"`
 
-	// Hooks only: the event that runs this one, and how the harness is told
-	// to wait for it. A harness registers hooks in its own settings file, so
-	// the manifest has to carry what that registration needs.
-	Event   string `json:"event,omitempty"`
+	// Hooks only: the events that run this one, and how the harness is told
+	// to wait for each. A harness registers hooks in its own settings file,
+	// so the manifest has to carry what that registration needs. One script
+	// answers several events, because tstorm picks the gate by event name.
+	Events []HookEvent `json:"events,omitempty"`
+}
+
+// HookEvent is one registration: the event, the tools it covers, and the
+// seconds the harness waits for an answer.
+type HookEvent struct {
+	Event   string `json:"event"`
 	Matcher string `json:"matcher,omitempty"`
 	Timeout int    `json:"timeout,omitempty"`
 }
@@ -145,10 +152,10 @@ func (m Manifest) validate(root string) error {
 			return fmt.Errorf("artifact %q has no source", a.Name)
 		case len(a.Requires) == 0:
 			return fmt.Errorf("artifact %q requires nothing; say which capability it needs", a.Name)
-		case a.Kind == KindHook && a.Event == "":
-			return fmt.Errorf("hook %q has no event; a harness cannot register it", a.Name)
-		case a.Kind != KindHook && (a.Event != "" || a.Matcher != "" || a.Timeout != 0):
-			return fmt.Errorf("artifact %q is a %s, which has no event, matcher, or timeout", a.Name, a.Kind)
+		case a.Kind == KindHook && len(a.Events) == 0:
+			return fmt.Errorf("hook %q has no events; a harness cannot register it", a.Name)
+		case a.Kind != KindHook && len(a.Events) > 0:
+			return fmt.Errorf("artifact %q is a %s, which registers no events", a.Name, a.Kind)
 		case len(a.Aliases) > 0 && a.Kind != KindCommand:
 			return fmt.Errorf("artifact %q is a %s; only a command carries aliases", a.Name, a.Kind)
 		}
@@ -157,6 +164,11 @@ func (m Manifest) validate(root string) error {
 		for _, n := range a.Names() {
 			if n == "" || n != path.Base(n) || n == "." || n == ".." || strings.ContainsAny(n, `/\`+"\n") {
 				return fmt.Errorf("artifact %q: %q is not a usable file name", a.Name, n)
+			}
+		}
+		for _, e := range a.Events {
+			if e.Event == "" {
+				return fmt.Errorf("hook %q lists a registration with no event", a.Name)
 			}
 		}
 		for _, c := range a.Requires {

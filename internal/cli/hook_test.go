@@ -107,6 +107,102 @@ func TestTheProseGateLeavesCodeAlone(t *testing.T) {
 	}
 }
 
+// A message that will not read in `git log --oneline` costs nothing to fix
+// before the commit and cannot be fixed after it.
+func TestACommitWhoseMessageFailsTheShapeGateIsDenied(t *testing.T) {
+	noTropius(t)
+	stdout, _, err := runWith(t, command(t, t.TempDir(), `git commit -m "bad subject"`), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	what, why := decision(t, stdout)
+	if what != "deny" {
+		t.Fatalf("the gate answered %q, want deny: %s", what, why)
+	}
+	if !strings.Contains(why, "subject must read") {
+		t.Errorf("the reason does not say what is wrong: %q", why)
+	}
+}
+
+// Prose is the half no check can be certain about, so the person decides.
+func TestACommitCarryingTellsIsPutToThePerson(t *testing.T) {
+	tropiusSaying(t, "word_choice.delve", "robust")
+	stdout, _, err := runWith(t, command(t, t.TempDir(), `git commit -m "feat: make the thing robust"`), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	what, why := decision(t, stdout)
+	if what != "ask" {
+		t.Fatalf("the gate answered %q, want ask: %s", what, why)
+	}
+	if !strings.Contains(why, "word_choice.delve") {
+		t.Errorf("the reason does not carry the finding: %q", why)
+	}
+}
+
+func TestACommitThatPassesBothGatesRunsUnremarked(t *testing.T) {
+	noTropius(t)
+	stdout, _, err := runWith(t, command(t, t.TempDir(), `git commit -m "feat: add a thing"`), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("the gate spoke up: %q", stdout)
+	}
+}
+
+// Every other command a session runs passes through untouched. A gate that
+// weighs in on `ls` is a gate somebody turns off.
+func TestACommandThatIsNotACommitIsLeftAlone(t *testing.T) {
+	noTropius(t)
+	for _, c := range []string{"ls -la", "go test ./...", "git push", "git log --oneline"} {
+		stdout, _, err := runWith(t, command(t, t.TempDir(), c), "hook")
+		if code := ExitCode(err); code != 0 {
+			t.Fatalf("exit %d on %q: %v", code, c, err)
+		}
+		if strings.TrimSpace(stdout) != "" {
+			t.Errorf("the gate answered %q for %q", stdout, c)
+		}
+	}
+}
+
+// command is one PreToolUse call in the shape Claude Code and Codex both send.
+func command(t *testing.T, cwd, shell string) string {
+	t.Helper()
+	body, err := json.Marshal(map[string]any{
+		"hook_event_name": "PreToolUse",
+		"tool_name":       "Bash",
+		"cwd":             cwd,
+		"tool_input":      map[string]any{"command": shell},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(body)
+}
+
+// decision is the permission answer the hook gave, empty when it gave none.
+func decision(t *testing.T, stdout string) (string, string) {
+	t.Helper()
+	if strings.TrimSpace(stdout) == "" {
+		return "", ""
+	}
+	var answer struct {
+		Out struct {
+			Event    string `json:"hookEventName"`
+			Decision string `json:"permissionDecision"`
+			Reason   string `json:"permissionDecisionReason"`
+		} `json:"hookSpecificOutput"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &answer); err != nil {
+		t.Fatalf("the reply is not JSON the harness can read: %v %q", err, stdout)
+	}
+	if answer.Out.Event != "PreToolUse" {
+		t.Errorf("the reply names event %q, which the harness will not match", answer.Out.Event)
+	}
+	return answer.Out.Decision, answer.Out.Reason
+}
+
 // event is one hook call in the shape Claude Code and Codex both send.
 func event(t *testing.T, cwd, tool, path string) string {
 	t.Helper()

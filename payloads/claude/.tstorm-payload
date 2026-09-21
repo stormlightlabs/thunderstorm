@@ -20,7 +20,7 @@ commands/specify.md
 commands/storm.md
 commands/thunderstorm.md
 commands/triage.md
-hooks/check-documents.sh
+hooks/gate.sh
 hooks/hooks.json
 settings.json
 skills/commits-and-prs/SKILL.md
