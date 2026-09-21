@@ -20,7 +20,11 @@ claude plugin marketplace add stormlightlabs/thunderstorm
 claude plugin install thunderstorm@stormlightlabs
 ```
 
-Or `/plugin marketplace add` and `/plugin install` from inside a session.
+Or `/plugin marketplace add` and `/plugin install` from inside a session. Both
+commands take `--scope project`, which writes the declaration into the
+project's `.claude/settings.json` so everyone working there gets the workflow;
+this repository installs itself that way.
+
 For Codex:
 
 ```sh

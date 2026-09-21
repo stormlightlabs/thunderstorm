@@ -62,6 +62,10 @@ Nothing is released yet, and no version is tagged. Everything below is on
   separates one repository's work from another's on a shared project. A
   repository that configures none of it gets an error naming what is missing
   ([#15]).
+- This repository installs its own payload. `.claude/settings.json` declares
+  the marketplace beside it and enables the plugin at project scope, so a
+  session here runs the loop it renders and a re-render reaches the next
+  session ([#25]).
 - The payload registers that gate itself. Claude Code reads it from
   `hooks/hooks.json`; Pi's package extension runs the same script, since Pi has
   no hooks. The script finds the binary through `TSTORM_BIN`, the payload's own
@@ -115,3 +119,4 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17
+[#25]: https://github.com/stormlightlabs/thunderstorm/issues/25

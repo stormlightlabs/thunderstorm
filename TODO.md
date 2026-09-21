@@ -79,9 +79,9 @@ skill, `sync-labels.py`, and `tui-capture.sh`.
 
 ## Run it here
 
-The payload installs, so run the loop on this repository. The issues above are
-its first real workload, and whatever breaks is a finding you would otherwise
-meet on somebody else's repository.
+The loop is installed here, at project scope, from the payload this repository
+renders ([#25]). The issues above are its first real workload, and whatever
+breaks is a finding you would otherwise meet on somebody else's repository.
 
 [#2]: https://github.com/stormlightlabs/thunderstorm/issues/2
 [#3]: https://github.com/stormlightlabs/thunderstorm/issues/3
@@ -97,3 +97,4 @@ meet on somebody else's repository.
 [#21]: https://github.com/stormlightlabs/thunderstorm/issues/21
 [#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
 [#23]: https://github.com/stormlightlabs/thunderstorm/issues/23
+[#25]: https://github.com/stormlightlabs/thunderstorm/issues/25

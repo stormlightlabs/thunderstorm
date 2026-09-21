@@ -19,6 +19,37 @@ session. `marketplace add` also takes an HTTPS URL, an SSH URL, or a local
 path. Twelve skills, sixteen commands and four agents arrive; `claude plugin
 details thunderstorm` lists them and what they cost a session.
 
+### Enable it for everyone on a project
+
+Both commands take `--scope project`, which writes the declaration into the
+project's `.claude/settings.json` instead of the machine's:
+
+```sh
+claude plugin marketplace add stormlightlabs/thunderstorm --scope project
+claude plugin install thunderstorm@stormlightlabs --scope project
+```
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "stormlightlabs": {
+      "source": { "source": "github", "repo": "stormlightlabs/thunderstorm" }
+    }
+  },
+  "enabledPlugins": { "thunderstorm@stormlightlabs": true }
+}
+```
+
+Commit that file and everyone working in the project gets the workflow on their
+next session. A `directory` source takes a path, and a relative one is read
+from the project root, which is how this repository installs the payload it
+renders.
+
+The four denied commands are not in it. No plugin mechanism carries a
+permission, so merge the `permissions.deny` block from
+[`payloads/claude/settings.json`](https://github.com/stormlightlabs/thunderstorm/blob/main/payloads/claude/settings.json)
+into the same file by hand.
+
 ## Codex
 
 ### Enable it everywhere
