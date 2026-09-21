@@ -43,22 +43,17 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
    Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a
    real install.
 
-4. [#23]. [#22] landed: the marker decides what a render replaces, and the
-   repository's own settings, hooks and worktrees survive it. [#23] takes over
-   a directory carrying no marker, which is every repository that installed by
-   copying.
-
-5. [#2], then [#13]. [#2] decides whether Cursor and OpenCode Go carry roles,
+4. [#2], then [#13]. [#2] decides whether Cursor and OpenCode Go carry roles,
    and [#13] is held behind it on the board. Cursor reads `.agents/skills/`,
    the directory Codex and Pi already need, so its skills cost a target in the
    renderer rather than a copy of the source. Nothing here has run Cursor,
    which is the first thing [#13] should fix.
 
-6. [#6] and [#3]. The review protocol agrees with itself only by inspection,
+5. [#6] and [#3]. The review protocol agrees with itself only by inspection,
    and a document is still named after its filename, so `hooks/plan.md` and
    `mcp/plan.md` are both called `plan`.
 
-7. [#21], then [#20]. [#21] waited on the renderer and is free. [#20] waits on
+6. [#21], then [#20]. [#21] waited on the renderer and is free. [#20] waits on
    the release in step 1.
 
 ## Parked

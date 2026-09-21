@@ -133,6 +133,43 @@ merge and push command prefixes. `tstorm dispatch` starts each role in its own
 Pi session. When Pi runs inside tmux or Zellij, dispatch opens a new window or
 tab in that session so the operator can watch and control it.
 
+## Commit the payload instead of installing it
+
+A repository that wants the workflow in its own tree renders it there:
+
+```sh
+tstorm render --target claude --out .claude
+```
+
+The render writes its own files and leaves every other file in the directory
+alone, so a settings file, a hook and a worktrees directory beside the payload
+survive it. `.tstorm-payload` is the record of which files the render owns, and
+the next render replaces those and removes the ones the source stopped
+producing. A path the repository owns and the payload also wants stops the
+render and names the file. `settings.json` is the exception: the payload writes
+it where there is none and leaves the one it finds, because the permissions
+block is merged by hand.
+
+A directory from an older copy carries no marker, which is every repository
+that installed the workflow before `tstorm render` existed. `--adopt` takes
+one over:
+
+```sh
+tstorm render --target claude --out .claude --adopt --check   # says what it would do
+tstorm render --target claude --out .claude --adopt
+```
+
+It replaces the files the payload writes, leaves the rest, and writes the
+marker so no later render needs the flag. What it leaves includes the older
+payload's own files, listed by path: a render removes only what it wrote, and
+a directory with no marker has no record of that. Read that list and delete
+what the workflow replaced.
+
+Hooks are the one thing the copy route does not carry. `hooks/hooks.json` is
+read by a plugin install, so a repository rendering into `.claude` registers
+the hook in its own `settings.json`, against
+`$CLAUDE_PROJECT_DIR/.claude/hooks/check-documents.sh`.
+
 ## The checks
 
 The checks the skills call are `tstorm` subcommands, so the binary has to be on

@@ -545,7 +545,7 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := full.Write(out); err != nil {
+	if _, err := full.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	dropped := filepath.Join(out, "agents", "reviewer.md")
@@ -566,7 +566,7 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("plan without the agent: %v", err)
 	}
-	if _, err := next.Write(out); err != nil {
+	if _, err := next.Write(out, false); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
 	if _, err := os.Stat(dropped); err == nil {
@@ -586,7 +586,7 @@ func TestWriteLeavesWhatTheMarkerDoesNotList(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	theirs := map[string]string{
@@ -604,7 +604,7 @@ func TestWriteLeavesWhatTheMarkerDoesNotList(t *testing.T) {
 		}
 	}
 
-	kept, err := p.Write(out)
+	kept, err := p.Write(out, false)
 	if err != nil {
 		t.Fatalf("second write: %v", err)
 	}
@@ -638,7 +638,7 @@ func TestWriteRefusesAPathTheRepositoryAlsoOwns(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	// The marker is rewritten without one of the files the payload produces,
@@ -650,23 +650,23 @@ func TestWriteRefusesAPathTheRepositoryAlsoOwns(t *testing.T) {
 	}
 	var lines []string
 	for _, line := range strings.Split(strings.TrimSpace(string(held)), "\n") {
-		if line != "settings.json" {
+		if line != "agents/reviewer.md" {
 			lines = append(lines, line)
 		}
 	}
 	if err := os.WriteFile(filepath.Join(out, marker), []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	theirs := filepath.Join(out, "settings.json")
-	if err := os.WriteFile(theirs, []byte("{\"mine\": true}\n"), 0o644); err != nil {
+	theirs := filepath.Join(out, "agents", "reviewer.md")
+	if err := os.WriteFile(theirs, []byte("mine\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = p.Write(out)
+	_, err = p.Write(out, false)
 	if err == nil {
 		t.Fatal("rendered over a file the repository owns")
 	}
-	if !strings.Contains(err.Error(), "settings.json") {
+	if !strings.Contains(err.Error(), "agents/reviewer.md") {
 		t.Errorf("the refusal does not name the file: %v", err)
 	}
 	body, err := os.ReadFile(theirs)
@@ -691,7 +691,7 @@ func TestWriteRefusesADirectoryHoldingAnotherTargetsPayload(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, marker), []byte("pi\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	_, err = p.Write(out)
+	_, err = p.Write(out, false)
 	if err == nil {
 		t.Fatal("rendered over a directory carrying another target's marker")
 	}
@@ -700,6 +700,77 @@ func TestWriteRefusesADirectoryHoldingAnotherTargetsPayload(t *testing.T) {
 	}
 	if _, err := os.Stat(keep); err != nil {
 		t.Errorf("the refusal deleted a file anyway: %v", err)
+	}
+}
+
+// A repository that installed by copying has skills, commands and scripts from
+// whatever version it copied, and no marker saying which files those are.
+func TestAdoptTakesOverADirectoryCarryingNoMarker(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	copied := map[string]string{
+		"agents/reviewer.md": "an older copy\n",
+		"scripts/legacy.py":  "#!/usr/bin/env python3\n",
+		"settings.json":      "{\"mine\": true}\n",
+		"worktrees/one/file": "a checkout\n",
+	}
+	for rel, body := range copied {
+		full := filepath.Join(out, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := p.Write(out, false); err == nil {
+		t.Fatal("rendered over a directory carrying no marker")
+	}
+
+	report, err := p.Adopt(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(report.Replace, "\n") != "agents/reviewer.md" {
+		t.Errorf("adoption would replace %v, want the one file the payload writes", report.Replace)
+	}
+	// settings.json is a seed: the payload provides it once and the
+	// repository owns it, permissions block and all.
+	want := "scripts/legacy.py\nsettings.json\nworktrees/one/file"
+	if strings.Join(report.Leave, "\n") != want {
+		t.Errorf("adoption would leave %v, want the older script, the settings and the worktree", report.Leave)
+	}
+
+	kept, err := p.Write(out, true)
+	if err != nil {
+		t.Fatalf("adopt: %v", err)
+	}
+	if strings.Join(kept, "\n") != want {
+		t.Errorf("kept %v, want what adoption said it would leave", kept)
+	}
+	if body := string(body(t, p, "agents/reviewer.md")); body == copied["agents/reviewer.md"] {
+		t.Error("the older copy survived the adoption")
+	}
+	if got, err := os.ReadFile(filepath.Join(out, "scripts", "legacy.py")); err != nil || string(got) != copied["scripts/legacy.py"] {
+		t.Errorf("a file the render does not write was removed: %q (%v)", got, err)
+	}
+	// The marker is what makes the next render ordinary.
+	diff, left, err := p.Diff(out)
+	if err != nil || len(diff) > 0 {
+		t.Errorf("the adopted directory differs from the payload: %v (%v)", diff, err)
+	}
+	if strings.Join(left, "\n") != want {
+		t.Errorf("the check reports %v as left in place, want the three files", left)
+	}
+	if got, err := os.ReadFile(filepath.Join(out, "settings.json")); err != nil || string(got) != copied["settings.json"] {
+		t.Errorf("the repository's settings were replaced: %q (%v)", got, err)
+	}
+	if _, err := p.Write(out, false); err != nil {
+		t.Errorf("a render after adoption needed the flag again: %v", err)
 	}
 }
 
@@ -714,7 +785,7 @@ func TestWriteRefusesADirectoryItDidNotRender(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, "notes.md"), []byte("mine\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := p.Write(out); err == nil {
+	if _, err := p.Write(out, false); err == nil {
 		t.Fatal("rendered over a directory that was not a payload")
 	}
 	if _, err := os.Stat(filepath.Join(out, "notes.md")); err != nil {
@@ -730,7 +801,7 @@ func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	before := string(body(t, p, "agents/reviewer.md"))
@@ -747,7 +818,7 @@ func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
 	// One file the staging directory cannot hold: a path under a name that is
 	// already a file there.
 	next.Files = append(next.Files, File{Path: "agents/reviewer.md/nested", Body: []byte("x")})
-	if _, err := next.Write(out); err == nil {
+	if _, err := next.Write(out, false); err == nil {
 		t.Fatal("a payload that cannot be staged was written anyway")
 	}
 	got, err := os.ReadFile(filepath.Join(out, "agents", "reviewer.md"))
@@ -775,7 +846,7 @@ func TestWriteFollowsASymlinkedOut(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if _, err := p.Write(link); err != nil {
+	if _, err := p.Write(link, false); err != nil {
 		t.Fatalf("write through a symlink: %v", err)
 	}
 	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
@@ -794,7 +865,7 @@ func TestCheckReportsAnExecutableBitThatDrifted(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	script := filepath.Join(out, "scripts", "check.py")
@@ -808,7 +879,7 @@ func TestCheckReportsAnExecutableBitThatDrifted(t *testing.T) {
 	if len(diff) != 1 || !strings.Contains(diff[0], "scripts/check.py") {
 		t.Fatalf("a dropped executable bit went unreported: %v", diff)
 	}
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("re-render: %v", err)
 	}
 	if diff, _, _ := p.Diff(out); len(diff) > 0 {
@@ -822,7 +893,7 @@ func TestDiffNamesStaleAndUnexpectedFiles(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(out, "agents", "reviewer.md"), []byte("edited\n"), 0o644); err != nil {
@@ -857,7 +928,7 @@ func TestDiffNamesAMissingPayloadFile(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if _, err := p.Write(out); err != nil {
+	if _, err := p.Write(out, false); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if err := os.Remove(filepath.Join(out, "agents", "reviewer.md")); err != nil {

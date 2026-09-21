@@ -40,6 +40,11 @@ type File struct {
 	Path string
 	Body []byte
 	Mode fs.FileMode
+	// Seed marks a file the payload provides and the repository then owns.
+	// settings.json is the one: a permissions block is merged by hand, so a
+	// render writes it where there is none and leaves the one it finds. Every
+	// other path the payload wants and the repository holds stops the render.
+	Seed bool
 }
 
 // Payload is a rendered harness payload held in memory. Nothing reaches the
@@ -148,18 +153,20 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 		}
 	}
 	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
-	p.Files = append(p.Files, File{Path: marker, Body: p.markerBody()})
+	p.Files = append(p.Files, File{Path: marker, Body: p.markerBody(nil)})
 	slices.SortFunc(p.Files, func(a, b File) int { return strings.Compare(a.Path, b.Path) })
 	return p, nil
 }
 
 // markerBody is the target and everything the render writes, one per line.
-func (p *Payload) markerBody() []byte {
+// A path in skip was not written this time, which happens to a seed the
+// repository already holds, so the marker does not claim it.
+func (p *Payload) markerBody(skip map[string]bool) []byte {
 	var b strings.Builder
 	b.WriteString(p.Target.Name)
 	b.WriteString("\n")
 	for _, f := range p.Files {
-		if f.Path != marker {
+		if f.Path != marker && !skip[f.Path] {
 			b.WriteString(f.Path)
 			b.WriteString("\n")
 		}
@@ -261,8 +268,8 @@ func readSource(root, src string) ([]byte, fs.FileMode, error) {
 // this repository, where .claude holds a settings file, a hook and a
 // worktrees directory beside the payload. Those files are moved across into
 // the new tree rather than copied, so a worktree costs a rename.
-func (p *Payload) Write(dir string) ([]string, error) {
-	dir, kept, err := p.claim(dir)
+func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
+	dir, kept, err := p.claim(dir, adopt)
 	if err != nil {
 		return nil, err
 	}
@@ -270,13 +277,31 @@ func (p *Payload) Write(dir string) ([]string, error) {
 	// A sibling of the destination, so the rename that swaps it in stays on
 	// one filesystem. A render killed outright leaves one behind; it is named
 	// so it is recognisable, and no later render reads it.
+	held := map[string]bool{}
+	for _, rel := range kept {
+		held[rel] = true
+	}
+
 	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-staging-")
 	if err != nil {
 		return nil, err
 	}
 	defer os.RemoveAll(staging)
 
+	skipped := map[string]bool{}
 	for _, f := range p.Files {
+		if f.Seed && held[f.Path] {
+			skipped[f.Path] = true
+		}
+	}
+	for _, f := range p.Files {
+		// A seed the repository already holds is carried across instead.
+		if skipped[f.Path] {
+			continue
+		}
+		if f.Path == marker {
+			f.Body = p.markerBody(skipped)
+		}
 		dest := filepath.Join(staging, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 			return nil, err
@@ -350,10 +375,12 @@ func carry(from, to string, paths []string) error {
 // which is what lets a repository keep its harness configuration in the same
 // directory as the payload.
 //
-// A directory carrying no marker is refused. It may be a copied payload, and
-// it may be somebody's work; nothing in it says which, and deleting it is not
-// a render's decision.
-func (p *Payload) claim(dir string) (string, []string, error) {
+// A directory carrying no marker is refused unless adopt is set. It may be a
+// copied payload, and it may be somebody's work; nothing in it says which, and
+// deleting it is not a render's decision. Adopting it says the caller has
+// decided: the files this payload writes are taken over, and every other file
+// is treated the way an unlisted file is treated anywhere else.
+func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err == nil {
 		dir = resolved
@@ -371,21 +398,37 @@ func (p *Payload) claim(dir string) (string, []string, error) {
 		return dir, nil, nil
 	}
 
-	held, err := os.ReadFile(filepath.Join(dir, marker))
-	if err != nil {
-		return "", nil, fmt.Errorf("%s holds files tstorm did not render; remove it or choose another --out", dir)
-	}
-	lines := strings.Split(strings.TrimSpace(string(held)), "\n")
-	if name := strings.TrimSpace(lines[0]); name != p.Target.Name {
-		return "", nil, fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
-	}
-	owned := map[string]bool{marker: true}
-	for _, path := range lines[1:] {
-		owned[strings.TrimSpace(path)] = true
-	}
 	writing := map[string]bool{}
+	seeds := map[string]bool{}
 	for _, f := range p.Files {
 		writing[f.Path] = true
+		if f.Seed {
+			seeds[f.Path] = true
+		}
+	}
+
+	var owned map[string]bool
+	held, err := os.ReadFile(filepath.Join(dir, marker))
+	switch {
+	case err != nil && adopt:
+		// Nothing says which files an unmarked directory's payload wrote, so
+		// the payload's own paths are what adoption takes over. A seed it
+		// finds is the repository's, the same as anywhere else.
+		owned = map[string]bool{}
+		for path := range writing {
+			owned[path] = !seeds[path]
+		}
+	case err != nil:
+		return "", nil, fmt.Errorf("%s holds files tstorm did not render; render it with --adopt, or choose another --out", dir)
+	default:
+		lines := strings.Split(strings.TrimSpace(string(held)), "\n")
+		if name := strings.TrimSpace(lines[0]); name != p.Target.Name {
+			return "", nil, fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
+		}
+		owned = map[string]bool{marker: true}
+		for _, path := range lines[1:] {
+			owned[strings.TrimSpace(path)] = true
+		}
 	}
 
 	var kept []string
@@ -399,10 +442,10 @@ func (p *Payload) claim(dir string) (string, []string, error) {
 			return err
 		}
 		slash := filepath.ToSlash(rel)
-		if owned[slash] {
+		if owned[slash] || slash == marker {
 			return nil
 		}
-		if writing[slash] && collision == "" {
+		if writing[slash] && !seeds[slash] && collision == "" {
 			collision = slash
 		}
 		kept = append(kept, slash)
@@ -436,7 +479,21 @@ func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 		return nil, nil, err
 	}
 	seen := map[string]bool{}
+	// A seed the marker does not list belongs to the repository, which is free
+	// to have edited it, and the marker on disk is right not to claim it.
+	skipped := map[string]bool{}
 	for _, f := range p.Files {
+		if f.Seed && owned != nil && !owned[f.Path] {
+			skipped[f.Path] = true
+		}
+	}
+	for _, f := range p.Files {
+		if skipped[f.Path] {
+			continue
+		}
+		if f.Path == marker {
+			f.Body = p.markerBody(skipped)
+		}
 		seen[f.Path] = true
 		full := filepath.Join(dir, filepath.FromSlash(f.Path))
 		body, err := os.ReadFile(full)
@@ -491,6 +548,52 @@ func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 	slices.Sort(out)
 	slices.Sort(left)
 	return out, left, nil
+}
+
+// Adoption is what a render would do to a directory carrying no marker: the
+// files it takes over, and the files it leaves for the repository to decide
+// about. The second list is where an older payload's leftovers show up, since
+// a render removes only what it wrote.
+type Adoption struct {
+	Replace []string
+	Leave   []string
+}
+
+// Adopt reports what adopting dir would do, and writes nothing.
+func (p *Payload) Adopt(dir string) (*Adoption, error) {
+	writing := map[string]bool{}
+	seeds := map[string]bool{}
+	for _, f := range p.Files {
+		writing[f.Path] = true
+		if f.Seed {
+			seeds[f.Path] = true
+		}
+	}
+	a := &Adoption{}
+	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		rel, err := filepath.Rel(dir, path)
+		if err != nil {
+			return err
+		}
+		slash := filepath.ToSlash(rel)
+		switch {
+		case slash == marker:
+		case writing[slash] && !seeds[slash]:
+			a.Replace = append(a.Replace, slash)
+		default:
+			a.Leave = append(a.Leave, slash)
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, err
+	}
+	slices.Sort(a.Replace)
+	slices.Sort(a.Leave)
+	return a, nil
 }
 
 // rendered reads the marker at dir and reports the paths it lists, the marker

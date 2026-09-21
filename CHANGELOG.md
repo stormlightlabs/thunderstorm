@@ -74,11 +74,20 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Changed
 
+- `render --out --adopt` takes over a directory carrying no marker, which is
+  every repository that installed the workflow by copying. It replaces the
+  files the payload writes, names the files it leaves so an older payload's
+  leftovers can be deleted, and writes the marker that makes the next render
+  ordinary. With `--check` it reports what adopting would do and writes
+  nothing ([#23]).
 - `render --out` writes into a directory the repository also keeps files in.
   The marker decides what a render may replace and delete; a settings file, a
   hook or a worktrees directory beside the payload is left where it is and
   counted in the summary. A path the repository owns and the payload also
   wants stops the render and names the file ([#22]).
+- `settings.json` is written where there is none and left alone where there is
+  one. The permissions block is the repository's, merged by hand, so a render
+  that replaced it would take the deny rules with it ([#22]).
 - `github-board` says which board operation to run and stops carrying the
   transport tables, the `gh project` invocations and the commentary on losing a
   race, which is work `tstorm board` now does ([#15]).
@@ -125,4 +134,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17
 [#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
+[#23]: https://github.com/stormlightlabs/thunderstorm/issues/23
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25

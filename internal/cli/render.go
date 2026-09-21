@@ -31,12 +31,32 @@ func leftInPlace(kept []string) string {
 	}
 }
 
+// reportAdoption says what adoption takes over and what it leaves, before
+// anything is written. What it leaves is where an older payload's files show
+// up: a render removes what it wrote, and a directory with no marker has no
+// record of that.
+func reportAdoption(cmd *cobra.Command, p *ui.Printer, payload *render.Payload, out string) error {
+	a, err := payload.Adopt(out)
+	if err != nil {
+		return err
+	}
+	w := cmd.OutOrStdout()
+	fmt.Fprintln(w, p.OK.Render("adopting"), out)
+	fmt.Fprintln(w, p.Subtle.Render(fmt.Sprintf("  replaces %d files the payload writes", len(a.Replace))))
+	fmt.Fprintln(w, p.Subtle.Render(fmt.Sprintf("  leaves %d files it does not", len(a.Leave))))
+	for _, path := range a.Leave {
+		fmt.Fprintln(w, p.Subtle.Render("    "+path))
+	}
+	return nil
+}
+
 func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	var (
 		target string
 		source string
 		out    string
 		check  bool
+		adopt  bool
 	)
 
 	cmd := &cobra.Command{
@@ -46,7 +66,12 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			"One source, one manifest, one payload per harness. An artifact that\n" +
 			"needs something the target does not provide stops the render and\n" +
 			"names the gap, because a payload that installs and then skips the\n" +
-			"review fan-out is worse than no payload.",
+			"review fan-out is worse than no payload.\n\n" +
+			"A destination carrying no marker is refused, because a directory\n" +
+			"with no record of what wrote it may be somebody's work. --adopt\n" +
+			"says otherwise: the files this payload writes are taken over, the\n" +
+			"rest are left, and the marker is written for the next render. With\n" +
+			"--check it reports what adopting would do and writes nothing.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			p := printer(cmd)
@@ -64,6 +89,10 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			}
 			if out == "" {
 				out = filepath.Join("payloads", t.Name)
+			}
+
+			if check && adopt {
+				return reportAdoption(cmd, p, payload, out)
 			}
 
 			if check {
@@ -90,7 +119,12 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				return nil
 			}
 
-			kept, err := payload.Write(out)
+			if adopt {
+				if err := reportAdoption(cmd, p, payload, out); err != nil {
+					return err
+				}
+			}
+			kept, err := payload.Write(out, adopt)
 			if err != nil {
 				return err
 			}
@@ -107,6 +141,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd.Flags().StringVar(&source, "source", "workflow", "canonical workflow source directory")
 	cmd.Flags().StringVar(&out, "out", "", "where to write the payload (default payloads/<target>)")
 	cmd.Flags().BoolVar(&check, "check", false, "report whether the payload on disk matches the source, and write nothing")
+	cmd.Flags().BoolVar(&adopt, "adopt", false, "take over a directory carrying no marker, replacing the payload's own files and leaving the rest")
 	if err := cmd.MarkFlagRequired("target"); err != nil {
 		panic(err)
 	}

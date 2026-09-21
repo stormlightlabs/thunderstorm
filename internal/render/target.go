@@ -229,7 +229,7 @@ func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 
 	files := []File{
 		{Path: ".claude-plugin/plugin.json", Body: plugin},
-		{Path: "settings.json", Body: settings},
+		{Path: "settings.json", Body: settings, Seed: true},
 	}
 	if len(events) > 0 {
 		hooks, err := marshal(map[string]any{"hooks": events})
