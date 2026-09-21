@@ -249,17 +249,22 @@ func readSource(root, src string) ([]byte, fs.FileMode, error) {
 	return body, mode, nil
 }
 
-// Write puts the payload at dir.
+// Write puts the payload at dir and reports the files it left alone.
 //
 // It builds the whole tree beside dir and swaps it in, so a render either
 // replaces the payload or leaves the previous one untouched. Nothing is
 // deleted file by file: an earlier version of this wrote each file in place
 // and then removed whatever it had not written, which deleted a git
 // repository that happened to hold a marker file.
-func (p *Payload) Write(dir string) error {
-	dir, err := p.claim(dir)
+//
+// A directory the repository also keeps files in is the usual case outside
+// this repository, where .claude holds a settings file, a hook and a
+// worktrees directory beside the payload. Those files are moved across into
+// the new tree rather than copied, so a worktree costs a rename.
+func (p *Payload) Write(dir string) ([]string, error) {
+	dir, kept, err := p.claim(dir)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// A sibling of the destination, so the rename that swaps it in stays on
@@ -267,117 +272,169 @@ func (p *Payload) Write(dir string) error {
 	// so it is recognisable, and no later render reads it.
 	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-staging-")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer os.RemoveAll(staging)
 
 	for _, f := range p.Files {
 		dest := filepath.Join(staging, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return err
+			return nil, err
 		}
 		mode := f.Mode
 		if mode == 0 {
 			mode = 0o644
 		}
 		if err := os.WriteFile(dest, f.Body, mode); err != nil {
-			return err
+			return nil, err
 		}
 		// WriteFile applies the mode only when it creates the file, and a
 		// staged file is always new, but an inherited umask still narrows it.
 		if err := os.Chmod(dest, mode); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	previous, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-previous-")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// MkdirTemp made the directory; rename needs the name free.
 	if err := os.Remove(previous); err != nil {
-		return err
+		return nil, err
 	}
 	swapped := false
 	if err := os.Rename(dir, previous); err == nil {
 		swapped = true
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return err
+		return nil, err
 	}
 	if err := os.Rename(staging, dir); err != nil {
 		if swapped {
 			os.Rename(previous, dir)
 		}
-		return err
+		return nil, err
 	}
-	return os.RemoveAll(previous)
+	if err := carry(previous, dir, kept); err != nil {
+		// The repository's files are still under previous, whole, so the
+		// error names it rather than leaving them to be looked for.
+		return nil, fmt.Errorf("%w; the files this render did not write are in %s", err, previous)
+	}
+	return kept, os.RemoveAll(previous)
 }
 
-// claim decides whether dir may be replaced, and returns the path to replace.
+// carry moves the files the render does not own from the replaced directory
+// into the new one. They are moved rather than copied: a repository keeps
+// worktrees in the same directory, and a rename costs the same whatever they
+// hold.
+func carry(from, to string, paths []string) error {
+	for _, rel := range paths {
+		src := filepath.Join(from, filepath.FromSlash(rel))
+		dest := filepath.Join(to, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+			return err
+		}
+		if err := os.Rename(src, dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// claim decides whether dir may be replaced, and returns the path to replace
+// along with the files in it this render does not own.
 //
-// A payload is written into an empty or absent directory, or over a directory
-// whose marker names this target and accounts for everything in it. A file the
-// marker does not list means the directory is somebody's work, whatever it is
-// called, and the render stops rather than replacing it.
-func (p *Payload) claim(dir string) (string, error) {
+// The marker decides ownership. A file it lists is tstorm's to replace, and to
+// delete when the source stops producing it. Every other file is the
+// repository's: a settings file, a hook, a worktree. Those are left alone,
+// which is what lets a repository keep its harness configuration in the same
+// directory as the payload.
+//
+// A directory carrying no marker is refused. It may be a copied payload, and
+// it may be somebody's work; nothing in it says which, and deleting it is not
+// a render's decision.
+func (p *Payload) claim(dir string) (string, []string, error) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err == nil {
 		dir = resolved
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return "", err
+		return "", nil, err
 	}
 
 	entries, err := os.ReadDir(dir)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return dir, os.MkdirAll(dir, 0o755)
+		return dir, nil, os.MkdirAll(dir, 0o755)
 	case err != nil:
-		return "", err
+		return "", nil, err
 	case len(entries) == 0:
-		return dir, nil
+		return dir, nil, nil
 	}
 
 	held, err := os.ReadFile(filepath.Join(dir, marker))
 	if err != nil {
-		return "", fmt.Errorf("%s holds files tstorm did not render; remove it or choose another --out", dir)
+		return "", nil, fmt.Errorf("%s holds files tstorm did not render; remove it or choose another --out", dir)
 	}
 	lines := strings.Split(strings.TrimSpace(string(held)), "\n")
 	if name := strings.TrimSpace(lines[0]); name != p.Target.Name {
-		return "", fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
+		return "", nil, fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
 	}
 	owned := map[string]bool{marker: true}
 	for _, path := range lines[1:] {
 		owned[strings.TrimSpace(path)] = true
 	}
+	writing := map[string]bool{}
+	for _, f := range p.Files {
+		writing[f.Path] = true
+	}
 
-	var foreign string
+	var kept []string
+	var collision string
 	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || foreign != "" {
+		if err != nil || d.IsDir() {
 			return err
 		}
 		rel, err := filepath.Rel(dir, path)
 		if err != nil {
 			return err
 		}
-		if slash := filepath.ToSlash(rel); !owned[slash] {
-			foreign = slash
+		slash := filepath.ToSlash(rel)
+		if owned[slash] {
+			return nil
 		}
+		if writing[slash] && collision == "" {
+			collision = slash
+		}
+		kept = append(kept, slash)
 		return nil
 	})
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
-	if foreign != "" {
-		return "", fmt.Errorf("%s holds %s, which no render wrote; remove it or choose another --out", dir, foreign)
+	// Picking a winner is how a settings file disappears, so a path the
+	// repository owns and the payload wants stops the render instead.
+	if collision != "" {
+		return "", nil, fmt.Errorf("%s holds %s, which this render also writes; move it aside or choose another --out",
+			dir, collision)
 	}
-	return dir, nil
+	slices.Sort(kept)
+	return dir, kept, nil
 }
 
 // Diff reports how the payload at dir differs from this one, so a check can
 // tell whether the committed output still matches the source. An empty result
 // means they agree.
-func (p *Payload) Diff(dir string) ([]string, error) {
+//
+// A file the marker does not list is the repository's. It is reported
+// separately rather than as a difference: a settings file beside the payload
+// is not a disagreement between the source and what was rendered from it, and
+// a file that appeared in a payload directory is still worth naming.
+func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 	var out []string
+	owned, err := rendered(dir)
+	if err != nil {
+		return nil, nil, err
+	}
 	seen := map[string]bool{}
 	for _, f := range p.Files {
 		seen[f.Path] = true
@@ -388,7 +445,7 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 			out = append(out, "missing: "+f.Path)
 			continue
 		case err != nil:
-			return nil, err
+			return nil, nil, err
 		case !bytes.Equal(body, f.Body):
 			out = append(out, "stale: "+f.Path)
 		}
@@ -396,7 +453,7 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 		// bit a checkout dropped, and the skills invoke those by path.
 		info, err := os.Stat(full)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		// Only the executable bit. Git records nothing else, so a clone made
 		// under a umask of 027 hands every file 0640 and a check comparing
@@ -409,7 +466,7 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 			out = append(out, fmt.Sprintf("mode %04o, want %s: %s", info.Mode().Perm(), want, f.Path))
 		}
 	}
-	err := filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
+	err = filepath.WalkDir(dir, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
@@ -417,16 +474,41 @@ func (p *Payload) Diff(dir string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if slash := filepath.ToSlash(rel); !seen[slash] {
-			out = append(out, "unexpected: "+slash)
+		slash := filepath.ToSlash(rel)
+		if seen[slash] {
+			return nil
 		}
+		if owned != nil && !owned[slash] {
+			left = append(left, slash)
+			return nil
+		}
+		out = append(out, "unexpected: "+slash)
 		return nil
 	})
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
+		return nil, nil, err
 	}
 	slices.Sort(out)
-	return out, nil
+	slices.Sort(left)
+	return out, left, nil
+}
+
+// rendered reads the marker at dir and reports the paths it lists, the marker
+// included. It returns nil where the directory carries no marker, which leaves
+// every file in it the render's to account for.
+func rendered(dir string) (map[string]bool, error) {
+	held, err := os.ReadFile(filepath.Join(dir, marker))
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	owned := map[string]bool{marker: true}
+	for _, line := range strings.Split(strings.TrimSpace(string(held)), "\n")[1:] {
+		owned[strings.TrimSpace(line)] = true
+	}
+	return owned, nil
 }
 
 func plural(word string, n int) string {

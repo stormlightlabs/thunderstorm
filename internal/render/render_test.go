@@ -545,7 +545,7 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if err := full.Write(out); err != nil {
+	if _, err := full.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	dropped := filepath.Join(out, "agents", "reviewer.md")
@@ -566,41 +566,112 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 	if err != nil {
 		t.Fatalf("plan without the agent: %v", err)
 	}
-	if err := next.Write(out); err != nil {
+	if _, err := next.Write(out); err != nil {
 		t.Fatalf("second write: %v", err)
 	}
 	if _, err := os.Stat(dropped); err == nil {
 		t.Error("an artifact the source dropped survived the render")
 	}
-	if diff, err := next.Diff(out); err != nil || len(diff) > 0 {
+	if diff, _, err := next.Diff(out); err != nil || len(diff) > 0 {
 		t.Errorf("payload differs from what was written: %v (%v)", diff, err)
 	}
 }
 
-// Anything the marker does not account for is somebody's work, whatever the
-// directory is called.
-func TestWriteRefusesADirectoryHoldingSomethingNoRenderWrote(t *testing.T) {
+// A repository keeps its own settings, hooks and worktrees in the directory it
+// installs the payload into. The marker decides what a render may replace, and
+// everything else survives it.
+func TestWriteLeavesWhatTheMarkerDoesNotList(t *testing.T) {
 	p, _, err := planFor(t, "claude", allArtifacts)
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if err := p.Write(out); err != nil {
+	if _, err := p.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
-	notes := filepath.Join(out, "notes.md")
-	if err := os.WriteFile(notes, []byte("mine\n"), 0o644); err != nil {
+	theirs := map[string]string{
+		"notes.md":            "mine\n",
+		"hooks/repo-owned.sh": "#!/bin/sh\n",
+		"worktrees/one/file":  "a checkout\n",
+	}
+	for rel, body := range theirs {
+		full := filepath.Join(out, filepath.FromSlash(rel))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	kept, err := p.Write(out)
+	if err != nil {
+		t.Fatalf("second write: %v", err)
+	}
+	if len(kept) != len(theirs) {
+		t.Errorf("kept %v, want the %d files the repository owns", kept, len(theirs))
+	}
+	for rel, body := range theirs {
+		got, err := os.ReadFile(filepath.Join(out, filepath.FromSlash(rel)))
+		if err != nil {
+			t.Errorf("the render removed %s: %v", rel, err)
+			continue
+		}
+		if string(got) != body {
+			t.Errorf("%s reads %q, want %q", rel, got, body)
+		}
+	}
+	diff, left, err := p.Diff(out)
+	if err != nil || len(diff) > 0 {
+		t.Errorf("payload differs from what was written: %v (%v)", diff, err)
+	}
+	if len(left) != len(theirs) {
+		t.Errorf("the check reported %v as left in place, want %d files", left, len(theirs))
+	}
+}
+
+// Picking a winner where both want the same path is how a settings file
+// disappears.
+func TestWriteRefusesAPathTheRepositoryAlsoOwns(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if _, err := p.Write(out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	// The marker is rewritten without one of the files the payload produces,
+	// which is the state a repository reaches by writing a file the next
+	// render also wants.
+	held, err := os.ReadFile(filepath.Join(out, marker))
+	if err != nil {
 		t.Fatal(err)
 	}
-	err = p.Write(out)
-	if err == nil {
-		t.Fatal("rendered over a directory holding a file no render wrote")
+	var lines []string
+	for _, line := range strings.Split(strings.TrimSpace(string(held)), "\n") {
+		if line != "settings.json" {
+			lines = append(lines, line)
+		}
 	}
-	if !strings.Contains(err.Error(), "notes.md") {
+	if err := os.WriteFile(filepath.Join(out, marker), []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	theirs := filepath.Join(out, "settings.json")
+	if err := os.WriteFile(theirs, []byte("{\"mine\": true}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = p.Write(out)
+	if err == nil {
+		t.Fatal("rendered over a file the repository owns")
+	}
+	if !strings.Contains(err.Error(), "settings.json") {
 		t.Errorf("the refusal does not name the file: %v", err)
 	}
-	if _, err := os.Stat(notes); err != nil {
-		t.Errorf("the refusal deleted the file anyway: %v", err)
+	body, err := os.ReadFile(theirs)
+	if err != nil || !strings.Contains(string(body), "mine") {
+		t.Errorf("the refusal replaced the file anyway: %q (%v)", body, err)
 	}
 }
 
@@ -620,7 +691,7 @@ func TestWriteRefusesADirectoryHoldingAnotherTargetsPayload(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, marker), []byte("pi\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	err = p.Write(out)
+	_, err = p.Write(out)
 	if err == nil {
 		t.Fatal("rendered over a directory carrying another target's marker")
 	}
@@ -643,7 +714,7 @@ func TestWriteRefusesADirectoryItDidNotRender(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, "notes.md"), []byte("mine\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := p.Write(out); err == nil {
+	if _, err := p.Write(out); err == nil {
 		t.Fatal("rendered over a directory that was not a payload")
 	}
 	if _, err := os.Stat(filepath.Join(out, "notes.md")); err != nil {
@@ -659,7 +730,7 @@ func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if err := p.Write(out); err != nil {
+	if _, err := p.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	before := string(body(t, p, "agents/reviewer.md"))
@@ -676,7 +747,7 @@ func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
 	// One file the staging directory cannot hold: a path under a name that is
 	// already a file there.
 	next.Files = append(next.Files, File{Path: "agents/reviewer.md/nested", Body: []byte("x")})
-	if err := next.Write(out); err == nil {
+	if _, err := next.Write(out); err == nil {
 		t.Fatal("a payload that cannot be staged was written anyway")
 	}
 	got, err := os.ReadFile(filepath.Join(out, "agents", "reviewer.md"))
@@ -704,7 +775,7 @@ func TestWriteFollowsASymlinkedOut(t *testing.T) {
 	if err := os.Symlink(real, link); err != nil {
 		t.Skipf("symlinks unavailable: %v", err)
 	}
-	if err := p.Write(link); err != nil {
+	if _, err := p.Write(link); err != nil {
 		t.Fatalf("write through a symlink: %v", err)
 	}
 	if info, err := os.Lstat(link); err != nil || info.Mode()&os.ModeSymlink == 0 {
@@ -723,24 +794,24 @@ func TestCheckReportsAnExecutableBitThatDrifted(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if err := p.Write(out); err != nil {
+	if _, err := p.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	script := filepath.Join(out, "scripts", "check.py")
 	if err := os.Chmod(script, 0o644); err != nil {
 		t.Fatal(err)
 	}
-	diff, err := p.Diff(out)
+	diff, _, err := p.Diff(out)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if len(diff) != 1 || !strings.Contains(diff[0], "scripts/check.py") {
 		t.Fatalf("a dropped executable bit went unreported: %v", diff)
 	}
-	if err := p.Write(out); err != nil {
+	if _, err := p.Write(out); err != nil {
 		t.Fatalf("re-render: %v", err)
 	}
-	if diff, _ := p.Diff(out); len(diff) > 0 {
+	if diff, _, _ := p.Diff(out); len(diff) > 0 {
 		t.Errorf("a re-render did not repair the mode: %v", diff)
 	}
 }
@@ -751,7 +822,7 @@ func TestDiffNamesStaleAndUnexpectedFiles(t *testing.T) {
 		t.Fatalf("plan: %v", err)
 	}
 	out := filepath.Join(t.TempDir(), "claude")
-	if err := p.Write(out); err != nil {
+	if _, err := p.Write(out); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 	if err := os.WriteFile(filepath.Join(out, "agents", "reviewer.md"), []byte("edited\n"), 0o644); err != nil {
@@ -760,13 +831,44 @@ func TestDiffNamesStaleAndUnexpectedFiles(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(out, "agents", "extra.md"), []byte("added\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	diff, err := p.Diff(out)
+	diff, left, err := p.Diff(out)
 	if err != nil {
 		t.Fatal(err)
 	}
 	joined := strings.Join(diff, "\n")
-	if !strings.Contains(joined, "stale: agents/reviewer.md") || !strings.Contains(joined, "unexpected: agents/extra.md") {
-		t.Errorf("diff missed an edit or an addition:\n%s", joined)
+	if !strings.Contains(joined, "stale: agents/reviewer.md") {
+		t.Errorf("diff missed an edit:\n%s", joined)
+	}
+	// The added file is not listed by the marker, so the check reports it as
+	// left in place rather than as a difference from the source.
+	if strings.Contains(joined, "agents/extra.md") {
+		t.Errorf("an unlisted file was read as a difference:\n%s", joined)
+	}
+	if strings.Join(left, "\n") != "agents/extra.md" {
+		t.Errorf("left in place is %v, want the added file", left)
+	}
+}
+
+// A payload directory that lost a file still reports it, because the marker
+// lists it and the render no longer writes it.
+func TestDiffNamesAMissingPayloadFile(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if _, err := p.Write(out); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := os.Remove(filepath.Join(out, "agents", "reviewer.md")); err != nil {
+		t.Fatal(err)
+	}
+	diff, _, err := p.Diff(out)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(diff, "\n") != "missing: agents/reviewer.md" {
+		t.Errorf("diff is %v, want the removed file", diff)
 	}
 }
 

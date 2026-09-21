@@ -74,6 +74,11 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Changed
 
+- `render --out` writes into a directory the repository also keeps files in.
+  The marker decides what a render may replace and delete; a settings file, a
+  hook or a worktrees directory beside the payload is left where it is and
+  counted in the summary. A path the repository owns and the payload also
+  wants stops the render and names the file ([#22]).
 - `github-board` says which board operation to run and stops carrying the
   transport tables, the `gh project` invocations and the commentary on losing a
   race, which is work `tstorm board` now does ([#15]).
@@ -119,4 +124,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17
+[#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25

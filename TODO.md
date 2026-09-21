@@ -43,11 +43,10 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
    Claude Code plugin carries hooks in `hooks/hooks.json`, verified against a
    real install.
 
-4. [#22], then [#23]. `render --out` reaches only a directory tstorm created,
-   because it refuses one holding files its marker does not list, and a
-   repository keeps its own settings, hooks and worktrees in that directory.
-   [#22] leaves those alone; [#23] takes over a directory carrying no marker,
-   which is every repository that installed by copying.
+4. [#23]. [#22] landed: the marker decides what a render replaces, and the
+   repository's own settings, hooks and worktrees survive it. [#23] takes over
+   a directory carrying no marker, which is every repository that installed by
+   copying.
 
 5. [#2], then [#13]. [#2] decides whether Cursor and OpenCode Go carry roles,
    and [#13] is held behind it on the board. Cursor reads `.agents/skills/`,

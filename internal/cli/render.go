@@ -18,6 +18,19 @@ func printLimits(cmd *cobra.Command, p *ui.Printer, payload *render.Payload) {
 	}
 }
 
+// leftInPlace says what the render did not write, so an operator reads that
+// the repository's own configuration survived rather than assuming it.
+func leftInPlace(kept []string) string {
+	switch len(kept) {
+	case 0:
+		return ""
+	case 1:
+		return "left " + kept[0] + ", which the repository owns"
+	default:
+		return fmt.Sprintf("left %d files the repository owns, %s first", len(kept), kept[0])
+	}
+}
+
 func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	var (
 		target string
@@ -54,7 +67,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			}
 
 			if check {
-				diff, err := payload.Diff(out)
+				diff, left, err := payload.Diff(out)
 				if err != nil {
 					return err
 				}
@@ -70,14 +83,21 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 						out, strings.Join(diff, "\n  "), rerun)
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("up to date"), payload.Summary())
+				if line := leftInPlace(left); line != "" {
+					fmt.Fprintln(cmd.OutOrStdout(), p.Subtle.Render("  "+line))
+				}
 				printLimits(cmd, p, payload)
 				return nil
 			}
 
-			if err := payload.Write(out); err != nil {
+			kept, err := payload.Write(out)
+			if err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), p.OK.Render("rendered"), payload.Summary(), p.Subtle.Render("→ "+out))
+			if left := leftInPlace(kept); left != "" {
+				fmt.Fprintln(cmd.OutOrStdout(), p.Subtle.Render("  "+left))
+			}
 			printLimits(cmd, p, payload)
 			return nil
 		},
