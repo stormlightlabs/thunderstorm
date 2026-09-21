@@ -13,7 +13,9 @@ Use the `writing-docs` skill for the prose, and check the draft against its
 tells catalogue before you commit or open anything. A commit message, a pull
 request body and a review comment are all read by a person, so all three get
 that pass. `tstorm check commit-message` checks shape, not prose: it will pass
-a message full of tells.
+a message full of tells. `tstorm check prose <file>` reads the draft against
+part of the catalogue, and what it reports is worth reading before the commit
+rather than after.
 
 Everything here is in addition to that.
 

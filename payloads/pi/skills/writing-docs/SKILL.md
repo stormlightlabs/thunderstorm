@@ -131,6 +131,24 @@ The tells that appear most in this repository:
 
 One instance of any of these can read as a human voice. Repetition is the tell.
 
+## Checking a draft
+
+```sh
+tstorm check prose <file>        # or a directory
+tstorm check prose --warn <file> # report and exit 0
+```
+
+The gate runs [tropius](https://github.com/stormlightlabs/trps) and reports
+what it finds, minus the rules `.tstorm.json` mutes with a reason beside each
+one. It covers part of the catalogue above: phrase patterns, bold-first leads,
+tricolons, negative parallelism and the words that name a judgment. Structure,
+length and whether a paragraph earns its place are yours.
+
+A write to a Markdown file reports the same findings through the hook, and a
+clean run means those rules matched nothing rather than that the prose is
+good. Read the findings against `references/tells.md` and decide; the count is
+not a score.
+
 ## Repository conventions
 
 - Sentence case for new headings.

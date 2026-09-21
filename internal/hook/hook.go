@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/stormlightlabs/thunderstorm/internal/check"
@@ -72,24 +73,63 @@ func Decide(e Event) (Answer, error) {
 	if err != nil {
 		return Answer{}, err
 	}
-	root := settings.DocumentsDir()
-	if root == "" || !under(root, path) {
+
+	said := []string{}
+	if root := settings.DocumentsDir(); root != "" && under(root, path) {
+		findings, err := check.FrontmatterFile(root, path)
+		if err != nil {
+			return Answer{}, err
+		}
+		if len(findings) > 0 {
+			var b strings.Builder
+			fmt.Fprintf(&b, "%s does not carry the frontmatter the specify skill asks for:\n",
+				filepath.Base(path))
+			for _, finding := range findings {
+				fmt.Fprintf(&b, "  %s\n", finding)
+			}
+			b.WriteString("An issue cites a document by its identifier, so a document without one cannot be cited.")
+			said = append(said, b.String())
+		}
+	}
+	if note := prose(settings, cwd, path); note != "" {
+		said = append(said, note)
+	}
+	if len(said) == 0 {
 		return Answer{}, nil
 	}
+	return Answer{HookSpecificOutput: &Output{
+		HookEventName:     PostToolUse,
+		AdditionalContext: strings.Join(said, "\n\n"),
+	}}, nil
+}
 
-	findings, err := check.FrontmatterFile(root, path)
-	if err != nil || len(findings) == 0 {
-		return Answer{}, err
+// prose reports what tropius found in a file a session just wrote. Tropius
+// not being installed, and a file it has nothing to say about, read the same
+// here: nothing to add.
+//
+// The findings are reported and never refused. A trope count is not a quality
+// score, and the writing-docs skill is what teaches the writing.
+func prose(settings config.Config, cwd, path string) string {
+	if !slices.Contains(check.ProseFiles, strings.ToLower(filepath.Ext(path))) {
+		return ""
 	}
-
+	if !under(cwd, path) {
+		return ""
+	}
+	findings, err := check.Prose([]string{path}, settings.Rules())
+	if err != nil || len(findings) == 0 {
+		return ""
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s does not carry the frontmatter the specify skill asks for:\n",
-		filepath.Base(path))
+	fmt.Fprintf(&b, "%s carries %d of the tells writing-docs catalogues:\n", filepath.Base(path), len(findings))
 	for _, finding := range findings {
+		if rel, err := filepath.Rel(cwd, finding.Path); err == nil {
+			finding.Path = rel
+		}
 		fmt.Fprintf(&b, "  %s\n", finding)
 	}
-	b.WriteString("An issue cites a document by its identifier, so a document without one cannot be cited.")
-	return Answer{HookSpecificOutput: &Output{HookEventName: PostToolUse, AdditionalContext: b.String()}}, nil
+	b.WriteString("Read them against references/tells.md and decide; the gate counts tropes and judges nothing.")
+	return b.String()
 }
 
 // writtenPath is the file the tool wrote, under whichever name the harness

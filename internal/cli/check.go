@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -26,8 +27,96 @@ func checkCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer))
+	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer), proseCmd(printer))
 	return cmd
+}
+
+func proseCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var warn bool
+
+	cmd := &cobra.Command{
+		Use:   "prose [path...]",
+		Short: "Report the writing tells tropius finds in a file or a tree",
+		Long: "prose runs tropius over what it is given and reports what comes\n" +
+			"back, minus the rules " + config.Name + " mutes.\n\n" +
+			"The detection is tropius's: it carries the catalogue, the project\n" +
+			"dictionary and the structural detectors, and this gate runs it. A\n" +
+			"muted rule is one this repository cannot read yet, listed with its\n" +
+			"reason beside it, and the list shrinks as the detector improves.\n\n" +
+			"It reports a subset of the writing-docs catalogue and judges\n" +
+			"nothing. A clean run means those rules matched nothing, not that\n" +
+			"the prose is good; the skill is what teaches the writing.\n\n" +
+			"Tropius not being installed is a warning and exit 0. A gate that\n" +
+			"stops a session over prose it could not read gets uninstalled.",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := printer(cmd)
+			settings, err := config.Load(".")
+			if err != nil {
+				return failed("%v", err)
+			}
+			paths := args
+			if len(paths) == 0 {
+				paths = settings.ProsePaths()
+			}
+			if len(paths) == 0 {
+				return failed("name a file or a tree, or set \"prose.paths\" in %s", config.Name)
+			}
+
+			found, err := check.Prose(paths, settings.Rules())
+			switch {
+			case errors.Is(err, check.ProseNotInstalled):
+				fmt.Fprintf(cmd.ErrOrStderr(), "%s: install it from %s\n", err, check.TropiusHome)
+				return nil
+			case err != nil:
+				return failed("%v", err)
+			}
+
+			stream := cmd.ErrOrStderr()
+			if warn {
+				stream = cmd.OutOrStdout()
+			}
+			if len(found) == 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s nothing in the catalogue matched\n", p.OK.Render("ok"))
+				return nil
+			}
+			for _, finding := range found {
+				fmt.Fprintln(stream, "  "+here(finding).String())
+			}
+			if warn && os.Getenv("GITHUB_ACTIONS") == "true" {
+				for _, finding := range found {
+					fmt.Fprintf(cmd.OutOrStdout(), "::notice file=%s,line=%d,title=%s::%s\n",
+						finding.Path, finding.Line, finding.Rule, finding.Matched)
+				}
+			}
+			if warn {
+				return nil
+			}
+			return findings("%d prose %s", len(found), plural("finding", len(found)))
+		},
+	}
+
+	cmd.Flags().BoolVar(&warn, "warn", false, "report everything and exit 0")
+	return cmd
+}
+
+// here shortens a finding's path against the working directory, because a
+// gate run from the repository root reports paths a reader can open.
+func here(f check.ProseFinding) check.ProseFinding {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return f
+	}
+	if rel, err := filepath.Rel(cwd, f.Path); err == nil && !strings.HasPrefix(rel, "..") {
+		f.Path = rel
+	}
+	return f
+}
+
+func plural(word string, n int) string {
+	if n == 1 {
+		return word
+	}
+	return word + "s"
 }
 
 func commitMessageCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {

@@ -62,6 +62,18 @@ Nothing is released yet, and no version is tagged. Everything below is on
   separates one repository's work from another's on a shared project. A
   repository that configures none of it gets an error naming what is missing
   ([#15]).
+- `tstorm check prose` runs [tropius] over a file or a tree and reports the
+  writing tells it finds, minus the rules `.tstorm.json` mutes with a reason
+  beside each one. The detection is tropius's; what this repository decides is
+  which of its rules it can read yet. Over `README.md`, `CHANGELOG.md`,
+  `TODO.md`, `AGENTS.md`, `docs/` and `workflow/` it reports 24 findings at
+  revision `5e9333b`, against the 387 the same tree measured on 2026-09-19
+  with nothing tuned ([#12]).
+- A write to a Markdown file reports the same findings through the hook, so
+  the writing pass is asked for at the moment it is owed. It reports and never
+  refuses: a trope count is not a quality score ([#12]).
+- Tropius missing is a warning and exit 0, with `TRPS_BIN` naming it where it
+  is not on `PATH` ([#12]).
 - This repository installs its own payload. `.claude/settings.json` declares
   the marketplace beside it and enables the plugin at project scope, so a
   session here runs the loop it renders and a re-render reaches the next
@@ -122,6 +134,7 @@ Nothing is released yet, and no version is tagged. Everything below is on
   them now, and the skills call it by name ([#16]).
 
 [Unreleased]: https://github.com/stormlightlabs/thunderstorm/commits/main
+[tropius]: https://github.com/stormlightlabs/trps
 [#1]: https://github.com/stormlightlabs/thunderstorm/issues/1
 [#3]: https://github.com/stormlightlabs/thunderstorm/issues/3
 [#5]: https://github.com/stormlightlabs/thunderstorm/issues/5
@@ -129,6 +142,7 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#8]: https://github.com/stormlightlabs/thunderstorm/issues/8
 [#9]: https://github.com/stormlightlabs/thunderstorm/issues/9
 [#10]: https://github.com/stormlightlabs/thunderstorm/issues/10
+[#12]: https://github.com/stormlightlabs/thunderstorm/issues/12
 [#15]: https://github.com/stormlightlabs/thunderstorm/issues/15
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18

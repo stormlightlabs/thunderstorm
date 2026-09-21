@@ -58,18 +58,22 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
 
 ## Parked
 
-[#12] is blocked outside this repository. The tropius baseline is 387 findings,
-and on 2026-09-19 its rhetorical detectors reported nothing against prose full
-of catalogued tells that a reader caught by hand. Seven issues in
-`stormlightlabs/trps` under **Usable as a linter** carry the calibration, and
-wiring the gate before those land ships a check people learn to ignore.
-
 Two things have no issue. `docs/internal/thunderstorm.md` still describes the
 board as labels, which the Projects V2 migration replaced. And what `thndrs`
 has that `workflow/` does not has not been folded in: the `release` command and
 skill, `sync-labels.py`, and `tui-capture.sh`.
 
 [#4] also holds three issues in `stormlightlabs/thunderus`.
+
+## The prose gate
+
+[#12] landed with three rules muted: `structure.short_punchy_fragments`,
+`repetition.anaphora_abuse` and `formatting.unicode_decoration`, which
+together were 191 of the 387 findings measured on 2026-09-19 and read as noise
+against prose a reader called clean. Each is muted with its reason in
+`.tstorm.json`, and the list shrinks as the **Usable as a linter** issues in
+`stormlightlabs/trps` land. Raise the pinned revision in
+`.github/workflows/check.yml` when they do, and rerun the count.
 
 ## Run it here
 

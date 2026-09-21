@@ -11,5 +11,30 @@
     },
     "groupField": "Track",
     "groupValue": "Thunderstorm"
+  },
+  "prose": {
+    "dictionary": "trps.toml",
+    "paths": [
+      "README.md",
+      "CHANGELOG.md",
+      "TODO.md",
+      "AGENTS.md",
+      "docs",
+      "workflow"
+    ],
+    "mute": [
+      {
+        "rule": "structure.short_punchy_fragments",
+        "why": "77 of the 387 findings measured on 2026-09-19, against prose a reader called clean"
+      },
+      {
+        "rule": "repetition.anaphora_abuse",
+        "why": "43 findings the same day, and it reads a list's lead-in as a run"
+      },
+      {
+        "rule": "formatting.unicode_decoration",
+        "why": "71 findings, one per character, over tables the site renders"
+      }
+    ]
   }
 }

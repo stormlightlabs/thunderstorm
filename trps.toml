@@ -1,0 +1,23 @@
+# Tropius reads this file when it runs from the repository root.
+#
+# `allow` takes a phrase out of the bundled pattern that carried it and leaves
+# the rest of that pattern in place. Every entry here is a word this repository
+# uses as a domain noun, in the sense the catalogue's own entry does not cover.
+allow = [
+  "harness",  # the coding agent a payload installs into, used throughout
+]
+
+# payloads/ is workflow/ rendered per harness, so a finding there is a
+# duplicate of one in the source, reported once per target. The writing-docs
+# skill and its catalogue quote the tells they teach, the way tropius's own
+# meta/tropes.md does, and grading the catalogue reports the catalogue.
+exclude = [
+  "payloads/",
+  "workflow/skills/writing-docs/",
+]
+
+# The workflow is written once and rendered, so the skills and the pages that
+# describe them repeat each other's wording on purpose.
+[cross_file]
+min_words = 10
+min_files = 3

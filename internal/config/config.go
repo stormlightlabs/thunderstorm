@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/stormlightlabs/thunderstorm/internal/check"
 )
 
 // Name is the file tstorm reads, found at the repository root or any directory
@@ -35,6 +37,10 @@ type Config struct {
 	// Board is the GitHub Projects board the loop writes. A repository that
 	// names none gets an error from the board commands rather than a guess.
 	Board Board `json:"board"`
+
+	// Prose is what the prose gate runs with. A repository that names nothing
+	// gets tropius under its own defaults, which is a usable gate.
+	Prose Prose `json:"prose"`
 
 	// dir is the directory the file was read from, so a relative setting
 	// resolves against the file rather than the caller's working directory.
@@ -65,6 +71,60 @@ type Board struct {
 	// repository's work. A board that carries one leaves both empty.
 	GroupField string `json:"groupField"`
 	GroupValue string `json:"groupValue"`
+}
+
+// Prose configures the gate that runs tropius over a repository's writing.
+//
+// The detection is tropius's. What a repository decides here is which of its
+// rules it can read yet: a detector that reports 77 findings against prose a
+// reader calls clean costs more attention than it saves, and a muted rule is
+// one to fix upstream rather than one to argue with.
+type Prose struct {
+	// Dictionary is the project dictionary, relative to this file. Left
+	// empty, tropius searches for its own from the working directory.
+	Dictionary string `json:"dictionary"`
+
+	// Mute drops a rule by id, with the reason beside it.
+	Mute []MutedRule `json:"mute"`
+
+	// Paths are the trees the gate reads when no path is given, relative to
+	// this file.
+	Paths []string `json:"paths"`
+}
+
+// MutedRule is one rule the gate drops, and why.
+type MutedRule struct {
+	Rule string `json:"rule"`
+	Why  string `json:"why"`
+}
+
+// Rules is what the check package needs out of the prose settings, with the
+// dictionary resolved against the file that named it.
+func (c Config) Rules() check.ProseRules {
+	rules := check.ProseRules{}
+	if d := c.Prose.Dictionary; d != "" {
+		rules.Dictionary = d
+		if !filepath.IsAbs(d) {
+			rules.Dictionary = filepath.Join(c.dir, d)
+		}
+	}
+	for _, muted := range c.Prose.Mute {
+		rules.Mute = append(rules.Mute, muted.Rule)
+	}
+	return rules
+}
+
+// ProsePaths are the configured trees as paths the caller can open.
+func (c Config) ProsePaths() []string {
+	var out []string
+	for _, path := range c.Prose.Paths {
+		if filepath.IsAbs(path) {
+			out = append(out, path)
+			continue
+		}
+		out = append(out, filepath.Join(c.dir, path))
+	}
+	return out
 }
 
 // Status is the option name for each of the three states the loop moves an

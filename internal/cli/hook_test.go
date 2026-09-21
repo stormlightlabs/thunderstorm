@@ -9,9 +9,11 @@ import (
 )
 
 // documented builds a repository whose documents tree is configured, and
-// returns its root.
+// returns its root. Tropius is pointed at nothing, so these cases answer for
+// the frontmatter gate wherever they run; the prose gate has its own.
 func documented(t *testing.T, files map[string]string) string {
 	t.Helper()
+	noTropius(t)
 	root := t.TempDir()
 	if err := os.WriteFile(filepath.Join(root, ".tstorm.json"),
 		[]byte(`{"documents": "docs/internal"}`), 0o644); err != nil {
@@ -27,6 +29,82 @@ func documented(t *testing.T, files map[string]string) string {
 		}
 	}
 	return root
+}
+
+// noTropius makes the prose gate inert, the way a machine without it
+// installed does.
+func noTropius(t *testing.T) {
+	t.Helper()
+	t.Setenv("TRPS_BIN", filepath.Join(t.TempDir(), "absent"))
+}
+
+// tropiusSaying puts a script on TRPS_BIN that reports one finding against
+// whatever it is given, so the case answers for the hook rather than for the
+// detector.
+func tropiusSaying(t *testing.T, rule, matched string) {
+	t.Helper()
+	report := `{"version": 1, "findings": [{"rule_id": "` + rule +
+		`", "rule_name": "R", "severity": "medium", "kind": "markdown",` +
+		` "path": "PATH", "line": 3, "column": 1, "matched": "` + matched + `"}]}`
+	path := filepath.Join(t.TempDir(), "trps")
+	script := "#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in --*) ;; *) f=$a ;; esac; done\n" +
+		"cat <<REPORT\n" + strings.Replace(report, "PATH", "$f", 1) + "\nREPORT\nexit 1\n"
+	if err := os.WriteFile(path, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TRPS_BIN", path)
+}
+
+// A write to Markdown gets the writing pass it is owed, at the moment it is
+// owed, rather than whenever somebody remembers the skill.
+func TestAWrittenMarkdownFileReportsItsTells(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "notes.md"), []byte("# Notes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tropiusSaying(t, "formatting.bold_first_leads", "- **One:** a thing.")
+	stdout, _, err := runWith(t, event(t, root, "Write", "notes.md"), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	got := advice(t, stdout)
+	if !strings.Contains(got, "bold_first_leads") || !strings.Contains(got, "notes.md") {
+		t.Errorf("the gate said %q", got)
+	}
+}
+
+// Findings are reported and never refused. A hook that blocks a write gets
+// uninstalled, and the exit code is what a harness reads first.
+func TestTheProseGateNeverRefusesAWrite(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "notes.md"), []byte("# Notes\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tropiusSaying(t, "sentence_structure.tricolon_abuse", "one, two, three")
+	stdout, _, err := runWith(t, event(t, root, "Write", "notes.md"), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	if strings.Contains(stdout, "permissionDecision") {
+		t.Errorf("the gate answered with a decision: %q", stdout)
+	}
+}
+
+// Prose is Markdown. A hook that ran a prose detector over source would
+// report the comments in it.
+func TestTheProseGateLeavesCodeAlone(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "main.go"), []byte("package main\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	tropiusSaying(t, "formatting.bold_first_leads", "- **One:** a thing.")
+	stdout, _, err := runWith(t, event(t, root, "Write", "main.go"), "hook")
+	if code := ExitCode(err); code != 0 {
+		t.Fatalf("exit %d, want 0: %v", code, err)
+	}
+	if strings.TrimSpace(stdout) != "" {
+		t.Errorf("the gate spoke up about source: %q", stdout)
+	}
 }
 
 // event is one hook call in the shape Claude Code and Codex both send.
@@ -117,6 +195,7 @@ func TestTheGateIsSilentWhenItHasNothingToSay(t *testing.T) {
 // A repository that has configured no documents tree has not asked for this
 // gate, and every write there has to pass in silence.
 func TestAnUnconfiguredRepositoryHearsNothing(t *testing.T) {
+	noTropius(t)
 	root := t.TempDir()
 	stdout, _, err := runWith(t, event(t, root, "Write", "notes.md"), "hook")
 	if code := ExitCode(err); code != 0 {
