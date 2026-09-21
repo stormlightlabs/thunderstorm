@@ -44,6 +44,9 @@ jobs:
       # fixtures written to be wrong.
       - run: go run ./cmd/tstorm check isolation workflow
       - run: go run ./cmd/tstorm check frontmatter
+      # The deny rules are merged into a repository's settings by hand, so
+      # this is what notices when the workflow gains one and .claude does not.
+      - run: go run ./cmd/tstorm check policy
 
   prose:
     runs-on: ubuntu-latest

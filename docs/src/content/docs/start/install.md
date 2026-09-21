@@ -48,7 +48,15 @@ renders.
 The four denied commands are not in it. No plugin mechanism carries a
 permission, so merge the `permissions.deny` block from
 [`payloads/claude/settings.json`](https://github.com/stormlightlabs/thunderstorm/blob/main/payloads/claude/settings.json)
-into the same file by hand.
+into the same file by hand, and check the merge:
+
+```sh
+tstorm check policy --expected <payload>/settings.json .claude/settings.json
+```
+
+It names every reserved command the settings do not deny. Run it in CI as
+well: a command added to the workflow reaches the payload on the next update
+and the repository's settings never.
 
 ## Codex
 

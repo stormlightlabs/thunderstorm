@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stormlightlabs/thunderstorm/internal/check"
 	"github.com/stormlightlabs/thunderstorm/internal/config"
+	"github.com/stormlightlabs/thunderstorm/internal/render"
 	"github.com/stormlightlabs/thunderstorm/internal/ui"
 )
 
@@ -27,7 +28,75 @@ func checkCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
-	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer), proseCmd(printer))
+	cmd.AddCommand(commitMessageCmd(printer), frontmatterCmd(printer), isolationCmd(printer),
+		policyCmd(printer), proseCmd(printer))
+	return cmd
+}
+
+func policyCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
+	var (
+		source   string
+		expected string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "policy [settings.json]",
+		Short: "Check that a repository's settings carry the workflow's denied commands",
+		Long: "policy compares a repository's permissions against the commands the\n" +
+			"workflow reserves for a person.\n\n" +
+			"No plugin mechanism carries a permission, so the deny rules are\n" +
+			"merged into a repository's own settings by hand and nothing\n" +
+			"afterwards reads the result. A rule added to the workflow reaches\n" +
+			"every payload and no repository's settings, and the gap is silent:\n" +
+			"the session that should have been refused runs the command.\n\n" +
+			"The expected list comes from the workflow manifest, or from a\n" +
+			"rendered payload's settings.json with --expected, which is what an\n" +
+			"installed repository has where it does not have the source.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			p := printer(cmd)
+			settings := filepath.Join(".claude", "settings.json")
+			if len(args) == 1 {
+				settings = args[0]
+			}
+
+			var denied []string
+			var err error
+			if expected != "" {
+				denied, err = check.PolicyOf(expected)
+			} else {
+				var manifest render.Manifest
+				if manifest, err = render.Load(source); err == nil {
+					denied = manifest.Policy.Deny
+				}
+			}
+			if err != nil {
+				return failed("%v", err)
+			}
+			if len(denied) == 0 {
+				return failed("no denied commands to check for")
+			}
+
+			missing, err := check.Policy(settings, denied)
+			if err != nil {
+				return failed("%v", err)
+			}
+			if len(missing) == 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "%s %s denies all %d commands the workflow reserves\n",
+					p.OK.Render("ok"), settings, len(denied))
+				return nil
+			}
+			for _, prefix := range missing {
+				fmt.Fprintf(cmd.ErrOrStderr(), "  %s is not denied; add %q\n", prefix, check.DenyRule(prefix))
+			}
+			fmt.Fprintf(cmd.ErrOrStderr(), "\n%s is where the install page asks for that merge. "+
+				"Until it holds them, a session here runs what the workflow reserves for a person.\n", settings)
+			return findings("%s is missing %d deny %s", settings, len(missing), plural("rule", len(missing)))
+		},
+	}
+
+	cmd.Flags().StringVar(&source, "source", "workflow", "workflow source directory holding the manifest")
+	cmd.Flags().StringVar(&expected, "expected", "", "rendered payload settings.json to read the deny list from instead")
 	return cmd
 }
 

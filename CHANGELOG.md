@@ -62,6 +62,11 @@ Nothing is released yet, and no version is tagged. Everything below is on
   separates one repository's work from another's on a shared project. A
   repository that configures none of it gets an error naming what is missing
   ([#15]).
+- `tstorm check policy` compares a repository's settings against the commands
+  the workflow reserves for a person, names every one that is not denied, and
+  says what to add. The expected list comes from the manifest, or from a
+  rendered payload's `settings.json` with `--expected`, which is what an
+  installed repository has ([#27]).
 - `tstorm check prose` runs [tropius] over a file or a tree and reports the
   writing tells it finds, minus the rules `.tstorm.json` mutes with a reason
   beside each one. The detection is tropius's; what this repository decides is
@@ -150,3 +155,4 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#22]: https://github.com/stormlightlabs/thunderstorm/issues/22
 [#23]: https://github.com/stormlightlabs/thunderstorm/issues/23
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25
+[#27]: https://github.com/stormlightlabs/thunderstorm/issues/27
