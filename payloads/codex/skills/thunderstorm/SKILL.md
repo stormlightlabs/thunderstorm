@@ -22,15 +22,13 @@ out. The `github-board` skill carries the status protocol this obeys.
 The argument is the number of an issue that has sub-issues. Read it and its
 children:
 
-The `github-board` skill's Transport section decides whether this run uses `gh`
-or the GitHub MCP tools. Use the same transport for everything below.
-
 ```sh
-gh issue view <n> --json number,title,body,labels,url
-gh issue view <n> --json subIssues
+tstorm board show <n> --json
+gh issue view <n> --json number,title,body,url
 ```
 
-Through MCP: `issue_read` method `get`, then method `get_sub_issues`.
+`tstorm board show` carries the board state and the children. The issue's own
+text comes from `gh` locally, or `issue_read` method `get` in a cloud session.
 
 Stop and ask when any of these is true:
 
@@ -51,8 +49,8 @@ non-overlapping files. Two writers in one area produce rework, not throughput.
 The `triage` skill's **Lanes** section says what may share a fan-out; a run
 taking two at once applies those rules rather than deciding again.
 
-Read each sub-issue's `blocked_by` before claiming it, through the
-**Dependencies** section of `github-board`. An issue whose blockers are still
+Read each sub-issue's blockers before claiming it, with
+`tstorm board show <n> --json`. An issue whose blockers are still
 open is not claimable, whatever the board says, and dispatching one
 anyway produces a worker with nothing to build on. Independent in the dependency
 graph does not mean two issues can run at once: check the file ownership this

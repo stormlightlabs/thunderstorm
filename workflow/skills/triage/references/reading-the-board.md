@@ -13,9 +13,10 @@ gh api "repos/<owner>/<repo>/issues?state=open&per_page=100" --paginate
 ```
 
 In a cloud session there is no `gh` binary, so the same path goes through
-`curl` with the token and headers `github-board` sets up under
-**Dependencies**. Page in both cases: `gh issue list` stops at 30 by default
-and this board passed that long ago.
+`curl -f` with `GH_TOKEN` in an `Authorization: Bearer` header; without `-f`
+curl exits 0 on a 401 and the pass reads an error as an empty board. Page in
+both cases: `gh issue list` stops at 30 by default and this board passed that
+long ago.
 
 Per issue that response carries `labels`, `assignees`, `updated_at`,
 `parent_issue_url`, `sub_issues_summary` and `issue_dependencies_summary`. The

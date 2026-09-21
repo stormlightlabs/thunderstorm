@@ -55,14 +55,11 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
    renderer rather than a copy of the source. Nothing here has run Cursor,
    which is the first thing [#13] should fix.
 
-6. [#15], the board writes. The largest of [#14]'s children, and nothing waits
-   on it.
-
-7. [#6] and [#3]. The review protocol agrees with itself only by inspection,
+6. [#6] and [#3]. The review protocol agrees with itself only by inspection,
    and a document is still named after its filename, so `hooks/plan.md` and
    `mcp/plan.md` are both called `plan`.
 
-8. [#21], then [#20]. [#21] waited on the renderer and is free. [#20] waits on
+7. [#21], then [#20]. [#21] waited on the renderer and is free. [#20] waits on
    the release in step 1.
 
 ## Parked
@@ -94,7 +91,6 @@ meet on somebody else's repository.
 [#12]: https://github.com/stormlightlabs/thunderstorm/issues/12
 [#13]: https://github.com/stormlightlabs/thunderstorm/issues/13
 [#14]: https://github.com/stormlightlabs/thunderstorm/issues/14
-[#15]: https://github.com/stormlightlabs/thunderstorm/issues/15
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#19]: https://github.com/stormlightlabs/thunderstorm/issues/19
 [#20]: https://github.com/stormlightlabs/thunderstorm/issues/20

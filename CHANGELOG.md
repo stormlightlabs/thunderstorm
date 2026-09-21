@@ -52,6 +52,16 @@ Nothing is released yet, and no version is tagged. Everything below is on
   writing the reply on stdout. A document written under the configured tree is
   checked for the frontmatter an issue cites it by, and what it finds is
   reported rather than refused ([#18]).
+- `tstorm board` reads and writes the GitHub Projects board: what is queued,
+  one issue's status, a claim, a transition, sub-issues, `blocked_by`
+  dependencies, and filing new work. Every read takes `--json`, a write says
+  what it changed, and a claim somebody else won exits 1 rather than being
+  retried ([#15]).
+- `.tstorm.json` also names the board: the project and its owner, the status
+  field, the option name for each of the three states, and the field that
+  separates one repository's work from another's on a shared project. A
+  repository that configures none of it gets an error naming what is missing
+  ([#15]).
 - The payload registers that gate itself. Claude Code reads it from
   `hooks/hooks.json`; Pi's package extension runs the same script, since Pi has
   no hooks. The script finds the binary through `TSTORM_BIN`, the payload's own
@@ -60,6 +70,9 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Changed
 
+- `github-board` says which board operation to run and stops carrying the
+  transport tables, the `gh project` invocations and the commentary on losing a
+  race, which is work `tstorm board` now does ([#15]).
 - The skills run the gates a repository's `AGENTS.md` names, rather than the
   Cargo commands they were written against ([#1]).
 - Payload prose distinguishes the harness directory inside the repository being
@@ -83,6 +96,8 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 - The `SessionStart` hook that warmed a Cargo registry. The payload ships no
   hook at all ([#1]).
+- `github-board`'s `references/dependencies.md`, which held the `curl` calls
+  for issue dependencies. `tstorm board blocked-by` makes them ([#15]).
 - The five Python and shell checks under `workflow/scripts/`, and the copies
   each payload carried. A repository got them by copying, got a fix by copying
   again, and needed a Python on `PATH` to run one at all. `tstorm check` runs
@@ -96,6 +111,7 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#8]: https://github.com/stormlightlabs/thunderstorm/issues/8
 [#9]: https://github.com/stormlightlabs/thunderstorm/issues/9
 [#10]: https://github.com/stormlightlabs/thunderstorm/issues/10
+[#15]: https://github.com/stormlightlabs/thunderstorm/issues/15
 [#16]: https://github.com/stormlightlabs/thunderstorm/issues/16
 [#18]: https://github.com/stormlightlabs/thunderstorm/issues/18
 [#17]: https://github.com/stormlightlabs/thunderstorm/issues/17

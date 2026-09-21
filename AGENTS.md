@@ -31,9 +31,10 @@ lost at the next render, and `--check` is what catches it.
 ## The board
 
 Issues live on GitHub Projects board **13**, owner `stormlightlabs`, under the
-**THNDRS** track. The `github-board` skill writes `Todo`, `In Progress` and
-`Done` there and reads it filtered to this repository; it takes the number and
-the owner from here.
+**Thunderstorm** track. `tstorm board` reads and writes it, filtered to this
+repository, and takes the project, the status options and the track from the
+`board` section of `.tstorm.json`. The `github-board` skill says which
+operation to run.
 
 ## Commits
 
