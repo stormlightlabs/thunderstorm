@@ -208,17 +208,19 @@ tstorm version
 the other route planned, through a tap in this organization, and it is the
 only other one.
 
-One check runs on its own. Claude Code registers a `PostToolUse` hook from the
-payload, and Pi's package extension does the same job from TypeScript: a
-document written under your configured tree is checked for the frontmatter an
-issue cites it by, and what it finds is reported to the session. It never
-refuses a write. Where the payload puts the binary is a setting: `TSTORM_BIN`
-first, then the payload's own `bin/`, then `PATH`, and a binary it cannot find
-is a warning rather than a blocked editor.
+Two of them run on their own once the payload is installed. A write is checked
+for the frontmatter an issue cites a document by and for the writing tells the
+catalogue lists, and both are reported into the session rather than refused. A
+`git commit` is checked for its shape, and that one refuses: a subject that
+will not read in `git log --oneline` cannot be fixed afterwards.
 
-Codex installs the same hook and does not yet run it. Codex writes files
-through its `exec` tool rather than a `Write` or `Edit` tool, so the matcher
-does not reach it, and `tstorm render --target codex` says so in its report.
+Hooks load when a session starts, so the session you install from gets none of
+this. Start a new one. Where the payload puts the binary is a setting:
+`TSTORM_BIN` first, then the payload's own `bin/`, then `PATH`, and a binary it
+cannot find is one line on stderr rather than a blocked editor.
+
+[The gates](/reference/gates/) says what each check reads, what its exit code
+means, which harness runs which, and what to type where none of them runs.
 
 ## What the package does not carry
 

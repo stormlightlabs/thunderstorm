@@ -13,7 +13,7 @@ and `codex-cli` 0.146.0.
 | Skills   | `.claude/skills/`   | plugin skills                 | `.agents/skills/`, `.pi/skills/` |
 | Commands | `.claude/commands/` | `$thunderstorm:<skill>`       | `.pi/prompts/`                   |
 | Dispatch | subagents           | built-in agents with roles    | a session per multiplexer tab    |
-| Checks   | hooks               | plugin hook                   | an extension                     |
+| Checks   | hooks, both events  | a hook on commands only       | an extension, refusals only      |
 | Merging  | deny rules          | hook blocks the prefixes      | extension blocks the prefixes    |
 
 The renderer builds all three payloads from the same skills, commands, role

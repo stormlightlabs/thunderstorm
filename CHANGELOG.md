@@ -93,6 +93,11 @@ Nothing is released yet, and no version is tagged. Everything below is on
   refuses: a trope count is not a quality score ([#12]).
 - Tropius missing is a warning and exit 0, with `TRPS_BIN` naming it where it
   is not on `PATH` ([#12]).
+- [The gates](https://thunderstorm.stormlightlabs.org/reference/gates/) on the
+  site says what each check reads, what its exit code means, which harness
+  runs which, and what to type in the hours when none of them runs: a session
+  older than the install, a machine without the binary, a commit written in an
+  editor ([#31]).
 - This repository installs its own payload. `.claude/settings.json` declares
   the marketplace beside it and enables the plugin at project scope, so a
   session here runs the loop it renders and a re-render reaches the next
@@ -172,3 +177,4 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25
 [#26]: https://github.com/stormlightlabs/thunderstorm/issues/26
 [#27]: https://github.com/stormlightlabs/thunderstorm/issues/27
+[#31]: https://github.com/stormlightlabs/thunderstorm/issues/31
