@@ -81,10 +81,11 @@ func updateSelf(cmd *cobra.Command, p *ui.Printer, check bool) error {
 	if self, err = filepath.EvalSymlinks(self); err != nil {
 		return failed("%v", err)
 	}
-	if err := latest.Replace(self); err != nil {
+	installed, err := release.Install(self, running.Version)
+	if err != nil {
 		return failed("%v", err)
 	}
-	fmt.Fprintln(w, p.OK.Render("replaced"), p.Subtle.Render(self+" is now "+latest.Tag))
+	fmt.Fprintln(w, p.OK.Render("replaced"), p.Subtle.Render(self+" is now "+installed))
 	return nil
 }
 

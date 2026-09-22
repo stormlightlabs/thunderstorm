@@ -98,6 +98,96 @@ func TestVerifyMatchesTheChecksumForThisAsset(t *testing.T) {
 	}
 }
 
+// A release URL comes out of JSON GitHub returned, or out of a cache file
+// anything on the machine could have written, so validate has to tell those
+// apart on the URL alone.
+func TestValidateAcceptsOnlyThisRepositorysReleases(t *testing.T) {
+	for name, tc := range map[string]struct {
+		url string
+		ok  bool
+	}{
+		"an asset download": {
+			"https://github.com/stormlightlabs/thunderstorm/releases/download/v0.1.0/tstorm_linux_amd64.tar.gz", true,
+		},
+		"the checksums file beside it": {
+			"https://github.com/stormlightlabs/thunderstorm/releases/download/v0.1.0/checksums.txt", true,
+		},
+		"the latest-release API endpoint": {
+			"https://api.github.com/repos/stormlightlabs/thunderstorm/releases/latest", true,
+		},
+		"the release list API endpoint": {
+			"https://api.github.com/repos/stormlightlabs/thunderstorm/releases?per_page=10", true,
+		},
+		"plain http, even to the right host": {
+			"http://github.com/stormlightlabs/thunderstorm/releases/download/v0.1.0/tstorm.tar.gz", false,
+		},
+		"a host that merely starts with github.com": {
+			"https://github.com.evil.test/stormlightlabs/thunderstorm/releases/download/v0.1.0/tstorm.tar.gz", false,
+		},
+		"a release under a different repository": {
+			"https://github.com/attacker/thunderstorm/releases/download/v0.1.0/tstorm.tar.gz", false,
+		},
+		"the api host serving something that is not this repository": {
+			"https://api.github.com/repos/attacker/thunderstorm/releases/latest", false,
+		},
+		"a string that is not a URL at all": {
+			"not a url", false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			err := validate(tc.url)
+			if ok := err == nil; ok != tc.ok {
+				t.Errorf("validate(%q) = %v, want ok=%v", tc.url, err, tc.ok)
+			}
+		})
+	}
+}
+
+// fetch reads the release list newest-created-first, so picking the first
+// entry would report a hotfix tagged after the release it patches as older
+// than that release, which is backwards.
+func TestHighestPicksTheGreatestVersionNotTheFirstEntry(t *testing.T) {
+	for name, tc := range map[string]struct {
+		all  []published
+		want string
+		ok   bool
+	}{
+		"a hotfix listed after the release it patches": {
+			all:  []published{{Tag: "v0.2.0"}, {Tag: "v0.1.1"}},
+			want: "v0.2.0",
+			ok:   true,
+		},
+		"the newest entry is a draft": {
+			all:  []published{{Tag: "v0.3.0", Draft: true}, {Tag: "v0.2.0"}},
+			want: "v0.2.0",
+			ok:   true,
+		},
+		"every entry is a draft": {
+			all: []published{{Tag: "v0.3.0", Draft: true}},
+			ok:  false,
+		},
+		"an entry with no tag is skipped rather than winning empty": {
+			all:  []published{{Tag: ""}, {Tag: "v0.1.0"}},
+			want: "v0.1.0",
+			ok:   true,
+		},
+		"an empty listing": {
+			all: nil,
+			ok:  false,
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			got, ok := highest(tc.all)
+			if ok != tc.ok {
+				t.Fatalf("highest(%v) ok = %v, want %v", tc.all, ok, tc.ok)
+			}
+			if ok && got.Tag != tc.want {
+				t.Errorf("highest(%v) = %q, want %q", tc.all, got.Tag, tc.want)
+			}
+		})
+	}
+}
+
 func TestTheAssetIsTheOneForThisMachine(t *testing.T) {
 	r := Release{Assets: map[string]string{
 		"tstorm_0.1.0_linux_amd64.tar.gz":  "linux-amd64",
