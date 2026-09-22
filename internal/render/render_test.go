@@ -854,6 +854,50 @@ func TestWriteFollowsASymlinkedOut(t *testing.T) {
 	}
 }
 
+// A repository swapping skills/ for a symlink left claim treating the link as
+// one repository-owned file rather than the directory the payload renders
+// there. The render staged its new skills/ directory, swapped it in, and only
+// then had carry try to rename the kept symlink onto it, failing partway
+// through the paths it still owed the repository.
+func TestWriteRefusesASymlinkWhereThePayloadWritesADirectory(t *testing.T) {
+	p, _, err := planFor(t, "claude", allArtifacts)
+	if err != nil {
+		t.Fatalf("plan: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "claude")
+	if _, err := p.Write(out, false); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	before, err := os.ReadFile(filepath.Join(out, marker))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	skills := filepath.Join(out, "skills")
+	if err := os.RemoveAll(skills); err != nil {
+		t.Fatal(err)
+	}
+	elsewhere := t.TempDir()
+	if err := os.Symlink(elsewhere, skills); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+
+	if _, err := p.Write(out, false); err == nil {
+		t.Fatal("rendered a directory over a symlink the repository put there")
+	} else if !strings.Contains(err.Error(), "skills") {
+		t.Errorf("the refusal does not name the path: %v", err)
+	}
+
+	info, err := os.Lstat(skills)
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("the refusal replaced the symlink anyway: %v", err)
+	}
+	after, err := os.ReadFile(filepath.Join(out, marker))
+	if err != nil || string(after) != string(before) {
+		t.Errorf("the refusal changed the marker anyway: %q (%v)", after, err)
+	}
+}
+
 // The skills invoke the scripts by path, so an executable bit that drifted is
 // a broken payload that a bytes-only check would certify as correct.
 func TestCheckReportsAnExecutableBitThatDrifted(t *testing.T) {

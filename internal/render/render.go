@@ -393,10 +393,18 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 
 	writing := map[string]bool{}
 	seeds := map[string]bool{}
+	// dirs holds every path a payload file is nested under, so a symlink or a
+	// plain file sitting at one of those paths can be told apart from a real
+	// directory before anything is staged.
+	dirs := map[string]bool{}
 	for _, f := range p.Files {
 		writing[f.Path] = true
 		if f.Seed {
 			seeds[f.Path] = true
+		}
+		parts := strings.Split(f.Path, "/")
+		for i := 1; i < len(parts); i++ {
+			dirs[strings.Join(parts[:i], "/")] = true
 		}
 	}
 
@@ -412,11 +420,11 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 			owned[path] = !seeds[path]
 		}
 	case err != nil:
-		return "", nil, fmt.Errorf("%s holds files tstorm did not render; render it with --adopt, or choose another --out", dir)
+		return "", nil, fmt.Errorf("%s holds files tstorm did not render; take them over with --adopt, or write the payload somewhere else", dir)
 	default:
 		name, _, paths := parseMarker(held)
 		if name != p.Target.Name {
-			return "", nil, fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
+			return "", nil, fmt.Errorf("%s holds the %s payload, not %s; write this one somewhere else", dir, name, p.Target.Name)
 		}
 		owned = map[string]bool{marker: true}
 		for _, path := range paths {
@@ -427,7 +435,7 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	var kept []string
 	var collision string
 	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
+		if err != nil {
 			return err
 		}
 		rel, err := filepath.Rel(dir, path)
@@ -435,8 +443,26 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 			return err
 		}
 		slash := filepath.ToSlash(rel)
+		if d.IsDir() {
+			// A directory sitting where the payload writes a plain file
+			// blocks that write the same way a plain file below blocks a
+			// directory: caught here, or carry finds out only after the
+			// swap, trying to rename a kept path onto what the new payload
+			// just created there.
+			if writing[slash] && collision == "" {
+				collision = slash
+			}
+			return nil
+		}
 		if owned[slash] || slash == marker {
 			return nil
+		}
+		// A symlink or a plain file where the payload needs a directory to
+		// hold nested paths is the mirror case: WalkDir does not descend
+		// into it, so it would otherwise be carried back whole, onto a real
+		// directory the swap just put in its place.
+		if dirs[slash] && collision == "" {
+			collision = slash
 		}
 		if writing[slash] && !seeds[slash] && collision == "" {
 			collision = slash
@@ -448,7 +474,7 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 		return "", nil, err
 	}
 	if collision != "" {
-		return "", nil, fmt.Errorf("%s holds %s, which this render also writes; move it aside or choose another --out",
+		return "", nil, fmt.Errorf("%s holds %s, which this render also writes; move it aside, or write the payload somewhere else",
 			dir, collision)
 	}
 	slices.Sort(kept)
