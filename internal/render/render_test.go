@@ -13,8 +13,8 @@ import (
 )
 
 // fixture writes a source tree small enough to read in one screen and shaped
-// like the real one: a skill with a reference, a command with an alias, an
-// agent, a hook, and a script.
+// like the real one: a skill with a reference, a command, an agent, a hook,
+// and a script.
 func fixture(t *testing.T, artifacts string) string {
 	t.Helper()
 	root := t.TempDir()
@@ -56,7 +56,7 @@ func fixture(t *testing.T, artifacts string) string {
 
 const allArtifacts = `
     {"kind": "skill", "name": "review", "source": "skills/review", "requires": ["skills"]},
-    {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]},
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]},
     {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
     {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "requires": ["hooks"],
      "events": [{"event": "SessionStart", "matcher": "startup", "timeout": 1200}]},
@@ -121,19 +121,6 @@ func TestClaudePayloadPlacesEveryKind(t *testing.T) {
 		".claude-plugin/plugin.json",
 	} {
 		body(t, p, want)
-	}
-}
-
-// An alias is a second file, because no harness here resolves one itself.
-func TestAnAliasBecomesItsOwnFile(t *testing.T) {
-	p, _, err := planFor(t, "claude", allArtifacts)
-	if err != nil {
-		t.Fatalf("plan: %v", err)
-	}
-	canonical := body(t, p, "commands/revise.md")
-	alias := body(t, p, "commands/edit.md")
-	if string(canonical) != string(alias) {
-		t.Errorf("alias body differs from the command it aliases:\n%s\n%s", canonical, alias)
 	}
 }
 
@@ -483,7 +470,7 @@ func TestCodexRegistersTheWorkflowHooksBesideItsPolicy(t *testing.T) {
 // Commands render wherever a harness has somewhere to read one.
 func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
 	const commandOnly = `
-    {"kind": "command", "name": "revise", "source": "commands/revise.md", "aliases": ["edit"], "requires": ["commands"]}`
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]}`
 
 	want := map[string]string{
 		"claude": "commands/revise.md",
@@ -497,9 +484,6 @@ func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
 				t.Fatalf("%s cannot carry a command: %v", name, err)
 			}
 			body(t, p, wantPath)
-			if alias := strings.Replace(wantPath, "revise", "edit", 1); len(body(t, p, alias)) == 0 {
-				t.Errorf("%s got no alias file", name)
-			}
 		})
 	}
 }
@@ -961,9 +945,9 @@ func TestManifestRejectsWhatWouldRenderWrong(t *testing.T) {
 			`{"kind": "skill", "name": "review", "source": "skills/review", "requires": ["telepathy"]}`,
 			"unknown capability",
 		},
-		"alias on a skill": {
+		"a field the manifest has no meaning for": {
 			`{"kind": "skill", "name": "review", "source": "skills/review", "aliases": ["r"], "requires": ["skills"]}`,
-			"only a command carries aliases",
+			`unknown field "aliases"`,
 		},
 		"missing source": {
 			`{"kind": "command", "name": "ghost", "source": "commands/ghost.md", "requires": ["commands"]}`,

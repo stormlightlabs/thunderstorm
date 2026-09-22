@@ -1,6 +1,6 @@
 ---
 name: decompose
-description: Cut an idea, a spec, or a finding into the issues a run takes, the sub-issues that implement them, and a milestone where the work needs more than one run. Use for /decomp, /decompose, or when work is understood well enough to file but has not been filed.
+description: Cut an idea, a spec, or a finding into the issues a run takes, the sub-issues that implement them, and a milestone where the work needs more than one run. Use for /decompose or when work is understood well enough to file but has not been filed.
 ---
 
 # Decompose
@@ -31,8 +31,8 @@ is fine, and should say so.
 | Shape | What it is |
 | --- | --- |
 | Milestone | Groups issues. Holds the order and what crosses them. Not an issue. |
-| Issue with sub-issues | **What `/storm` takes.** At most five open sub-issues. |
-| Sub-issue | One claim, one branch, one pull request. `/impl` takes it. |
+| Issue with sub-issues | **What `/thunderstorm` takes.** At most five open sub-issues. |
+| Sub-issue | One claim, one branch, one pull request. `/implement` takes it. |
 
 An issue that has sub-issues is the run unit. That is the whole test, and no
 label carries it.
@@ -93,7 +93,7 @@ issue should reach the reasoning, and a reader who finds the document should
 reach the work.
 
 Attach each one as a sub-issue of the issue a run takes. The relation is what the next
-stage reads: `/storm` asks GitHub for an issue's children and refuses one that
+stage reads: `/thunderstorm` asks GitHub for an issue's children and refuses one that
 declares none, so sub-issues that exist only as lines in a body are work no run
 can find. `tstorm board file --parent <n>` files a child
 under the parent, and `tstorm board sub add <parent> <child>` attaches one that
@@ -164,7 +164,7 @@ A milestone has no cap. Nothing loads it.
 ## Then
 
 Report what was filed: the milestone if there is one, each issue in it, and
-each sub-issue. The number `/storm` takes is an issue with sub-issues.
+each sub-issue. The number `/thunderstorm` takes is an issue with sub-issues.
 
 ## Do not
 

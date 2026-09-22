@@ -17,26 +17,26 @@ reasoning behind it; this is the operator's side of the same thing.
 ## The whole loop
 
 ```text
-/r-d      talk it through        -> internal/ideas/<name>.md
-/decomp   file it                -> an issue with sub-issues
-/triage   decide what is next    -> a ranked list, in chat
-/storm    run it                 -> pull requests, reviewed
-you       merge in GitHub        -> edge
+/rubber-duck    talk it through     -> internal/ideas/<name>.md
+/decompose      file it             -> an issue with sub-issues
+/triage         decide what is next -> a ranked list, in chat
+/thunderstorm   run it              -> pull requests, reviewed
+you             merge in GitHub     -> edge
 ```
 
-The middle two are optional. Filing work you already understand skips `/r-d`,
-and running the only thing that is queued skips `/triage`.
+The middle two are optional. Filing work you already understand skips
+`/rubber-duck`, and running the only thing that is queued skips `/triage`.
 
 ## The three shapes
 
 | Shape | Looks like | What you do with it |
 | --- | --- | --- |
 | Milestone | not an issue | Nothing directly. It groups issues. |
-| Issue with sub-issues | has children | **`/storm <n>`** |
-| Sub-issue | has no children | `/impl <n>` for one on its own |
+| Issue with sub-issues | has children | **`/thunderstorm <n>`** |
+| Sub-issue | has no children | `/implement <n>` for one on its own |
 
-`/storm` takes the middle row. A milestone is not an issue, so there is no way
-to dispatch one and no rule to remember about it.
+`/thunderstorm` takes the middle row. A milestone is not an issue, so there is
+no way to dispatch one and no rule to remember about it.
 
 An issue holds at most five open sub-issues, because a run keeps every one of
 them in a single context and loses the thread past that. When work outgrows
@@ -44,11 +44,12 @@ five, it becomes two issues in one milestone.
 
 ## What to type
 
-Starting from nothing, `/r-d <topic>` thinks it through and writes an idea
-file. `/decomp <that file>` files issues from it. Then `/storm <n>`.
+Starting from nothing, `/rubber-duck <topic>` thinks it through and writes an
+idea file. `/decompose <that file>` files issues from it. Then
+`/thunderstorm <n>`.
 
-Starting from an issue you already filed, `/storm <n>` if it has sub-issues and
-`/impl <n>` if it does not.
+Starting from an issue you already filed, `/thunderstorm <n>` if it has
+sub-issues and `/implement <n>` if it does not.
 
 When you are not sure what to work on, `/triage` reads the whole board, ranks
 it, and ends by printing the command to type next. It writes nothing.
@@ -92,13 +93,13 @@ Where a harness has no command mechanism, name the skill in the prompt.
 
 ## What a run does
 
-`/storm <n>` claims a sub-issue, gives it a worktree, dispatches an
+`/thunderstorm <n>` claims a sub-issue, gives it a worktree, dispatches an
 implementer, and opens a pull request. Then three review passes with a fix pass
 after each. Then it reports and moves to the next sub-issue.
 
 It stops when every sub-issue is terminal, one hits `status:blocked`, an edit
 pass runs out of rounds, or the work needs a decision the issues do not record.
-Add `one` to the argument, as `/storm 75 one`, to stop after the first
+Add `one` to the argument, as `/thunderstorm 75 one`, to stop after the first
 sub-issue. A stop for any other reason is a bug.
 
 ## Merging is yours
@@ -113,10 +114,10 @@ the issue to `status:verify` yourself; nothing does it for you.
 
 ## Skipping most of it
 
-A small fix you already understand is `/impl <n>`: no milestone, no run, no
-triage. Something you want to think about is `/r-d`, which writes a file and
-files nothing. A board you have lost track of is `/triage`, which answers and
-changes nothing.
+A small fix you already understand is `/implement <n>`: no milestone, no run,
+no triage. Something you want to think about is `/rubber-duck`, which writes a
+file and files nothing. A board you have lost track of is `/triage`, which
+answers and changes nothing.
 
 The full sequence is for work spanning several pull requests that you would
 rather not hold in your head.

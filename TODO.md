@@ -36,9 +36,9 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
    module proxy freezes, and the Homebrew tap the cask is waiting for.
 
 2. A real run outside Claude Code, which is what [#11] waits for. Install on
-   `trps` through the marketplace, which takes a local path, confirm `/decomp`
-   and `/impl`, then take one issue through implementation and review on Codex
-   or Pi.
+   `trps` through the marketplace, which takes a local path, confirm
+   `/decompose` and `/implement`, then take one issue through implementation
+   and review on Codex or Pi.
 
 3. [#18], one gate on a hook. Codex's hook events and wire format are Claude
    Code's names almost exactly, so one script covers both behind thin adapters

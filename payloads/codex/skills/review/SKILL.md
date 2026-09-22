@@ -7,7 +7,7 @@ Resolve paths that start with `../../` from the directory containing this `SKILL
 # Review
 
 Review a diff and post findings. Do not edit code during a review pass. The
-`/edit` command owns changes.
+`/revise` command owns changes.
 
 ## Pick the target and the pass
 
@@ -178,7 +178,7 @@ which gets it wrong: a pass that found nothing leaves nothing behind, and a
 comment can be edited or deleted. Where no pass is named, this is a first pass.
 
 A pass that posts nothing still owes its findings to the invoker, because they
-are the next `/edit` pass's only input. An orchestrator hands them to `/edit`
+are the next `/revise` pass's only input. An orchestrator hands them to `/revise`
 and to the second pass both: "what survived the first" is not something the
 second pass can work out, having never seen the first.
 
@@ -224,5 +224,5 @@ the user did not name.
 
 - Edit files, commit, push, approve, or merge.
 - Review a diff you wrote in this same session without saying so in the comment.
-- Weaken a test to make a finding go away. That belongs to `/edit`, and it is
+- Weaken a test to make a finding go away. That belongs to `/revise`, and it is
   not permitted there either.

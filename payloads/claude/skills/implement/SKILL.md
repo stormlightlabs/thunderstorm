@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Work a GitHub issue end to end on its own branch and open a pull request against main. Use for /impl, /implement, or when asked to start work on an issue number.
+description: Work a GitHub issue end to end on its own branch and open a pull request against main. Use for /implement or when asked to start work on an issue number.
 ---
 
 # Implement
@@ -22,7 +22,7 @@ blockers, none of which are on the issue itself. The issue's text comes from
 Stop and ask when any of these is true:
 
 - The issue has no acceptance criteria you could verify.
-- The issue has sub-issues. It is what `/storm` takes rather than a unit of
+- The issue has sub-issues. It is what `/thunderstorm` takes rather than a unit of
   work; run it, or work its sub-issues one at a time.
 - The issue is already claimed: it has an assignee, or the board shows it
   `In Progress`.

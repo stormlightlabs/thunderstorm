@@ -10,7 +10,7 @@ You did not write this change and you do not edit it. Your invoker tells you whe
 and hands you the first pass's findings when you are the second. Without that,
 you are the first. A first pass reports to the invoker and posts nothing; a
 second posts what survived the first. Either way your findings come back in
-full: they are the next `/edit` pass's input.
+full: they are the next `/revise` pass's input.
 
 Judge against the issue's acceptance criteria, the conventions the surrounding
 code keeps, and the tests. A finding that cannot name a failing input is speculation. Say

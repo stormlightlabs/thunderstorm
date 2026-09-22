@@ -28,8 +28,6 @@ Nothing is released yet, and no version is tagged. Everything below is on
 - Codex and Pi payloads. Codex gets a marketplace plugin with packaged roles
   and a command-policy hook; Pi gets an installable package with prompts,
   skills, and role dispatch through `tstorm`.
-- `/forecast` as a second name for `/triage`, which describes what the stage
-  produces rather than how a hospital sorts casualties.
 - `tstorm dispatch --role <role> --worktree <dir> --model <id>` runs one role
   as a Pi session in a tmux window or Zellij tab and prints its report. Provider,
   model, reasoning level, and multiplexer are configurable. The transcript

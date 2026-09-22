@@ -8,7 +8,7 @@ description: Read the whole board and rank what to dispatch next, as lanes that 
 One pass over the whole board. It produces an order to dispatch in and a plan
 for running several issues at once. It reads everything and writes nothing.
 
-`/storm` runs one issue and its sub-issues. This chooses among them, and among
+`/thunderstorm` runs one issue and its sub-issues. This chooses among them, and among
 the issues that belong to no milestone at all.
 
 ## The list is re-derived, never stored
@@ -57,8 +57,8 @@ one decides, and why the MCP tools cannot replace the call.
 ## Work no run can reach
 
 An open issue with an empty `parent_issue_url` is under no parent, and
-`/storm` dispatches an issue's children, so no run reaches it however long it
-stays queued. It is still claimable and it still ranks, and `/impl` takes it
+`/thunderstorm` dispatches an issue's children, so no run reaches it however long it
+stays queued. It is still claimable and it still ranks, and `/implement` takes it
 directly.
 
 Report the count and the top five by rank, not the list. There are about forty
@@ -151,7 +151,7 @@ Two issues never share a fan-out:
 - Either touches released behavior, data, or security. That wants a thread
   and a review sequence to itself.
 - Either has sub-issues. `implement` refuses an issue with children, so it is
-  something `/storm` takes, not a lane entry.
+  something `/thunderstorm` takes, not a lane entry.
 
 Three issues per lane is enough. Past that the plan is a backlog, and the board
 already holds one.
@@ -163,7 +163,7 @@ thread dispatched on an unfiled item holds something invisible, and the next
 thread picks the same work up with nothing to warn it.
 
 Name ad-hoc work in the argument and triage places it in the order, marked
-off-board, with what it would displace. File it through `/decomp` before any
+off-board, with what it would displace. File it through `/decompose` before any
 thread takes it. Triage does not file it: a command that ranks work should not
 also create the work it ranks.
 
@@ -196,7 +196,7 @@ Then give the literal next command, so the operator reads a line to type rather
 than a plan to translate:
 
 ```sh
-/storm 75     # or: /impl 91 for a lane entry under no parent
+/thunderstorm 75     # or: /implement 91 for a lane entry under no parent
 ```
 
 ## Do not

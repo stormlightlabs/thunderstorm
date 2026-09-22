@@ -1,6 +1,6 @@
 ---
 name: rubber-duck
-description: Think through a design, feature, or problem in conversation before any code or spec exists, and record the result as an idea file. Use for /r-d, /rubber-duck, ideation, design discussion, or working out an approach.
+description: Think through a design, feature, or problem in conversation before any code or spec exists, and record the result as an idea file. Use for /rubber-duck, ideation, design discussion, or working out an approach.
 ---
 
 # Rubber duck

@@ -1,6 +1,6 @@
 {
   "name": "thunderstorm",
-  "version": "0.1.0-rc.3",
+  "version": "0.1.0-rc.4",
   "description": "Run GitHub issues through triage, decomposition, implementation, review, and revision.",
   "author": {
     "name": "Stormlight Labs",
@@ -125,9 +125,6 @@
       "kind": "command",
       "name": "decompose",
       "source": "commands/decompose.md",
-      "aliases": [
-        "decomp"
-      ],
       "requires": [
         "commands"
       ]
@@ -136,9 +133,6 @@
       "kind": "command",
       "name": "implement",
       "source": "commands/implement.md",
-      "aliases": [
-        "impl"
-      ],
       "requires": [
         "commands"
       ]
@@ -155,9 +149,6 @@
       "kind": "command",
       "name": "revise",
       "source": "commands/revise.md",
-      "aliases": [
-        "edit"
-      ],
       "requires": [
         "commands"
       ]
@@ -166,9 +157,6 @@
       "kind": "command",
       "name": "rubber-duck",
       "source": "commands/rubber-duck.md",
-      "aliases": [
-        "r-d"
-      ],
       "requires": [
         "commands"
       ]
@@ -177,9 +165,6 @@
       "kind": "command",
       "name": "specify",
       "source": "commands/specify.md",
-      "aliases": [
-        "spec-ify"
-      ],
       "requires": [
         "commands"
       ]
@@ -188,9 +173,6 @@
       "kind": "command",
       "name": "thunderstorm",
       "source": "commands/thunderstorm.md",
-      "aliases": [
-        "storm"
-      ],
       "requires": [
         "commands",
         "subagents"
@@ -200,9 +182,6 @@
       "kind": "command",
       "name": "triage",
       "source": "commands/triage.md",
-      "aliases": [
-        "forecast"
-      ],
       "requires": [
         "commands"
       ]

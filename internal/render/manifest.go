@@ -86,7 +86,6 @@ type Artifact struct {
 	Kind     Kind     `json:"kind"`
 	Name     string   `json:"name"`
 	Source   string   `json:"source"`
-	Aliases  []string `json:"aliases,omitempty"`
 	Requires []string `json:"requires"`
 
 	// Hooks only: the events that run this one, and how the harness is told
@@ -102,12 +101,6 @@ type HookEvent struct {
 	Event   string `json:"event"`
 	Matcher string `json:"matcher,omitempty"`
 	Timeout int    `json:"timeout,omitempty"`
-}
-
-// Names returns the artifact's own name followed by its aliases, which is one
-// output file each for a harness that has no alias mechanism of its own.
-func (a Artifact) Names() []string {
-	return append([]string{a.Name}, a.Aliases...)
 }
 
 // Load reads the manifest at root/manifest.json and checks it against the
@@ -156,15 +149,11 @@ func (m Manifest) validate(root string) error {
 			return fmt.Errorf("hook %q has no events; a harness cannot register it", a.Name)
 		case a.Kind != KindHook && len(a.Events) > 0:
 			return fmt.Errorf("artifact %q is a %s, which registers no events", a.Name, a.Kind)
-		case len(a.Aliases) > 0 && a.Kind != KindCommand:
-			return fmt.Errorf("artifact %q is a %s; only a command carries aliases", a.Name, a.Kind)
 		}
-		// Every name becomes a path inside the payload, so a name carrying a
+		// The name becomes a path inside the payload, so a name carrying a
 		// separator or a dot segment writes outside it.
-		for _, n := range a.Names() {
-			if n == "" || n != path.Base(n) || n == "." || n == ".." || strings.ContainsAny(n, `/\`+"\n") {
-				return fmt.Errorf("artifact %q: %q is not a usable file name", a.Name, n)
-			}
+		if n := a.Name; n != path.Base(n) || n == "." || n == ".." || strings.ContainsAny(n, `/\`+"\n") {
+			return fmt.Errorf("artifact %q: %q is not a usable file name", a.Name, n)
 		}
 		for _, e := range a.Events {
 			if e.Event == "" {
@@ -176,13 +165,11 @@ func (m Manifest) validate(root string) error {
 				return fmt.Errorf("artifact %q requires unknown capability %q", a.Name, c)
 			}
 		}
-		for _, n := range a.Names() {
-			key := string(a.Kind) + "/" + n
-			if other, dup := seen[key]; dup {
-				return fmt.Errorf("%s %q is claimed by both %s and %s", a.Kind, n, other, a.Source)
-			}
-			seen[key] = a.Source
+		key := string(a.Kind) + "/" + a.Name
+		if other, dup := seen[key]; dup {
+			return fmt.Errorf("%s %q is claimed by both %s and %s", a.Kind, a.Name, other, a.Source)
 		}
+		seen[key] = a.Source
 		if err := checkSource(root, a); err != nil {
 			return err
 		}

@@ -136,13 +136,13 @@ Work moves through these. The bracketed stage is skipped whenever it would add
 nothing.
 
 ```text
-/r-d            an idea            internal/ideas/
-[/spec-ify]     a design           internal/features/<name>/plan.md
-/decomp         issues of up to five sub-issues, in a milestone if several
+/rubber-duck    an idea            internal/ideas/
+[/specify]      a design           internal/features/<name>/plan.md
+/decompose      issues of up to five sub-issues, in a milestone if several
 [/triage]       which of them to dispatch next, and what runs at once
-/storm          one run over one of those issues, dispatching the stages below
-/impl           a pull request
-/rev, /adv-rev, /edit              review passes and their fixes
+/thunderstorm   one run over one of those issues, dispatching the stages below
+/implement      a pull request
+/rev, /adv-rev, /revise   review passes and their fixes
 a human         squashes it into edge, in GitHub
 ```
 
@@ -155,26 +155,24 @@ is a summary with more words.
 stage that files issues. `github-board` performs those writes but decides
 nothing about what to write.
 
-A run is what carries a sub-issue from queued to merged: `/storm` claims each
-one and dispatches the stages under it. One issue worked on its own skips the
-run and starts at `/impl`.
+A run is what carries a sub-issue from queued to merged: `/thunderstorm`
+claims each one and dispatches the stages under it. One issue worked on its own
+skips the run and starts at `/implement`.
 
 ## Commands
 
 | Command                 | Argument                  | Does                                                                               |
 | ----------------------- | ------------------------- | ---------------------------------------------------------------------------------- |
-| `/r-d`, `/rubber-duck`  | A topic                   | Design discussion. Writes an entry to `internal/ideas/` on request.                |
-| `/spec-ify`, `/specify` | An idea or topic          | One design to `internal/features/<name>/plan.md`. Only when a decision is missing. |
-| `/decomp`, `/decompose` | An idea, spec, or finding | Files the issues a run can take, their sub-issues, and a milestone if several.     |
+| `/rubber-duck`          | A topic                   | Design discussion. Writes an entry to `internal/ideas/` on request.                |
+| `/specify`              | An idea or topic          | One design to `internal/features/<name>/plan.md`. Only when a decision is missing. |
+| `/decompose`            | An idea, spec, or finding | Files the issues a run can take, their sub-issues, and a milestone if several.     |
 | `/triage`               | Thread count or a scope   | Ranks the board and lays the top of it into lanes. Writes nothing.                 |
-| `/storm`, `/thunderstorm` | Issue number, then `one` | One run over that issue. Claims each sub-issue, dispatches it, and reports. |
-| `/impl`, `/implement`   | Issue number              | Claims the issue, works it on an `agent/` branch, opens a pull request.            |
+| `/thunderstorm`         | Issue number, then `one` | One run over that issue. Claims each sub-issue, dispatches it, and reports. |
+| `/implement`            | Issue number              | Claims the issue, works it on an `agent/` branch, opens a pull request.            |
 | `/rev`                  | Branch or PR number       | Standard review pass. Comments only on the second pass.                            |
 | `/adv-rev`              | Branch or PR number       | Adversarial review pass. Always comments.                                          |
-| `/edit`, `/revise`      | PR number                 | Addresses review comments on that pull request.                                    |
+| `/revise`               | PR number                 | Addresses review comments on that pull request.                                    |
 | `/release`              | A version                 | `edge` to `main`, tag, publish. Confirms three times.                              |
-
-An alias is a symlink to its canonical file, so the pair cannot drift.
 
 ## Choosing what to run next
 
@@ -214,12 +212,12 @@ passes are cheap to run; what is expensive is a long comment, which is why they
 are budgeted below rather than fewer.
 
 1. `/rev` runs the first pass and reports to whoever dispatched it.
-2. `/edit` addresses those findings, which it is handed rather than reading
+2. `/revise` addresses those findings, which it is handed rather than reading
    from the thread.
 3. `/rev` runs again on the revised diff and comments on what survived.
-4. `/edit` addresses the second round.
+4. `/revise` addresses the second round.
 5. `/adv-rev` runs the adversarial pass and always comments.
-6. `/edit` addresses the adversarial findings.
+6. `/revise` addresses the adversarial findings.
 7. A human reviews and merges to `edge`.
 
 Which pass is which comes from the dispatch, not from reading the thread. The
@@ -378,7 +376,7 @@ of gaps goes stale the moment one closes.
 | Path                    | Holds                                                          |
 | ----------------------- | -------------------------------------------------------------- |
 | `.claude/skills/`       | Skills. `.agents/skills` symlinks here.                        |
-| `.claude/commands/`     | Slash commands. An alias is a symlink to its canonical file.   |
+| `.claude/commands/`     | Slash commands, one per skill.                                 |
 | `.claude/agents/`       | Subagent definitions for dispatch.                             |
 | `.githooks/`            | Git hooks. Enable with `git config core.hooksPath .githooks`.  |
 | `internal/`             | Plans, specs, ideas, QA notes. Not published by the docs site. |

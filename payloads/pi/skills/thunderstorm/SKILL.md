@@ -1,6 +1,6 @@
 ---
 name: thunderstorm
-description: Run one thunderstorm loop over an issue and its sub-issues. Dispatches work, tracks status, reports, and stops. Use for /storm, /thunderstorm, or when asked to run an issue with sub-issues.
+description: Run one thunderstorm loop over an issue and its sub-issues. Dispatches work, tracks status, reports, and stops. Use for /thunderstorm or when asked to run an issue with sub-issues.
 ---
 
 # Thunderstorm
@@ -31,8 +31,8 @@ text comes from `gh` locally, or `issue_read` method `get` in a cloud session.
 
 Stop and ask when any of these is true:
 
-- It declares no sub-issues. It is a unit of work; use `/impl` instead.
-- It has more than five open sub-issues. Split it through `/decomp` first: a
+- It declares no sub-issues. It is a unit of work; use `/implement` instead.
+- It has more than five open sub-issues. Split it through `/decompose` first: a
   run holds every sub-issue it dispatches in one context, and past five that
   context is spent on work not yet started.
 - Its `Done when` condition is missing or not checkable.
@@ -118,12 +118,12 @@ Do not review the diff yourself. The `review` skill owns that, and the
 orchestrator forming its own verdict defeats the separation the sequence exists
 to create.
 
-The sequence per pull request is `/rev`, `/edit`, `/rev`, `/edit`, `/adv-rev`,
-`/edit`. Then stop. A human merges to `main`.
+The sequence per pull request is `/rev`, `/revise`, `/rev`, `/revise`, `/adv-rev`,
+`/revise`. Then stop. A human merges to `main`.
 
 Tell each pass which one it is, because nothing else can: a pass that reads the
 thread to work it out gets the answer wrong. The first `/rev` reports its
-findings to you and posts nothing, so hand them to the `/edit` that follows and
+findings to you and posts nothing, so hand them to the `/revise` that follows and
 to the second `/rev`. They are the edit pass's only input, and the second pass
 cannot say what survived the first without them. From the second pass on, each
 pass comments for itself.

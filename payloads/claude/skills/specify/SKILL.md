@@ -1,6 +1,6 @@
 ---
 name: specify
-description: Turn an idea into a design document a decomposition can read. Use for /spec-ify, /specify, or when an idea cannot yet produce issues because something has to be decided first.
+description: Turn an idea into a design document a decomposition can read. Use for /specify or when an idea cannot yet produce issues because something has to be decided first.
 ---
 
 # Specify

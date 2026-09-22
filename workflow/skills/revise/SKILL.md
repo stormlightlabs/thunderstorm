@@ -1,6 +1,6 @@
 ---
 name: revise
-description: Address review comments on an open pull request and push the fixes. Use for /edit, /revise, or when asked to respond to review feedback on a PR number.
+description: Address review comments on an open pull request and push the fixes. Use for /revise or when asked to respond to review feedback on a PR number.
 ---
 
 # Revise

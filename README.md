@@ -47,17 +47,17 @@ Each stage is a skill the agent loads. Claude Code and Pi expose the commands
 below. Codex invokes the installed skill as `$thunderstorm:<skill>`; for
 example, `$thunderstorm:thunderstorm Run issue 123` starts the full loop.
 
-| Command | What it does |
-| --- | --- |
-| `/r-d` | Rubber-duck a design before any code exists |
-| `/spec-ify` | Turn an idea into a spec when issues need a decision first |
-| `/decomp` | Cut an idea or spec into issues and their sub-issues |
-| `/forecast`, `/triage` | Rank the board into a dispatch plan |
-| `/storm` | Run one loop over an issue and its sub-issues |
-| `/impl` | Work one issue on its own branch and open a pull request |
-| `/rev` | Standard review pass |
-| `/adv-rev` | Adversarial review pass |
-| `/edit` | Address the findings a pass returned |
+| Command         | What it does                                               |
+| --------------- | ---------------------------------------------------------- |
+| `/rubber-duck`  | Rubber-duck a design before any code exists                |
+| `/specify`      | Turn an idea into a spec when issues need a decision first |
+| `/decompose`    | Cut an idea or spec into issues and their sub-issues       |
+| `/triage`       | Rank the board into a dispatch plan                        |
+| `/thunderstorm` | Run one loop over an issue and its sub-issues              |
+| `/implement`    | Work one issue on its own branch and open a pull request   |
+| `/rev`          | Standard review pass                                       |
+| `/adv-rev`      | Adversarial review pass                                    |
+| `/revise`       | Address the findings a pass returned                       |
 
 ## tstorm
 
@@ -104,11 +104,11 @@ skips the review fan-out is worse than no payload.
 
 ## Harness support
 
-| | Claude Code | Codex | Pi |
-| --- | --- | --- | --- |
-| Skills | `.claude/skills/` | plugin skills | `.agents/skills/`, `.pi/skills/` |
-| Dispatch | subagents | built-in agents with packaged roles | a session per tmux or Zellij tab |
-| Checks | hooks | a plugin hook | an extension |
+|          | Claude Code       | Codex                               | Pi                               |
+| -------- | ----------------- | ----------------------------------- | -------------------------------- |
+| Skills   | `.claude/skills/` | plugin skills                       | `.agents/skills/`, `.pi/skills/` |
+| Dispatch | subagents         | built-in agents with packaged roles | a session per tmux or Zellij tab |
+| Checks   | hooks             | a plugin hook                       | an extension                     |
 
 `docs/internal/hosts.md` records how each row was verified, including the
 fixture used and the versions it was checked against.
@@ -127,15 +127,6 @@ payloads/       what `tstorm render` builds from them, one directory per harness
 docs/           the published site
 docs/internal/  working documents, not published
 ```
-
-## Status
-
-The binary is early: `tstorm render`, `tstorm dispatch`, and `tstorm version`
-are what exist. The rest of the surface is on the board under the
-**Thunderstorm** track of
-[project 13](https://github.com/orgs/stormlightlabs/projects/13). Claude Code,
-Codex, and Pi payloads render from the shared workflow. Cursor remains
-unsupported.
 
 ## License
 

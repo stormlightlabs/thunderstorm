@@ -173,8 +173,7 @@ func (p *Payload) markerBody(skip map[string]bool) []byte {
 }
 
 // render copies one artifact into payload files, substituting the resource
-// root in prose and giving an alias its own file, because no harness here has
-// an alias mechanism of its own.
+// root in prose.
 func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 	dir := t.dirs[a.Kind]
 	sources, err := a.files(root)
@@ -204,9 +203,7 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 				return nil, err
 			}
 		}
-		for _, name := range a.Names() {
-			out = append(out, File{Path: p.destination(a, dir, name, src), Body: body, Mode: mode})
-		}
+		out = append(out, File{Path: p.destination(a, dir, src), Body: body, Mode: mode})
 	}
 	return out, nil
 }
@@ -214,22 +211,22 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 // destination places one source file in the payload. A skill keeps its
 // directory and everything under it; everything else becomes one file named
 // for the command, agent, hook, or script that the harness will look up.
-func (p *Payload) destination(a Artifact, dir, name, src string) string {
+func (p *Payload) destination(a Artifact, dir, src string) string {
 	if a.Kind == KindSkill {
 		rel := strings.TrimPrefix(src, a.Source+"/")
-		return path.Join(dir, name, rel)
+		return path.Join(dir, a.Name, rel)
 	}
 	if a.Kind == KindCommand {
-		return path.Join(dir, name+".md")
+		return path.Join(dir, a.Name+".md")
 	}
 	if a.Kind == KindAgent {
 		ext := ".md"
 		if p.Target.Name == "codex" {
 			ext = ".toml"
 		}
-		return path.Join(dir, name+ext)
+		return path.Join(dir, a.Name+ext)
 	}
-	return path.Join(dir, name)
+	return path.Join(dir, a.Name)
 }
 
 // executable reports whether a mode carries any execute bit, which is the
