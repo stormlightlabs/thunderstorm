@@ -94,8 +94,12 @@ func TestAWrongBlockIsNamed(t *testing.T) {
 func TestABlockTheConventionAllowsPasses(t *testing.T) {
 	for name, files := range map[string]map[string]string{
 		"upper-case filename": {"BUGS.md": block("bugs")},
-		"per-feature plan":    {"models.md": block("models"), "features/mcp/plan.md": "# MCP\n"},
-		"per-feature tasks":   {"models.md": block("models"), "features/mcp/tasks.md": "# MCP\n"},
+		"nested plan":         {"features/mcp/plan.md": block("features-mcp-plan")},
+		"one plan per feature": {
+			"features/mcp/plan.md":   block("features-mcp-plan"),
+			"features/hooks/plan.md": blockWith("features-hooks-plan", alsoGoodID, "2026-09-17"),
+		},
+		"nested README": {"features/mcp/README.md": block("features-mcp")},
 		"list under a key": {"models.md": "---\nname: models\nlast_updated: 2026-09-17\nid: " +
 			goodID + "\ntags:\n  - one\n  - two\n---\n\n# Body\n"},
 		"comment and hyphenated key": {"models.md": "---\n# the identifier never changes\nname: models\n" +
@@ -128,38 +132,31 @@ func TestAMilestoneThatIsNotAURLIsRejected(t *testing.T) {
 	}
 }
 
-// The exemption names features/ at the top of the tree being checked, not any
-// directory called features.
-func TestAFeaturesDirectoryElsewhereInheritsNoExemption(t *testing.T) {
+// A nested document is named for its whole path, so two plans under two
+// feature directories are two names rather than one collision.
+func TestANestedDocumentIsNamedForItsPath(t *testing.T) {
 	_, stderr, err := frontmatter(t, map[string]string{
-		"models.md":                    block("models"),
-		"archive/features/old/plan.md": "# Old\n",
+		"features/mcp/plan.md": block("plan"),
+	})
+	if code := ExitCode(err); code != 1 {
+		t.Fatalf("exit %d, want 1: %v", code, err)
+	}
+	if !strings.Contains(stderr, `expected "features-mcp-plan"`) {
+		t.Errorf("did not name the path: %q", stderr)
+	}
+}
+
+// Nothing is exempt from the block itself, wherever it sits in the tree.
+func TestANestedDocumentWithNoBlockFails(t *testing.T) {
+	_, stderr, err := frontmatter(t, map[string]string{
+		"models.md":            block("models"),
+		"features/mcp/plan.md": "# MCP\n",
 	})
 	if code := ExitCode(err); code != 1 {
 		t.Fatalf("exit %d, want 1: %v", code, err)
 	}
 	if !strings.Contains(stderr, "does not open with frontmatter") {
 		t.Errorf("did not report the file: %q", stderr)
-	}
-}
-
-// A waived file that has a block still answers for everything but its name.
-func TestAWaivedFileWithABlockStillAnswersForIt(t *testing.T) {
-	_, stderr, err := frontmatter(t, map[string]string{
-		"models.md": block("models"),
-		"features/mcp/plan.md": "---\nname: anything\nlast_updated: not-a-date\nid: " +
-			goodID + "\n---\n\n# Plan\n",
-	})
-	if code := ExitCode(err); code != 1 {
-		t.Fatalf("exit %d, want 1: %v", code, err)
-	}
-	for _, want := range []string{"id is also on", "expected YYYY-MM-DD"} {
-		if !strings.Contains(stderr, want) {
-			t.Errorf("did not report %q: %q", want, stderr)
-		}
-	}
-	if strings.Contains(stderr, "name is") {
-		t.Errorf("graded the name of a waived file: %q", stderr)
 	}
 }
 

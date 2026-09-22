@@ -110,6 +110,12 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Changed
 
+- `tstorm check frontmatter` names a document for its whole path rather than
+  its filename, so `features/mcp/plan.md` is `features-mcp-plan` and two plans
+  under two feature directories no longer ask for one name. The per-feature
+  waiver list is gone with it, and the skills that write plans and ideas name
+  the directory `.tstorm.toml` configures instead of `internal/` ([#3]).
+
 - `tstorm` reads `.tstorm.toml` first and the older `.tstorm.json` second, in
   the directory a command runs in and then each directory above it, with the
   same settings under the same names. The reason a prose rule is muted is a

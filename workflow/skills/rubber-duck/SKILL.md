@@ -28,15 +28,20 @@ evidence, and the difference belongs in the answer.
 ## What to write down
 
 The conversation is not the artifact. When the discussion settles, or when the
-user asks, write an entry to `internal/ideas/`.
+user asks, write an entry under `ideas/` in the directory `documents` names in
+`.tstorm.toml`. A repository that names none creates `docs/internal/` and sets
+`documents = "docs/internal"`.
 
 ```sh
 tstorm ulid
 ```
 
+The name is the document's path under that directory, extension dropped and
+slashes turned to dashes, so `ideas/tool-kinds.md` is named `ideas-tool-kinds`.
+
 ```markdown
 ---
-name: <short-kebab-case-name>
+name: <path under the tree, separators as dashes>
 last_updated: <YYYY-MM-DD>
 id: <ULID>
 ---

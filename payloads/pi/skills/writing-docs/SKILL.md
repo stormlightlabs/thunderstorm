@@ -152,9 +152,12 @@ not a score.
 ## Repository conventions
 
 - Sentence case for new headings.
-- Files under `internal/` need `name`, `last_updated`, and a ULID `id` in
-  frontmatter. Generate identifiers with `tstorm ulid`, and check the tree with
-  `tstorm check frontmatter`, which reads the directory from `.tstorm.toml`.
+- Documents under the directory `documents` names in `.tstorm.toml` need
+  `name`, `last_updated`, and a ULID `id` in frontmatter. The name is the
+  document's path under that directory, extension dropped and slashes turned to
+  dashes. Generate identifiers with `tstorm ulid` and check the tree with
+  `tstorm check frontmatter`, which skips a repository that has configured no
+  directory.
 - Claims in research notes carry a confidence caveat. Do not strip it while
   editing for style.
 - `meta/tropes.md` and the corpus under `meta/examples/` are quoted source, not

@@ -27,21 +27,32 @@ A spec that records no decision is a summary of the idea with more words.
 
 ## Where it goes
 
+Under the directory `documents` names in `.tstorm.toml`:
+
 ```text
-internal/features/<feature-name>/plan.md
+<documents>/features/<feature-name>/plan.md
 ```
 
+A repository that names none creates `docs/internal/` and sets
+`documents = "docs/internal"`. That one setting is what the skills write into
+and what `tstorm check frontmatter` walks.
+
 One directory per feature track, named for the feature rather than for the
-change. Every file under `internal/` carries the frontmatter that
-`tstorm check frontmatter` requires:
+change. Every document under that tree carries the frontmatter the check
+requires:
 
 ```yaml
 ---
-name: <short-kebab-case-name>
+name: <path under the tree, separators as dashes>
 last_updated: <YYYY-MM-DD>
 id: <ULID>
 ---
 ```
+
+The name is the document's path with the extension dropped and the slashes
+turned to dashes, so `features/mcp/plan.md` is named `features-mcp-plan` and
+two plans under two feature directories have two names. A `README.md` takes
+the name of the directory holding it.
 
 Generate the identifier with `tstorm ulid`. The idea the spec came
 from cites its own identifier, and issues cut from the spec cite the spec's, so
