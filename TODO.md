@@ -25,7 +25,8 @@ checked on 2026-09-19:
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
 ```
 
-That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
+That built and ran. A build now names the tag it descends from and the commit
+under it, so what it reported then reads as `v0.1.0-rc.1+g<commit>` today.
 
 ## The sequence
 
@@ -35,10 +36,10 @@ That built and ran, reporting `v0.0.0-20260920015401-fa6318c9d4bb`.
    and the install page stay editable. What is left is `v0.1.0`, which the
    module proxy freezes, and the Homebrew tap the cask is waiting for.
 
-2. A real run outside Claude Code, which is what [#11] waits for. Install on
-   `trps` through the marketplace, which takes a local path, confirm
-   `/decompose` and `/implement`, then take one issue through implementation
-   and review on Codex or Pi.
+2. A real run outside Claude Code, which is what [#11] waits for. `trps` holds
+   the payload already, put there by `tstorm install`; what is left is
+   confirming `/decompose` and `/implement` there, then taking one issue
+   through implementation and review on Codex or Pi.
 
 3. [#18], one gate on a hook. Codex's hook events and wire format are Claude
    Code's names almost exactly, so one script covers both behind thin adapters

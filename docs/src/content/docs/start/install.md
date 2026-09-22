@@ -5,18 +5,101 @@ sidebar:
   order: 2
 ---
 
-Thunderstorm ships payloads for Claude Code, Codex, and Pi.
+Thunderstorm ships payloads for Claude Code, Codex, and Pi. `tstorm install`
+puts one in a repository; each harness can also install it as a plugin of its
+own.
 
-## Claude Code
+## tstorm install
+
+```sh
+GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
+cd <your repository>
+tstorm install
+```
+
+The binary carries the workflow, so nothing has to be checked out anywhere.
+Claude Code is the default target; `--target codex` and `--target pi` write
+theirs, and `--dir` installs into a repository you are not standing in.
+
+Four things happen, and `--check` reports all of them without writing:
+
+1. The payload is rendered into `.claude`, `.codex`, or `.pi`.
+2. The commands the workflow reserves for a person are merged into the
+   repository's `permissions.deny`.
+3. The gate is registered in the same settings file, against
+   `$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh`.
+4. A `.tstorm.toml` is written from what you named, and its documents tree is
+   created.
+
+Steps 2 and 3 are Claude Code's. Codex reads an execution policy and Pi its
+extension, so `--target codex` and `--target pi` skip them and say so.
+
+Step 4 invents nothing. With no flags no config is written, because a board
+nobody named cannot be guessed:
+
+```sh
+tstorm install --board stormlightlabs/13 --documents docs/internal
+tstorm install --board stormlightlabs/13 --track Tropius   # a shared board
+```
+
+`--no-settings` and `--no-config` turn off a step whose file you keep yourself.
+
+The install writes its own files and leaves every other file in the directory
+alone, so a settings file, a hook and a worktrees directory beside the payload
+survive it. `.tstorm-payload` records which files the render owns and which
+version wrote them. The next install replaces those and removes the ones the
+source stopped producing. A path the repository owns and the payload also
+wants stops the install and names the file.
+
+A directory from an older copy carries no marker, which is every repository
+that installed the workflow before `tstorm render` existed. `--adopt` takes
+one over:
+
+```sh
+tstorm install --adopt --check   # says what it would do
+tstorm install --adopt
+```
+
+It replaces the files the payload writes, leaves the rest, and writes the
+marker so no later install needs the flag. What it leaves includes the older
+payload's own files, listed by path: an install removes only what it wrote, and
+a directory with no marker has no record of that. Read that list and delete
+what the workflow replaced.
+
+## tstorm update
+
+```sh
+tstorm update            # the payload under the current directory
+tstorm update --check    # says what it would move, writes nothing
+tstorm update --dir ../other-repo
+```
+
+Update finds the payload by its marker, names the version that wrote it and
+the one this binary carries, re-renders, and merges the settings again, so a
+command the workflow newly reserves reaches a repository that installed months
+ago. A payload installed before the marker carried a version reports an
+unknown one and updates anyway.
+
+Your config is left alone. A repository's board and documents tree are its own
+after the first install.
+
+Update ends by saying when a newer `tstorm` has been released. That lookup is
+cached for a day and gives up after three seconds, and `--offline` skips it.
+`tstorm update --self` takes the new one: it downloads the release for your
+machine, checks it against the `checksums.txt` published beside it, and
+renames it over the binary you are running.
+
+## Claude Code as a plugin
 
 ```sh
 claude plugin marketplace add stormlightlabs/thunderstorm
 claude plugin install thunderstorm@stormlightlabs
 ```
 
-`/plugin marketplace add` and `/plugin install` do the same from inside a
-session. `marketplace add` also takes an HTTPS URL, an SSH URL, or a local
-path. Twelve skills, sixteen commands and four agents arrive; `claude plugin
+This keeps the payload in Claude Code's own cache rather than in the
+repository. `/plugin marketplace add` and `/plugin install` do the same from
+inside a session. `marketplace add` also takes an HTTPS URL, an SSH URL, or a
+local path. Twelve skills, nine commands and four agents arrive; `claude plugin
 details thunderstorm` lists them and what they cost a session.
 
 ### Enable it for everyone on a project
@@ -45,18 +128,18 @@ next session. A `directory` source takes a path, and a relative one is read
 from the project root, which is how this repository installs the payload it
 renders.
 
-The four denied commands are not in it. No plugin mechanism carries a
-permission, so merge the `permissions.deny` block from
-[`payloads/claude/settings.json`](https://github.com/stormlightlabs/thunderstorm/blob/main/payloads/claude/settings.json)
-into the same file by hand, and check the merge:
+The four denied commands are not in it, because no plugin mechanism carries a
+permission. `tstorm install --no-config` merges them into the same file, or
+add the `permissions.deny` block by hand. Either way, check the merge:
 
 ```sh
-tstorm check policy --expected <payload>/settings.json .claude/settings.json
+tstorm check policy
 ```
 
-It names every reserved command the settings do not deny. Run it in CI as
-well: a command added to the workflow reaches the payload on the next update
-and the repository's settings never.
+It reads the deny list from the workflow the binary carries and names every
+reserved command `.claude/settings.json` does not deny. Run it in CI as well: a
+command added to the workflow reaches the payload on the next update and the
+repository's settings never.
 
 ## Codex
 
@@ -141,48 +224,19 @@ merge and push command prefixes. `tstorm dispatch` starts each role in its own
 Pi session. When Pi runs inside tmux or Zellij, dispatch opens a new window or
 tab in that session so the operator can watch and control it.
 
-## Commit the payload instead
+## Render from a checkout
 
-A repository that wants the workflow in its own tree renders it there. Target
-names the destination:
-
-```sh
-tstorm render --target claude   # .claude
-tstorm render --target codex    # .codex
-tstorm render --target pi       # .pi
-```
-
-`--out <dir>` takes somewhere else, which is what thunderstorm itself does to
-build the payloads it publishes.
-
-The render writes its own files and leaves every other file in the directory
-alone, so a settings file, a hook and a worktrees directory beside the payload
-survive it. `.tstorm-payload` is the record of which files the render owns, and
-the next render replaces those and removes the ones the source stopped
-producing. A path the repository owns and the payload also wants stops the
-render and names the file. `settings.json` is the exception: the payload writes
-it where there is none and leaves the one it finds, because the permissions
-block is merged by hand.
-
-A directory from an older copy carries no marker, which is every repository
-that installed the workflow before `tstorm render` existed. `--adopt` takes
-one over:
+`tstorm render` builds a payload from a workflow directory rather than from the
+one the binary carries, which is how thunderstorm builds the payloads it
+publishes and how anyone editing the loop sees the result:
 
 ```sh
-tstorm render --target claude --adopt --check   # says what it would do
-tstorm render --target claude --adopt
+tstorm render --target claude --out payloads/claude
+tstorm render --target claude --out payloads/claude --check
 ```
 
-It replaces the files the payload writes, leaves the rest, and writes the
-marker so no later render needs the flag. What it leaves includes the older
-payload's own files, listed by path: a render removes only what it wrote, and
-a directory with no marker has no record of that. Read that list and delete
-what the workflow replaced.
-
-Hooks are the one thing the copy route does not carry. `hooks/hooks.json` is
-read by a plugin install, so a repository rendering into `.claude` registers
-the hook in its own `settings.json`, against
-`$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh`.
+`--source <dir>` names the workflow tree, and `install --source <dir>` reads
+one too, which is how an edit reaches a repository before it is committed.
 
 ## Checks
 
@@ -209,9 +263,10 @@ install -m 755 tstorm ~/.local/bin/tstorm
 tstorm version
 ```
 
-`tstorm version` names the tag and the commit it was built from. Homebrew is
-the other route planned, through a tap in this organization, and it is the
-only other one.
+`tstorm version` names the tag a build descends from and the commit under it,
+`v0.1.0-rc.1+g1969674`, so two builds of one tag are told apart. A release
+names its tag alone. Homebrew is the other route planned, through a tap in
+this organization, and it is the only other one.
 
 Two of them run on their own once the payload is installed. A write is checked
 for the frontmatter an issue cites a document by and for the writing tells the
@@ -238,11 +293,12 @@ go install ./cmd/tstorm     # to $GOBIN, or ~/go/bin
 tstorm version
 ```
 
-A build from a checkout takes its version from the repository's tags, so
-`tstorm version` on a clone that has fetched none reports `(devel)`. `go build
--o ~/.local/bin/tstorm ./cmd/tstorm` puts it somewhere else. `TSTORM_BIN`
-names the binary for the hooks where it is on neither `PATH` nor the payload's
-`bin/`, which is how to run a build under test without installing it.
+A build from a checkout names the tag its tree descends from and the commit it
+was built at, and appends `.dirty` where that tree had uncommitted changes.
+`go build -o ~/.local/bin/tstorm ./cmd/tstorm` puts it somewhere else.
+`TSTORM_BIN` names the binary for the hooks where it is on neither `PATH` nor
+the payload's `bin/`, which is how to run a build under test without
+installing it.
 
 ### Prose gate
 
@@ -257,135 +313,12 @@ cargo install --git https://github.com/stormlightlabs/trps trps-cli
 
 `--rev <sha>` pins it, which is what CI does so a detector change does not
 land under a job nobody ran. From a checkout, `cargo install --path
-crates/cli` builds the tree you have. `TRPS_BIN` points at it when it lives outside
-`PATH`.
+crates/cli` builds the tree you have. `TRPS_BIN` points at it when it lives
+outside `PATH`.
 
-## Not in the package
+## What stays with the repository
 
-The loop is the same everywhere. What it runs against is not, so five things
-stay with the repository rather than arriving with the install.
-
-### Test and lint commands
-
-`implement` and `revise` run the narrowest relevant test, then the gates
-`AGENTS.md` names. Name them there: formatter, linter and the strictness it
-runs at, test command. A repository that names none leaves an agent to
-guess.
-
-### Documents tree
-
-`specify` writes plans and ideas that issues cite by identifier, and `tstorm
-check frontmatter` keeps those identifiers real. Which directory holds them is
-a repository's own choice. Name it in `.tstorm.toml` at the repository
-root:
-
-```toml
-documents = "docs/internal"
-```
-
-A repository that names none is a clean skip: the check has nothing to walk,
-and says so rather than failing.
-
-`tstorm` looks for `.tstorm.toml` first and `.tstorm.json` second, in the
-directory a command runs in and then each directory above it. The nearest
-directory holding either one wins. Both names take the same settings, so a
-repository that installed the loop when JSON was the only format keeps working
-until somebody converts the dozen lines by hand.
-
-The first file found is the only one read; two files do not merge. A file that
-names no settings is an error rather than an empty answer, so a `.tstorm.toml`
-created and not yet filled in says so instead of shadowing the `.tstorm.json`
-beside it.
-
-### Deny rules
-
-Claude Code carries a settings file for the repository to merge. Codex loads a
-`PreToolUse` hook from the enabled plugin. Pi loads its command gate from the
-package extension.
-
-Claude Code reads them as one rule per command. Merge the payload's
-`settings.json` into `.claude/settings.json`:
-
-```json
-{
-  "permissions": {
-    "deny": [
-      "Bash(gh pr merge:*)",
-      "Bash(gh pr review:*)",
-      "Bash(git push:*)",
-      "Bash(git merge:*)"
-    ]
-  }
-}
-```
-
-A bare `git push` is denied because pushing goes through `tstorm push`, which
-compares the remote ref to what it is about to overwrite. Without these
-rules the review sequence is a convention an agent can skip.
-
-The Codex payload also carries `rules/thunderstorm.rules`, one execution-policy
-rule per command:
-
-```starlark
-prefix_rule(
-    pattern = ["gh", "pr", "merge"],
-    decision = "forbidden",
-    justification = "only a human merges or approves a thunderstorm run",
-)
-```
-
-Copy that file into `~/.codex/rules/` or a trusted project's `.codex/rules/`
-only when the policy should remain active while the plugin is disabled. A
-`forbidden` rule blocks the command without a prompt. To inspect a command:
-
-```sh
-codex execpolicy check --rules ~/.codex/rules/thunderstorm.rules -- gh pr merge 12
-```
-
-Pi ships no sandbox, but its thunderstorm extension rejects the same four
-command prefixes before its `bash` tool runs. The extension is not process
-isolation: keep Pi inside an operating-system sandbox or container when the
-repository needs one.
-
-### Board
-
-`tstorm board` reads and writes a GitHub Projects board, and `github-board`
-and `triage` decide what it writes. Create the board and the single-select
-field carrying status, then name them in the same `.tstorm.toml`:
-
-```toml
-[board]
-owner = "your-org"
-number = 13
-statusField = "Status"
-
-[board.status]
-todo = "Todo"
-inProgress = "In Progress"
-done = "Done"
-```
-
-The three option names are whatever the board calls the states an issue moves
-between. A project carrying several repositories' work adds
-`groupField` and `groupValue` to separate them; a project that is this
-repository's alone leaves both out. Reads are filtered to the repository the
-command runs in, taken from its `origin` remote unless `repository` names one.
-
-A repository that configures none of this gets an error naming every setting
-it left out. Reading and writing a project also needs the `project` scope on
-the token: `gh auth status` lists the scopes, `gh auth refresh -s project`
-adds it.
-
-### Model assignments
-
-Which model runs which role is a decision per organization, not per package.
-Pass `--model provider/model` to `tstorm dispatch`, or `--provider` and
-`--model` separately. The values come from `pi --list-models`, including
-custom providers declared in `~/.pi/agent/models.json`. Pi's `models.json`
-supports OpenAI-, Anthropic-, and Google-compatible endpoints; a Pi extension
-can register other APIs or OAuth flows.
-
-An implementer and the reviewer reading its work never share a model within a
-run, because a model reviewing its own diff inherits the gap that produced the
-defect. The [harness reference](/reference/harnesses/) covers what an agent
-must provide before it can carry a role at all.
+The loop is the same everywhere; what it runs against is not.
+[Configuration](/reference/configuration/) covers what a repository keeps for
+itself. The gates `AGENTS.md` names are there, along with the documents tree,
+the deny rules, the board, and which model carries which role.

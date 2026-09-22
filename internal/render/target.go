@@ -196,12 +196,14 @@ func (t *Target) pluginRoot(a Artifact) string {
 // claudeExtras writes the three files Claude Code needs that are not copied
 // from the source.
 //
-// hooks/hooks.json is what a plugin install reads; a settings.json in a
-// payload is read by nothing, which is why the first install reported no
-// hooks at all. It is written only when the workflow has a hook to register,
-// which it does not today. settings.json stays for the deny rules, which no
-// plugin mechanism can carry: a repository merges them into its own settings,
-// and docs/src/content/docs/start/install.md says so.
+// hooks/hooks.json is what a plugin install reads, and it is written when the
+// workflow has a hook to register, which it does. A rendered payload has no
+// plugin loader to read it, so tstorm install registers the same events in the
+// repository's settings instead.
+//
+// settings.json is a seed: it carries the deny rules for a payload written by
+// a render, and install drops it, having merged those rules into whatever the
+// repository already keeps there.
 func claudeExtras(m Manifest, present []Artifact) ([]File, error) {
 	plugin, err := marshal(map[string]any{
 		"name":        m.Name,

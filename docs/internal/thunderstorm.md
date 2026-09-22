@@ -22,8 +22,8 @@ issue and the sub-issues declared under it. A human starts every run.
 Nothing runs on a schedule.
 
 This is the protocol and the reasoning behind it.
-`guides/using-thunderstorm.md` (`01M2XBVYTZDXTW42ZSCFEEW0QS`) is the operator's
-version: what to type, when, and what to skip.
+`docs/internal/using-thunderstorm.md` (`01M2XBVYTZDXTW42ZSCFEEW0QS`) is the
+operator's version: what to type, when, and what to skip.
 
 ## What a run is
 
@@ -98,7 +98,7 @@ gone. It was never checkable, and the work is the owner's either way.
 Review comments still carry a model tag. The first line names the model and
 reasoning level that pass ran at, which is what shows who found a given defect
 and keeps `models.md` checkable afterwards.
-`internal/ideas/agent-attribution.md` holds the design for a mechanism that
+An idea document, `agent-attribution`, holds the design for a mechanism that
 would replace the tag; nothing plans to build it.
 
 ## Statuses
@@ -136,8 +136,8 @@ Work moves through these. The bracketed stage is skipped whenever it would add
 nothing.
 
 ```text
-/rubber-duck    an idea            internal/ideas/
-[/specify]      a design           internal/features/<name>/plan.md
+/rubber-duck    an idea            an idea document
+[/specify]      a design           a plan document
 /decompose      issues of up to five sub-issues, in a milestone if several
 [/triage]       which of them to dispatch next, and what runs at once
 /thunderstorm   one run over one of those issues, dispatching the stages below
@@ -163,8 +163,8 @@ skips the run and starts at `/implement`.
 
 | Command                 | Argument                  | Does                                                                               |
 | ----------------------- | ------------------------- | ---------------------------------------------------------------------------------- |
-| `/rubber-duck`          | A topic                   | Design discussion. Writes an entry to `internal/ideas/` on request.                |
-| `/specify`              | An idea or topic          | One design to `internal/features/<name>/plan.md`. Only when a decision is missing. |
+| `/rubber-duck`          | A topic                   | Design discussion. Writes an idea document on request.                              |
+| `/specify`              | An idea or topic          | One plan document. Only when a decision is missing.                                 |
 | `/decompose`            | An idea, spec, or finding | Files the issues a run can take, their sub-issues, and a milestone if several.     |
 | `/triage`               | Thread count or a scope   | Ranks the board and lays the top of it into lanes. Writes nothing.                 |
 | `/thunderstorm`         | Issue number, then `one` | One run over that issue. Claims each sub-issue, dispatches it, and reports. |
@@ -243,7 +243,7 @@ human merges to `edge`, in GitHub, by hand.
 
 That last one is a check rather than a rule, under [Recording a failure
 mode](#recording-a-failure-mode). `.claude/settings.json` denies `gh pr merge`,
-`gh pr review`, `git merge`, and a push to `edge` or `main`, so a session
+`gh pr review`, `git merge`, and every `git push`, so a session
 cannot merge whatever it has been told. The repository ships no merge script
 and no `/merge` command either: a named path is what turns a capability into
 the obvious next step, and an agent approving or merging its own work is the
@@ -348,7 +348,7 @@ id: <ULID>
 Generate the identifier with `tstorm ulid`. The identifier never
 changes once assigned. Update `last_updated` when the content changes.
 
-A plan under `internal/features/` that a milestone tracks names it as well:
+A plan document that a milestone tracks names it as well:
 
 ```yaml
 milestone: https://github.com/stormlightlabs/thunderus/milestone/1
@@ -362,7 +362,7 @@ where `--since` also compares each identifier against the pull request's base
 commit. The tree alone cannot show an identifier that changed, and a changed one
 orphans every issue citing it.
 
-The name rule is waived for `internal/features/*/plan.md` and `tasks.md` until
+The name rule is waived for a feature's `plan.md` and `tasks.md` until
 their scheme is decided, because a name matching its filename would give five
 files named `plan`. That decision is issue 9.
 
@@ -376,19 +376,19 @@ of gaps goes stale the moment one closes.
 | Path                    | Holds                                                          |
 | ----------------------- | -------------------------------------------------------------- |
 | `.claude/skills/`       | Skills. `.agents/skills` symlinks here.                        |
-| `.claude/commands/`     | Slash commands, one per skill.                                 |
-| `.claude/agents/`       | Subagent definitions for dispatch.                             |
+| `workflow/commands/`    | Slash commands, one per skill.                                 |
+| `workflow/agents/`      | Subagent definitions for dispatch.                             |
 | `.githooks/`            | Git hooks. Enable with `git config core.hooksPath .githooks`.  |
 | `internal/`             | Plans, specs, ideas, QA notes. Not published by the docs site. |
 | `CLAUDE.md`             | Repository instructions. `AGENTS.md` symlinks here.            |
 
 ## Skills
 
-`.claude/skills/` holds one directory per skill, each stating in its own
+`workflow/skills/` holds one directory per skill, each stating in its own
 frontmatter what it owns. That list is not copied here, because a copy drifts
 and the directory does not.
 
-Role definitions live in `.claude/agents/`: `implementer`, `reviewer`,
+Role definitions live in `workflow/agents/`: `implementer`, `reviewer`,
 `adversarial-reviewer`, and `reviser`, one per role the run dispatches. Claude
 Code reads them as subagent definitions. Codex packages them as TOML and passes
 their instructions to built-in agents. The Pi package carries a reference

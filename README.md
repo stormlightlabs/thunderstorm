@@ -16,14 +16,36 @@ copies drifted within weeks. This repository is the installable version.
 ## Install
 
 ```sh
+GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
+tstorm install
+```
+
+`tstorm install` puts the loop in the repository you run it in. The binary
+carries the workflow, so nothing has to be checked out anywhere. It also does
+the three things a payload cannot do for itself: merge the commands the
+workflow reserves for a person into the repository's deny list, register the
+gate hook against the same settings file, and write a `.tstorm.toml` from what
+you name on the command line.
+
+```sh
+tstorm install --target pi --dir ../other-repo
+tstorm install --board stormlightlabs/13 --documents docs/internal
+tstorm install --check      # says what it would do, writes nothing
+tstorm update               # moves a payload to what the binary carries
+```
+
+Claude Code can install it as a plugin instead, which keeps the payload in the
+harness's own cache:
+
+```sh
 claude plugin marketplace add stormlightlabs/thunderstorm
 claude plugin install thunderstorm@stormlightlabs
 ```
 
-Or `/plugin marketplace add` and `/plugin install` from inside a session. Both
-commands take `--scope project`, which writes the declaration into the
+Both commands take `--scope project`, which writes the declaration into the
 project's `.claude/settings.json` so everyone working there gets the workflow;
-this repository installs itself that way.
+this repository installs itself that way. A plugin carries no permissions, so
+the deny rules are still a merge you make yourself.
 
 For Codex:
 
@@ -68,9 +90,12 @@ live, as exit codes rather than as prose:
 
 ```sh
 GOPROXY=direct go install github.com/stormlightlabs/thunderstorm/cmd/tstorm@main
-tstorm render --target claude   # writes .claude, the install
+tstorm install
 tstorm version
 ```
+
+`tstorm version` names the tag a build descends from and the commit under it,
+`v0.1.0-rc.1+g1969674`, so two builds of one tag are told apart.
 
 The binary also dispatches Pi roles through tmux or Zellij, and carries the
 checks a run depends on: commit and pull request shape, document identity,
@@ -86,12 +111,12 @@ and Homebrew arrive with `v0.1.0`
 
 Each harness reads skills from its own directory, names commands its own way,
 and means its own thing by a subagent. The workflow is written once under
-`workflow/`, and `tstorm render` builds one payload per harness from it:
+`workflow/`, and one render per harness builds a payload from it. `install`
+does that from the tree the binary carries; `render` does it from a checkout,
+which is how this repository builds the payloads it publishes:
 
 ```sh
-tstorm render --target claude                       # installs into .claude
-tstorm render --target pi                           # installs into .pi
-tstorm render --target claude --out payloads/claude # builds what this repo ships
+tstorm render --target claude --out payloads/claude
 tstorm render --target claude --out payloads/claude --check
 ```
 

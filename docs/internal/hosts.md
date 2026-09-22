@@ -148,7 +148,7 @@ loses `write` and `edit` and keeps `bash`. Pi's own `docs/security.md` says it
 ships no sandbox and that isolation has to come from the operating system or a
 container, so what separates one role's work from another's is the directory
 its pane starts in. Sandboxing the process is
-`internal/ideas/remote-operation.md` under bwrap.
+the `remote-operation` idea document under bwrap.
 
 The appended system prompt names the role's model and reasoning level, so a
 finding still reports where it came from, and `events.jsonl` records the
@@ -268,7 +268,7 @@ prefixes: its extension intercepts Pi's `bash` tool and rejects a matching
 command before the tool runs. Per-role `--tools` still narrows what a session
 can call, and the worktree its pane starts in separates one role's files from
 another's. Broader process isolation remains the bwrap work in
-`internal/ideas/remote-operation.md`.
+the `remote-operation` idea document.
 
 ## Plugin manifests
 

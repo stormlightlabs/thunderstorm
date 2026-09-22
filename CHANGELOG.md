@@ -14,12 +14,34 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Added
 
+- `tstorm install` puts the loop in a repository, rendering the payload from
+  the workflow the binary carries. It also merges the commands the workflow
+  reserves for a person into the repository's `permissions.deny`, registers the
+  gate hook against the same settings file, and writes a `.tstorm.toml` from
+  what the flags name. `--check` reports every step and writes nothing ([#36],
+  [#35]).
+- `tstorm update` moves an installed payload to what the binary carries,
+  naming the version it moves from, and merges the settings again so a newly
+  reserved command reaches a repository that installed months ago. It ends by
+  saying when a newer release exists, and `--self` takes it, verified against
+  the checksums published beside it.
+- The workflow source travels inside the binary, so a render needs no
+  checkout. `--source` still names a directory, which is how the loop itself
+  is worked on.
+- A build from a checkout names the tag it descends from and the commit under
+  it, `v0.1.0-rc.1+g1969674`. `tstorm check version` compares a release tag to
+  that constant as well as to the payload's version.
+- The JSON tstorm reads from a person takes comments and trailing commas,
+  which covers a `.tstorm.json` written before TOML and the workflow manifest.
 - `tstorm render --target claude|codex|pi|cursor` builds a harness's payload
   from one canonical source. An artifact the target cannot carry stops the
   render, which writes nothing and names every gap with the issue that would
   close it ([#17]).
 - `tstorm render --check` reports whether the payload on disk still matches the
   source, and writes nothing.
+- `.tstorm-payload` records the version that wrote a payload, beside the files
+  it owns. A marker written before that line reads as an unknown version and
+  updates anyway.
 - The workflow itself, under `workflow/`: twelve skills, nine commands and four
   agent definitions, with a manifest saying what each artifact needs of a
   harness ([#17]).
@@ -202,3 +224,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#27]: https://github.com/stormlightlabs/thunderstorm/issues/27
 [#28]: https://github.com/stormlightlabs/thunderstorm/issues/28
 [#34]: https://github.com/stormlightlabs/thunderstorm/issues/34
+[#35]: https://github.com/stormlightlabs/thunderstorm/issues/35
+[#36]: https://github.com/stormlightlabs/thunderstorm/issues/36

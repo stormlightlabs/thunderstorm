@@ -58,7 +58,8 @@ is disabled. Pi's package extension intercepts its `bash` tool and blocks the
 same prefixes. Pi still leaves process isolation to the operating system or a
 container.
 
-[Install](/start/install/#deny-rules) explains what each harness loads.
+[Configuration](/reference/configuration/#deny-rules) explains what each
+harness loads.
 
 ## Choosing a model
 

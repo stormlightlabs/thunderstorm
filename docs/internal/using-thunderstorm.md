@@ -11,13 +11,13 @@ id: 01M2XBVYTZDXTW42ZSCFEEW0QS
 
 # Using thunderstorm
 
-What to type and when. `internal/thunderstorm.md` holds the protocol and the
+What to type and when. `docs/internal/thunderstorm.md` holds the protocol and
 reasoning behind it; this is the operator's side of the same thing.
 
 ## The whole loop
 
 ```text
-/rubber-duck    talk it through     -> internal/ideas/<name>.md
+/rubber-duck    talk it through     -> the documents tree, as an idea
 /decompose      file it             -> an issue with sub-issues
 /triage         decide what is next -> a ranked list, in chat
 /thunderstorm   run it              -> pull requests, reviewed
@@ -105,7 +105,7 @@ sub-issue. A stop for any other reason is a bug.
 ## Merging is yours
 
 Nothing under `.claude/` merges a pull request. `settings.json` denies
-`gh pr merge`, `gh pr review`, `git merge`, and pushes to `edge` and `main`, so
+`gh pr merge`, `gh pr review`, `git merge`, and every `git push`, so
 an agent cannot merge or approve its own work even when told to.
 
 Merge in GitHub, squash. The pull request title and body become the commit
@@ -136,7 +136,7 @@ gh api repos/stormlightlabs/thunderus/milestones          # create or edit
 ```
 
 There is no `gh milestone` command, so creating one goes through `gh api`.
-Where a plan document under `internal/features/` covers the same work, it names
+Where a plan document under the documents tree covers the same work, it names
 the milestone in its frontmatter.
 
 ## The status labels, briefly
@@ -152,8 +152,8 @@ You set `verify` after merging. A run sets the rest.
 
 | Want | Look at |
 | --- | --- |
-| Why a rule exists | `internal/thunderstorm.md` |
-| What a command does | `.claude/commands/<name>.md` |
-| How a stage works | `.claude/skills/<name>/SKILL.md` |
-| What models run which role | `internal/models.md` |
-| Length targets | `.claude/skills/writing-docs/SKILL.md` |
+| Why a rule exists | `docs/internal/thunderstorm.md` |
+| What a command does | `workflow/commands/<name>.md` |
+| How a stage works | `workflow/skills/<name>/SKILL.md` |
+| What models run which role | `docs/internal/models.md` |
+| Length targets | `workflow/skills/writing-docs/SKILL.md` |
