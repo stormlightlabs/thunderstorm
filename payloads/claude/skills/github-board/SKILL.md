@@ -42,7 +42,7 @@ and never from what a write was asked to do.
 
 ## Configuration
 
-`.tstorm.json` in the repository being worked on names the project and its
+`.tstorm.toml` in the repository being worked on names the project and its
 owner, the status field, the option name for each of the three states, and the
 field that separates one repository's work from another's on a shared board.
 A repository that has configured none of it gets an error naming what is

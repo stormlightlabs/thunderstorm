@@ -110,6 +110,12 @@ Nothing is released yet, and no version is tagged. Everything below is on
 
 ### Changed
 
+- `tstorm` reads `.tstorm.toml` first and the older `.tstorm.json` second, in
+  the directory a command runs in and then each directory above it, with the
+  same settings under the same names. The reason a prose rule is muted is a
+  comment beside the rule rather than a `why` key. A repository that installed
+  the loop before this needs no conversion ([#28]).
+
 - Both review passes read the change's communication, not only the prose in
   its diff: the pull request title and body, the branch's commit messages, and
   the comments the run posted, with `tstorm check prose` run over what it
@@ -188,4 +194,5 @@ Nothing is released yet, and no version is tagged. Everything below is on
 [#25]: https://github.com/stormlightlabs/thunderstorm/issues/25
 [#26]: https://github.com/stormlightlabs/thunderstorm/issues/26
 [#27]: https://github.com/stormlightlabs/thunderstorm/issues/27
+[#28]: https://github.com/stormlightlabs/thunderstorm/issues/28
 [#34]: https://github.com/stormlightlabs/thunderstorm/issues/34

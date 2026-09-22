@@ -38,7 +38,7 @@ where a repository installs the loop rather than where this one builds it.
 Issues live on GitHub Projects board **13**, owner `stormlightlabs`, under the
 **Thunderstorm** track. `tstorm board` reads and writes it, filtered to this
 repository, and takes the project, the status options and the track from the
-`board` section of `.tstorm.json`. The `github-board` skill says which
+`board` section of `.tstorm.toml`. The `github-board` skill says which
 operation to run.
 
 ## Commits

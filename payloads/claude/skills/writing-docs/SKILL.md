@@ -139,8 +139,8 @@ tstorm check prose --warn <file> # report and exit 0
 ```
 
 The gate runs [tropius](https://github.com/stormlightlabs/trps) and reports
-what it finds, minus the rules `.tstorm.json` mutes with a reason beside each
-one. It covers part of the catalogue above: phrase patterns, bold-first leads,
+what it finds, minus the rules `.tstorm.toml` mutes, each with the reason in a
+comment above it. It covers part of the catalogue above: phrase patterns, bold-first leads,
 tricolons, negative parallelism and the words that name a judgment. Structure,
 length and whether a paragraph earns its place are yours.
 
@@ -154,7 +154,7 @@ not a score.
 - Sentence case for new headings.
 - Files under `internal/` need `name`, `last_updated`, and a ULID `id` in
   frontmatter. Generate identifiers with `tstorm ulid`, and check the tree with
-  `tstorm check frontmatter`, which reads the directory from `.tstorm.json`.
+  `tstorm check frontmatter`, which reads the directory from `.tstorm.toml`.
 - Claims in research notes carry a confidence caveat. Do not strip it while
   editing for style.
 - `meta/tropes.md` and the corpus under `meta/examples/` are quoted source, not

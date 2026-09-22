@@ -276,17 +276,21 @@ guess.
 
 `specify` writes plans and ideas that issues cite by identifier, and `tstorm
 check frontmatter` keeps those identifiers real. Which directory holds them is
-a repository's own choice. Name it in `.tstorm.json` at the repository
+a repository's own choice. Name it in `.tstorm.toml` at the repository
 root:
 
-```json
-{
-  "documents": "docs/internal"
-}
+```toml
+documents = "docs/internal"
 ```
 
 A repository that names none is a clean skip: the check has nothing to walk,
 and says so rather than failing.
+
+`tstorm` looks for `.tstorm.toml` first and `.tstorm.json` second, in the
+directory a command runs in and then each directory above it. The nearest
+directory holding either one wins. Both names take the same settings, so a
+repository that installed the loop when JSON was the only format keeps working
+until somebody converts the dozen lines by hand.
 
 ### Deny rules
 
@@ -342,21 +346,18 @@ repository needs one.
 
 `tstorm board` reads and writes a GitHub Projects board, and `github-board`
 and `triage` decide what it writes. Create the board and the single-select
-field carrying status, then name them in the same `.tstorm.json`:
+field carrying status, then name them in the same `.tstorm.toml`:
 
-```json
-{
-  "board": {
-    "owner": "your-org",
-    "number": 13,
-    "statusField": "Status",
-    "status": {
-      "todo": "Todo",
-      "inProgress": "In Progress",
-      "done": "Done"
-    }
-  }
-}
+```toml
+[board]
+owner = "your-org"
+number = 13
+statusField = "Status"
+
+[board.status]
+todo = "Todo"
+inProgress = "In Progress"
+done = "Done"
 ```
 
 The three option names are whatever the board calls the states an issue moves

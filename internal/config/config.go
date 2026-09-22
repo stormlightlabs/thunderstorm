@@ -20,27 +20,34 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/BurntSushi/toml"
 	"github.com/stormlightlabs/thunderstorm/internal/check"
 )
 
-// Name is the file tstorm reads, found at the repository root or any directory
-// above the one a command runs in.
-const Name = ".tstorm.json"
+// Name is the file a repository writes its settings in, and the one a command
+// names when a setting it needed is missing.
+const Name = ".tstorm.toml"
+
+// Names are the files tstorm reads, in the order it looks for them in each
+// directory. A repository that installed the loop before TOML already has a
+// .tstorm.json, which keeps being read under the same setting names.
+var Names = []string{Name, ".tstorm.json"}
 
 // Config is what a repository tells tstorm about itself.
 type Config struct {
-	// Documents is the tree the frontmatter check walks, relative to the file
-	// that names it. A repository that keeps no documents leaves it empty and
-	// the check has nothing to do.
-	Documents string `json:"documents"`
+	// Documents is the tree the frontmatter check walks and the tree the
+	// skills write plans and ideas into, relative to the file that names it.
+	// A repository starting out sets it to docs/internal; one that keeps no
+	// documents leaves it empty and the check has nothing to do.
+	Documents string `json:"documents" toml:"documents"`
 
 	// Board is the GitHub Projects board the loop writes. A repository that
 	// names none gets an error from the board commands rather than a guess.
-	Board Board `json:"board"`
+	Board Board `json:"board" toml:"board"`
 
 	// Prose is what the prose gate runs with. A repository that names
 	// nothing gets tropius under its own defaults.
-	Prose Prose `json:"prose"`
+	Prose Prose `json:"prose" toml:"prose"`
 
 	// dir is the directory the file was read from, so a relative setting
 	// resolves against the file rather than the caller's working directory.
@@ -52,25 +59,25 @@ type Config struct {
 type Board struct {
 	// Owner is the user or organization the project belongs to, and Number is
 	// the project's number in that owner's list.
-	Owner  string `json:"owner"`
-	Number int    `json:"number"`
+	Owner  string `json:"owner" toml:"owner"`
+	Number int    `json:"number" toml:"number"`
 
 	// Repository filters every read to one repository's issues, as
 	// "owner/name". Left empty it is read from the origin remote, which is
 	// the repository the command is running in.
-	Repository string `json:"repository"`
+	Repository string `json:"repository" toml:"repository"`
 
 	// StatusField is the name of the single-select field carrying status.
-	StatusField string `json:"statusField"`
+	StatusField string `json:"statusField" toml:"statusField"`
 
 	// Status maps each state the loop uses to the option name this board
 	// gives it.
-	Status Status `json:"status"`
+	Status Status `json:"status" toml:"status"`
 
 	// GroupField and GroupValue narrow a board that carries more than one
 	// repository's work. A board that carries one leaves both empty.
-	GroupField string `json:"groupField"`
-	GroupValue string `json:"groupValue"`
+	GroupField string `json:"groupField" toml:"groupField"`
+	GroupValue string `json:"groupValue" toml:"groupValue"`
 }
 
 // Prose configures the gate that runs tropius over a repository's writing.
@@ -79,20 +86,33 @@ type Board struct {
 type Prose struct {
 	// Dictionary is the project dictionary, relative to this file. Left
 	// empty, tropius searches for its own from the working directory.
-	Dictionary string `json:"dictionary"`
+	Dictionary string `json:"dictionary" toml:"dictionary"`
 
 	// Mute drops a rule by id.
-	Mute []MutedRule `json:"mute"`
+	Mute []MutedRule `json:"mute" toml:"mute"`
 
 	// Paths are the trees the gate reads when no path is given, relative to
 	// this file.
-	Paths []string `json:"paths"`
+	Paths []string `json:"paths" toml:"paths"`
 }
 
-// MutedRule is one rule the gate drops, and why.
+// MutedRule is one rule the gate drops, and why. A .tstorm.toml writes the
+// rule id on its own and the reason in a comment above it; a .tstorm.json has
+// nowhere to put a comment, so it names the reason in a key beside the rule.
 type MutedRule struct {
 	Rule string `json:"rule"`
 	Why  string `json:"why"`
+}
+
+// UnmarshalTOML reads the bare rule id TOML gives it. Why stays empty: the
+// reason is a comment, which no parser reports.
+func (m *MutedRule) UnmarshalTOML(value any) error {
+	rule, ok := value.(string)
+	if !ok {
+		return fmt.Errorf("prose.mute takes rule ids as strings, not %T", value)
+	}
+	m.Rule = rule
+	return nil
 }
 
 // Rules is what the check package needs out of the prose settings, with the
@@ -127,33 +147,38 @@ func (c Config) ProsePaths() []string {
 // Status is the option name for each of the three states the loop moves an
 // issue between.
 type Status struct {
-	Todo       string `json:"todo"`
-	InProgress string `json:"inProgress"`
-	Done       string `json:"done"`
+	Todo       string `json:"todo" toml:"todo"`
+	InProgress string `json:"inProgress" toml:"inProgress"`
+	Done       string `json:"done" toml:"done"`
 }
 
 // Load reads the settings that apply to dir, walking up until it finds a file
-// or runs out of parents. A repository that has configured nothing gets an
-// empty Config and no error: a missing file is a repository that has not asked
-// for these checks, which is not the same as a broken one.
+// or runs out of parents. The nearest directory holding one of Names wins, and
+// within a directory the order of Names decides. A repository that has
+// configured nothing gets an empty Config and no error: a missing file is a
+// repository that has not asked for these checks, which is not the same as a
+// broken one.
 func Load(dir string) (Config, error) {
 	dir, err := filepath.Abs(dir)
 	if err != nil {
 		return Config{}, err
 	}
 	for {
-		path := filepath.Join(dir, Name)
-		body, err := os.ReadFile(path)
-		if err == nil {
-			var c Config
-			if err := json.Unmarshal(body, &c); err != nil {
+		for _, name := range Names {
+			path := filepath.Join(dir, name)
+			body, err := os.ReadFile(path)
+			if errors.Is(err, fs.ErrNotExist) {
+				continue
+			}
+			if err != nil {
+				return Config{}, err
+			}
+			c, err := parse(name, body)
+			if err != nil {
 				return Config{}, fmt.Errorf("%s: %w", path, err)
 			}
 			c.dir = dir
 			return c, nil
-		}
-		if !errors.Is(err, fs.ErrNotExist) {
-			return Config{}, err
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -161,6 +186,16 @@ func Load(dir string) (Config, error) {
 		}
 		dir = parent
 	}
+}
+
+// parse decodes one settings file by its extension. Which format a repository
+// chose stops here: everything above reads the same Config.
+func parse(name string, body []byte) (Config, error) {
+	var c Config
+	if filepath.Ext(name) == ".json" {
+		return c, json.Unmarshal(body, &c)
+	}
+	return c, toml.Unmarshal(body, &c)
 }
 
 // DocumentsDir is the configured tree as a path the caller can open, or an

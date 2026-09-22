@@ -3,6 +3,7 @@ module github.com/stormlightlabs/thunderstorm
 go 1.24
 
 require (
+	github.com/BurntSushi/toml v1.6.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/mattn/go-isatty v0.0.24
 	github.com/muesli/termenv v0.16.0

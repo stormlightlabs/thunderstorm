@@ -11,7 +11,7 @@ to communicate status.
 | --- | --- | --- |
 | `tstorm check commit-message <file>` | a commit message, or a pull request's title and body with `--pr` | the type, the 60-character subject, the blank line, the 72-column body |
 | `tstorm check prose <path>` | Markdown, a file or a tree | the writing tells [tropius](https://github.com/stormlightlabs/trps) matches, minus the rules you mute |
-| `tstorm check frontmatter [dir]` | the documents tree `.tstorm.json` names | that every document carries the identifier an issue cites it by |
+| `tstorm check frontmatter [dir]` | the documents tree `.tstorm.toml` names | that every document carries the identifier an issue cites it by |
 | `tstorm check policy [settings]` | a repository's permissions | which of the four reserved commands it does not deny |
 | `tstorm check isolation [dir]` | skills and role definitions | that none of them asks the harness for a worktree |
 | `tstorm check version` | the manifest, the last tag, the rendered payloads | whether a payload changed without a version bump |
@@ -88,7 +88,7 @@ wholesale, so every hook you already had stops firing; move them across first.
 tstorm check prose docs README.md      # a tree and a file
 tstorm check prose --warn <file>       # report, exit 0
 tstorm check commit-message .git/COMMIT_EDITMSG
-tstorm check frontmatter               # reads the tree from .tstorm.json
+tstorm check frontmatter               # reads the tree from .tstorm.toml
 tstorm check policy .claude/settings.json
 tstorm check isolation .claude
 ```
@@ -108,20 +108,21 @@ nothing, which is a smaller claim than the prose being good.
 
 ## Muting a rule
 
-`.tstorm.json` carries the rules your repository drops, each with the reason it
-is dropped:
+`.tstorm.toml` carries the rules your repository drops, with the reason for
+each in a comment above it:
 
-```json
-{
-  "prose": {
-    "dictionary": "trps.toml",
-    "paths": ["README.md", "docs", "workflow"],
-    "mute": [
-      { "rule": "structure.short_punchy_fragments", "why": "uncalibrated: 77 findings against prose a reader called clean" }
-    ]
-  }
-}
+```toml
+[prose]
+dictionary = "trps.toml"
+paths = ["README.md", "docs", "workflow"]
+mute = [
+  # uncalibrated: 77 findings against prose a reader called clean
+  "structure.short_punchy_fragments",
+]
 ```
+
+A `.tstorm.json` has nowhere to put a comment, so it names each rule as
+`{ "rule": "...", "why": "..." }` instead.
 
 A muted rule is one you cannot read yet rather than one you disagree with, so
 the list is a record of what to fix upstream and it shrinks as the detector
