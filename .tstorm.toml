@@ -1,0 +1,25 @@
+documents = "docs/internal"
+
+[board]
+owner = "stormlightlabs"
+number = 13
+statusField = "Status"
+groupField = "Track"
+groupValue = "Thunderstorm"
+
+[board.status]
+todo = "Todo"
+inProgress = "In Progress"
+done = "Done"
+
+[prose]
+dictionary = "trps.toml"
+paths = ["README.md", "CHANGELOG.md", "TODO.md", "AGENTS.md", "docs", "workflow"]
+mute = [
+  # 77 of the 387 findings measured on 2026-09-19, against prose a reader called clean
+  "structure.short_punchy_fragments",
+  # 43 findings the same day, and it reads a list's lead-in as a run
+  "repetition.anaphora_abuse",
+  # 71 findings, one per character, over tables the site renders
+  "formatting.unicode_decoration",
+]

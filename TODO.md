@@ -74,7 +74,7 @@ skill, `sync-labels.py`, and `tui-capture.sh`.
 `repetition.anaphora_abuse` and `formatting.unicode_decoration`, which
 together were 191 of the 387 findings measured on 2026-09-19 and read as noise
 against prose a reader called clean. Each is muted with its reason in
-`.tstorm.json`, and the list shrinks as the **Usable as a linter** issues in
+`.tstorm.toml`, and the list shrinks as the **Usable as a linter** issues in
 `stormlightlabs/trps` land. Raise the pinned revision in
 `.github/workflows/check.yml` when they do, and rerun the count.
 

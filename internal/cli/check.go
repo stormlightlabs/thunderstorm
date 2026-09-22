@@ -361,7 +361,9 @@ func frontmatterCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			"The tree is named rather than guessed. Installed, the gate runs outside\n" +
 			"the repository being checked, and which directory holds a repository's\n" +
 			"documents is the repository's business: name it here, or name it once\n" +
-			"as \"documents\" in " + config.Name + ".\n\n" +
+			"as \"documents\" in " + config.Name + ". A repository starting out puts\n" +
+			"them in docs/internal and names that; one that names nothing is\n" +
+			"skipped.\n\n" +
 			"--since compares each identifier against the same file at a git ref.\n" +
 			"Uniqueness within one tree is not immutability across time: an\n" +
 			"identifier edited in place leaves a tree that looks clean while every\n" +

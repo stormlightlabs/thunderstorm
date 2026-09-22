@@ -71,9 +71,10 @@ rediscover the ordering or collide.
 Record a dependency as a GitHub dependency as well. The description is what a
 reader gets; `blocked_by` is what GitHub enforces on close.
 
-Where a plan document under `internal/features/` tracks the same work, name the
-milestone in its frontmatter as `milestone: <url>`, so either side of the link
-reaches the other. `tstorm check frontmatter` checks the shape.
+Where a plan document under the repository's `documents` directory tracks the
+same work, name the milestone in its frontmatter as `milestone: <url>`, so
+either side of the link reaches the other. `tstorm check frontmatter` checks
+the shape.
 
 ## The sub-issues
 

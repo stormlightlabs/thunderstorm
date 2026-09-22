@@ -37,25 +37,6 @@ var (
 // reporting, so the tree stays one spelling.
 const documentSuffix = ".md"
 
-// unnamed holds per-feature plans and task lists back from the naming rule
-// until their scheme is decided: five files named "plan" and five named
-// "tasks" would collide under the rule that a name matches its filename.
-// Tracked in issue #3, which drops this list rather than narrowing it.
-//
-// The waiver is as narrow as it can be. These files carry no block at all, so
-// presence cannot be required of them until #3 gives them names to carry, and
-// a file without one is passed over. A file that has a block is checked like
-// any other except for its name, so the day #3 adds the blocks, a duplicate
-// identifier is caught without anyone remembering to come back here.
-//
-// Each shape is matched against the whole relative path, component by
-// component, so the exemption cannot be inherited by a features/ directory
-// somewhere else in the tree.
-var unnamed = [][]string{
-	{"features", "*", "plan.md"},
-	{"features", "*", "tasks.md"},
-}
-
 // Frontmatter checks every document under root, returning how many it read and
 // what failed. One run reports the whole tree, and a document that cannot be
 // read is that document's failure rather than the run's.
@@ -67,6 +48,7 @@ func Frontmatter(root string) (int, []string, error) {
 
 	var failures []string
 	seen := map[string]string{}
+	named := map[string]string{}
 	checked := 0
 
 	for _, path := range documents {
@@ -78,11 +60,6 @@ func Frontmatter(root string) (int, []string, error) {
 		}
 
 		fields, problems := readFrontmatter(path)
-		waived := isUnnamed(relative)
-		if waived && len(fields) == 0 {
-			continue
-		}
-
 		checked++
 		for _, problem := range problems {
 			failures = append(failures, fmt.Sprintf("%s: %s", relative, problem))
@@ -90,8 +67,19 @@ func Frontmatter(root string) (int, []string, error) {
 
 		name, ok := fields["name"]
 		expected := expectedName(relative, root)
-		if ok && name != "" && !waived && name != expected {
+		if ok && name != "" && name != expected {
 			failures = append(failures, fmt.Sprintf("%s: name is %q, expected %q", relative, name, expected))
+		}
+
+		// Joining the path does not make the name unique on its own: a dash
+		// in a filename and a directory separator reach the same character,
+		// so features/mcp-plan.md and features/mcp/plan.md both ask for
+		// features-mcp-plan. The tree is what answers for uniqueness, the
+		// same way it does for an identifier.
+		if first, taken := named[expected]; taken {
+			failures = append(failures, fmt.Sprintf("%s: name is also on %s", relative, first))
+		} else {
+			named[expected] = relative
 		}
 
 		if id, ok := fields["id"]; ok && ulidPattern.MatchString(id) {
@@ -187,28 +175,6 @@ func relativeTo(root, path string) string {
 		return path
 	}
 	return filepath.ToSlash(relative)
-}
-
-// isUnnamed matches the whole path against a shape, so the waiver is not a
-// suffix rule.
-func isUnnamed(relative string) bool {
-	parts := strings.Split(relative, "/")
-	for _, shape := range unnamed {
-		if len(parts) != len(shape) {
-			continue
-		}
-		match := true
-		for i, want := range shape {
-			if want != "*" && want != parts[i] {
-				match = false
-				break
-			}
-		}
-		if match {
-			return true
-		}
-	}
-	return false
 }
 
 // readFrontmatter parses the opening block. A file that cannot be read fails on
@@ -335,20 +301,24 @@ func scalar(value string) string {
 	return value
 }
 
-// expectedName is the name a document's path asks for: a README is named for
-// the directory holding it, any other file for itself.
+// expectedName is the name a document's path asks for: every component of the
+// path joined, so features/mcp/plan.md is named "features-mcp-plan" and two
+// plans under two feature directories have two names. A README is named for
+// the directory holding it, which is its path with the filename dropped.
 //
 // The convention asks for kebab-case, so BUGS.md is named "bugs": the filename
 // decides the name, its capitalisation does not.
 func expectedName(relative, root string) string {
-	stem := strings.TrimSuffix(filepath.Base(relative), filepath.Ext(relative))
-	if stem == "README" {
-		stem = filepath.Base(filepath.Dir(relative))
-		if stem == "." || stem == string(filepath.Separator) {
-			stem = filepath.Base(root)
+	parts := strings.Split(filepath.ToSlash(relative), "/")
+	last := len(parts) - 1
+	parts[last] = strings.TrimSuffix(parts[last], filepath.Ext(parts[last]))
+	if parts[last] == "README" {
+		parts = parts[:last]
+		if len(parts) == 0 {
+			parts = []string{filepath.Base(root)}
 		}
 	}
-	return strings.ReplaceAll(strings.ToLower(stem), "_", "-")
+	return strings.ReplaceAll(strings.ToLower(strings.Join(parts, "-")), "_", "-")
 }
 
 func firstInvalidByte(body []byte) int {
