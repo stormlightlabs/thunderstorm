@@ -35,7 +35,7 @@ type Role struct {
 
 // Roles returns every role definition the binary carries, by name.
 func Roles() ([]Role, error) {
-	entries, err := fs.ReadDir(thunderstorm.Roles, "workflow/agents")
+	entries, err := fs.ReadDir(thunderstorm.Workflow(), "agents")
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func Roles() ([]Role, error) {
 		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
 			continue
 		}
-		body, err := fs.ReadFile(thunderstorm.Roles, path.Join("workflow/agents", e.Name()))
+		body, err := fs.ReadFile(thunderstorm.Workflow(), path.Join("agents", e.Name()))
 		if err != nil {
 			return nil, err
 		}

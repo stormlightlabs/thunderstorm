@@ -6,6 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/stormlightlabs/thunderstorm/internal/buildinfo"
 )
 
 // Release is what a version check was given: where the workflow source and
@@ -33,6 +35,12 @@ func Version(r Release) ([]string, error) {
 		if want := strings.TrimPrefix(r.Tag, "v"); want != version {
 			findings = append(findings, fmt.Sprintf(
 				"tag %s does not match version %s in %s/manifest.json", r.Tag, version, r.Source))
+		}
+		// A build from a checkout takes its version from this constant, so a
+		// tag that left it behind ships a binary naming the tag before it.
+		if r.Tag != buildinfo.BaseVersion {
+			findings = append(findings, fmt.Sprintf(
+				"tag %s does not match BaseVersion %s in internal/buildinfo", r.Tag, buildinfo.BaseVersion))
 		}
 	}
 

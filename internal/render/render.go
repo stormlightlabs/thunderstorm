@@ -100,9 +100,9 @@ func (u *Unmet) Error() string {
 	return b.String()
 }
 
-// Plan builds the payload for one target from the source tree at root. It
-// returns an *Unmet when the target cannot carry every artifact.
-func Plan(m Manifest, t *Target, root string) (*Payload, error) {
+// Plan builds the payload for one target from a source tree. It returns an
+// *Unmet when the target cannot carry every artifact.
+func Plan(m Manifest, t *Target, src Source) (*Payload, error) {
 	p := &Payload{Target: t, counts: map[Kind]int{}}
 
 	// Every gap is collected before anything is rendered, so a target that
@@ -122,7 +122,7 @@ func Plan(m Manifest, t *Target, root string) (*Payload, error) {
 	}
 
 	for _, a := range present {
-		files, err := p.render(a, t, root)
+		files, err := p.render(a, t, src)
 		if err != nil {
 			return nil, err
 		}
@@ -174,27 +174,27 @@ func (p *Payload) markerBody(skip map[string]bool) []byte {
 
 // render copies one artifact into payload files, substituting the resource
 // root in prose.
-func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
+func (p *Payload) render(a Artifact, t *Target, src Source) ([]File, error) {
 	dir := t.dirs[a.Kind]
-	sources, err := a.files(root)
+	sources, err := a.files(src)
 	if err != nil {
 		return nil, err
 	}
 
 	var out []File
-	for _, src := range sources {
-		body, mode, err := readSource(root, src)
+	for _, name := range sources {
+		body, err := fs.ReadFile(src.FS, name)
 		if err != nil {
 			return nil, fmt.Errorf("artifact %q: %w", a.Name, err)
 		}
-		if strings.HasSuffix(src, ".md") {
+		if strings.HasSuffix(name, ".md") {
 			body = bytes.ReplaceAll(body, []byte(rootToken), []byte(t.Root))
 			if pluginRoot := t.pluginRoot(a); pluginRoot != "" {
 				body = bytes.ReplaceAll(body, []byte(pluginToken), []byte(pluginRoot))
 			}
 			if found := leftoverToken.Find(body); found != nil {
 				return nil, fmt.Errorf("artifact %q: %s names %s, which %s has no value for",
-					a.Name, src, found, t.Name)
+					a.Name, name, found, t.Name)
 			}
 		}
 		if t.transform != nil {
@@ -203,7 +203,7 @@ func (p *Payload) render(a Artifact, t *Target, root string) ([]File, error) {
 				return nil, err
 			}
 		}
-		out = append(out, File{Path: p.destination(a, dir, src), Body: body, Mode: mode})
+		out = append(out, File{Path: p.destination(a, dir, name), Body: body, Mode: a.mode()})
 	}
 	return out, nil
 }
@@ -233,23 +233,6 @@ func (p *Payload) destination(a Artifact, dir, src string) string {
 // whole of what git stores and therefore the whole of what a payload promises.
 // A zero mode is a file the renderer generated, which is never executable.
 func executable(mode fs.FileMode) bool { return mode&0o111 != 0 }
-
-func readSource(root, src string) ([]byte, fs.FileMode, error) {
-	full := filepath.Join(root, filepath.FromSlash(src))
-	body, err := os.ReadFile(full)
-	if err != nil {
-		return nil, 0, err
-	}
-	info, err := os.Stat(full)
-	if err != nil {
-		return nil, 0, err
-	}
-	mode := fs.FileMode(0o644)
-	if info.Mode()&0o111 != 0 {
-		mode = 0o755
-	}
-	return body, mode, nil
-}
 
 // Write puts the payload at dir and reports the files it left alone.
 //

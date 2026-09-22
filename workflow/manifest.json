@@ -222,6 +222,7 @@
       "kind": "hook",
       "name": "gate.sh",
       "source": "hooks/gate.sh",
+      "executable": true,
       "requires": [
         "hooks"
       ],

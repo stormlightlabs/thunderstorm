@@ -14,9 +14,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
-	"os"
 	"path"
-	"path/filepath"
 	"slices"
 	"strings"
 )
@@ -88,6 +86,12 @@ type Artifact struct {
 	Source   string   `json:"source"`
 	Requires []string `json:"requires"`
 
+	// Executable is the execute bit the payload writes. It is a manifest
+	// field rather than the source file's own mode because a binary carries
+	// the workflow through embed, which reports every file read-only, and
+	// because a checkout's modes are whatever git and the umask agreed on.
+	Executable bool `json:"executable,omitempty"`
+
 	// Hooks only: the events that run this one, and how the harness is told
 	// to wait for each. A harness registers hooks in its own settings file,
 	// so the manifest has to carry what that registration needs. One script
@@ -103,14 +107,22 @@ type HookEvent struct {
 	Timeout int    `json:"timeout,omitempty"`
 }
 
-// Load reads the manifest at root/manifest.json and checks it against the
-// source tree beside it, so a typo in a path is an error here rather than a
-// file missing from a payload.
-func Load(root string) (Manifest, error) {
+// mode is the permission the payload writes this artifact with.
+func (a Artifact) mode() fs.FileMode {
+	if a.Executable {
+		return 0o755
+	}
+	return 0o644
+}
+
+// Load reads the manifest at the source's root and checks it against the tree
+// beside it, so a typo in a path is an error here rather than a file missing
+// from a payload.
+func Load(src Source) (Manifest, error) {
 	var m Manifest
-	raw, err := os.ReadFile(filepath.Join(root, "manifest.json"))
+	raw, err := fs.ReadFile(src.FS, "manifest.json")
 	if err != nil {
-		return m, fmt.Errorf("read manifest: %w", err)
+		return m, fmt.Errorf("read manifest from %s: %w", src.Name, err)
 	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
@@ -121,13 +133,13 @@ func Load(root string) (Manifest, error) {
 	if dec.More() {
 		return m, fmt.Errorf("parse manifest: more than one JSON document")
 	}
-	if err := m.validate(root); err != nil {
+	if err := m.validate(src); err != nil {
 		return m, err
 	}
 	return m, nil
 }
 
-func (m Manifest) validate(root string) error {
+func (m Manifest) validate(src Source) error {
 	if m.Name == "" || m.Version == "" || m.Description == "" {
 		return fmt.Errorf("manifest needs a name, a version, and a description")
 	}
@@ -145,6 +157,8 @@ func (m Manifest) validate(root string) error {
 			return fmt.Errorf("artifact %q has no source", a.Name)
 		case len(a.Requires) == 0:
 			return fmt.Errorf("artifact %q requires nothing; say which capability it needs", a.Name)
+		case a.Executable && a.Kind != KindHook && a.Kind != KindScript:
+			return fmt.Errorf("artifact %q is a %s; only a hook or a script is executable", a.Name, a.Kind)
 		case a.Kind == KindHook && len(a.Events) == 0:
 			return fmt.Errorf("hook %q has no events; a harness cannot register it", a.Name)
 		case a.Kind != KindHook && len(a.Events) > 0:
@@ -170,7 +184,7 @@ func (m Manifest) validate(root string) error {
 			return fmt.Errorf("%s %q is claimed by both %s and %s", a.Kind, a.Name, other, a.Source)
 		}
 		seen[key] = a.Source
-		if err := checkSource(root, a); err != nil {
+		if err := checkSource(src, a); err != nil {
 			return err
 		}
 	}
@@ -180,11 +194,11 @@ func (m Manifest) validate(root string) error {
 // checkSource rejects a source that escapes the tree, is missing, or is the
 // wrong shape: a skill is a directory holding SKILL.md everywhere, and every
 // other kind is a single file.
-func checkSource(root string, a Artifact) error {
+func checkSource(src Source, a Artifact) error {
 	if a.Source != path.Clean(a.Source) || strings.HasPrefix(a.Source, "/") || strings.HasPrefix(a.Source, "..") {
 		return fmt.Errorf("artifact %q: source %q must be a relative path inside the source tree", a.Name, a.Source)
 	}
-	info, err := os.Stat(filepath.Join(root, filepath.FromSlash(a.Source)))
+	info, err := fs.Stat(src.FS, a.Source)
 	if err != nil {
 		return fmt.Errorf("artifact %q: %w", a.Name, err)
 	}
@@ -192,7 +206,7 @@ func checkSource(root string, a Artifact) error {
 		if !info.IsDir() {
 			return fmt.Errorf("skill %q: %s is not a directory", a.Name, a.Source)
 		}
-		if _, err := os.Stat(filepath.Join(root, filepath.FromSlash(a.Source), "SKILL.md")); err != nil {
+		if _, err := fs.Stat(src.FS, path.Join(a.Source, "SKILL.md")); err != nil {
 			return fmt.Errorf("skill %q: %w", a.Name, err)
 		}
 		return nil
@@ -205,21 +219,16 @@ func checkSource(root string, a Artifact) error {
 
 // files returns the source-relative paths an artifact carries, so a skill's
 // references travel with its SKILL.md.
-func (a Artifact) files(root string) ([]string, error) {
-	full := filepath.Join(root, filepath.FromSlash(a.Source))
+func (a Artifact) files(src Source) ([]string, error) {
 	if a.Kind != KindSkill {
 		return []string{a.Source}, nil
 	}
 	var out []string
-	err := filepath.WalkDir(full, func(p string, d fs.DirEntry, err error) error {
+	err := fs.WalkDir(src.FS, a.Source, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
 			return err
 		}
-		rel, err := filepath.Rel(full, p)
-		if err != nil {
-			return err
-		}
-		out = append(out, path.Join(a.Source, filepath.ToSlash(rel)))
+		out = append(out, p)
 		return nil
 	})
 	slices.Sort(out)

@@ -58,12 +58,12 @@ const allArtifacts = `
     {"kind": "skill", "name": "review", "source": "skills/review", "requires": ["skills"]},
     {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]},
     {"kind": "agent", "name": "reviewer", "source": "agents/reviewer.md", "requires": ["subagents"]},
-    {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "requires": ["hooks"],
+    {"kind": "hook", "name": "session-start.sh", "source": "hooks/session-start.sh", "executable": true, "requires": ["hooks"],
      "events": [{"event": "SessionStart", "matcher": "startup", "timeout": 1200}]},
-    {"kind": "hook", "name": "gate.sh", "source": "hooks/gate.sh", "requires": ["hooks"],
+    {"kind": "hook", "name": "gate.sh", "source": "hooks/gate.sh", "executable": true, "requires": ["hooks"],
      "events": [{"event": "PostToolUse", "matcher": "Write|Edit", "timeout": 10},
                 {"event": "PreToolUse", "matcher": "Bash", "timeout": 10}]},
-    {"kind": "script", "name": "check.py", "source": "scripts/check.py", "requires": ["scripts"]}`
+    {"kind": "script", "name": "check.py", "source": "scripts/check.py", "executable": true, "requires": ["scripts"]}`
 
 // commandOnly keeps tests about one generated file independent of the other
 // artifact formats.
@@ -73,7 +73,7 @@ const commandOnly = `
 func planFor(t *testing.T, target, artifacts string) (*Payload, string, error) {
 	t.Helper()
 	root := fixture(t, artifacts)
-	m, err := Load(root)
+	m, err := Load(Dir(root))
 	if err != nil {
 		return nil, root, err
 	}
@@ -81,7 +81,7 @@ func planFor(t *testing.T, target, artifacts string) (*Payload, string, error) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Plan(m, tgt, root)
+	p, err := Plan(m, tgt, Dir(root))
 	return p, root, err
 }
 
@@ -148,14 +148,14 @@ func TestProseSeparatesThePluginFromTheRepository(t *testing.T) {
 // the braces in the prose, or quietly dropping them, both reach a reader.
 func TestAnUnvaluedTokenStopsTheRender(t *testing.T) {
 	root := fixture(t, allArtifacts)
-	m, err := Load(root)
+	m, err := Load(Dir(root))
 	if err != nil {
 		t.Fatal(err)
 	}
 	claude, _ := Lookup("claude")
 	unverified := *claude
 	unverified.Plugin = ""
-	if _, err := Plan(m, &unverified, root); err == nil {
+	if _, err := Plan(m, &unverified, Dir(root)); err == nil {
 		t.Fatal("rendered prose carrying a token the target cannot resolve")
 	} else if !strings.Contains(err.Error(), pluginToken) {
 		t.Errorf("the failure does not name the token: %v", err)
@@ -492,13 +492,13 @@ func TestCommandsRenderForEveryHarnessThatReadsThem(t *testing.T) {
 func TestANameThatEscapesThePayloadIsRejected(t *testing.T) {
 	for _, bad := range []string{`"../../escape"`, `"sub/dir"`, `".."`} {
 		artifact := `{"kind": "command", "name": ` + bad + `, "source": "commands/revise.md", "requires": ["commands"]}`
-		if _, err := Load(fixture(t, artifact)); err == nil {
+		if _, err := Load(Dir(fixture(t, artifact))); err == nil {
 			t.Errorf("name %s was accepted", bad)
 		}
 	}
 	aliased := `{"kind": "command", "name": "revise", "source": "commands/revise.md",
 	             "aliases": ["../../escape"], "requires": ["commands"]}`
-	if _, err := Load(fixture(t, aliased)); err == nil {
+	if _, err := Load(Dir(fixture(t, aliased))); err == nil {
 		t.Error("an alias escaping the payload was accepted")
 	}
 }
@@ -536,12 +536,12 @@ func TestAnUnexplainedGapNamesTheMissingEntry(t *testing.T) {
 
 func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 	root := fixture(t, allArtifacts)
-	m, err := Load(root)
+	m, err := Load(Dir(root))
 	if err != nil {
 		t.Fatal(err)
 	}
 	claude, _ := Lookup("claude")
-	full, err := Plan(m, claude, root)
+	full, err := Plan(m, claude, Dir(root))
 	if err != nil {
 		t.Fatalf("plan: %v", err)
 	}
@@ -563,7 +563,7 @@ func TestWriteReplacesWhatTheSourceDropped(t *testing.T) {
 			fewer.Artifacts = append(fewer.Artifacts, a)
 		}
 	}
-	next, err := Plan(fewer, claude, root)
+	next, err := Plan(fewer, claude, Dir(root))
 	if err != nil {
 		t.Fatalf("plan without the agent: %v", err)
 	}
@@ -803,12 +803,12 @@ func TestAFailedWriteLeavesThePreviousPayloadIntact(t *testing.T) {
 	}
 	before := string(body(t, p, "agents/reviewer.md"))
 
-	second, err := Load(root)
+	second, err := Load(Dir(root))
 	if err != nil {
 		t.Fatal(err)
 	}
 	claude, _ := Lookup("claude")
-	next, err := Plan(second, claude, root)
+	next, err := Plan(second, claude, Dir(root))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -945,6 +945,10 @@ func TestManifestRejectsWhatWouldRenderWrong(t *testing.T) {
 			`{"kind": "skill", "name": "review", "source": "skills/review", "requires": ["telepathy"]}`,
 			"unknown capability",
 		},
+		"an executable skill": {
+			`{"kind": "skill", "name": "review", "source": "skills/review", "executable": true, "requires": ["skills"]}`,
+			"only a hook or a script is executable",
+		},
 		"a field the manifest has no meaning for": {
 			`{"kind": "skill", "name": "review", "source": "skills/review", "aliases": ["r"], "requires": ["skills"]}`,
 			`unknown field "aliases"`,
@@ -965,7 +969,7 @@ func TestManifestRejectsWhatWouldRenderWrong(t *testing.T) {
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			_, err := Load(fixture(t, tc.artifacts))
+			_, err := Load(Dir(fixture(t, tc.artifacts)))
 			if err == nil {
 				t.Fatal("manifest loaded, want an error")
 			}

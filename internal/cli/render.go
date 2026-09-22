@@ -78,11 +78,12 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			manifest, err := render.Load(source)
+			from := render.Dir(source)
+			manifest, err := render.Load(from)
 			if err != nil {
 				return err
 			}
-			payload, err := render.Plan(manifest, t, source)
+			payload, err := render.Plan(manifest, t, from)
 			if err != nil {
 				return err
 			}

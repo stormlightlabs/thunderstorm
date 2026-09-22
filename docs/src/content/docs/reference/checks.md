@@ -14,7 +14,7 @@ to communicate status.
 | `tstorm check frontmatter [dir]` | the documents tree `.tstorm.toml` names | that every document carries the identifier an issue cites it by |
 | `tstorm check policy [settings]` | a repository's permissions | which of the four reserved commands it does not deny |
 | `tstorm check isolation [dir]` | skills and role definitions | that none of them asks the harness for a worktree |
-| `tstorm check version` | the manifest, the last tag, the rendered payloads | whether a payload changed without a version bump |
+| `tstorm check version` | the manifest, `BaseVersion`, the last tag, the rendered payloads | whether a payload changed without a version bump, and whether a tag left the binary's version behind |
 
 `0` is nothing found, `1` is something found, and `2` is a check that could
 not run. A caller reading only "non-zero" cannot tell a bad commit message

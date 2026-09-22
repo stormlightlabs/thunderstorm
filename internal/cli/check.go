@@ -101,7 +101,7 @@ func policyCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				denied, err = check.PolicyOf(expected)
 			} else {
 				var manifest render.Manifest
-				if manifest, err = render.Load(source); err == nil {
+				if manifest, err = render.Load(render.Dir(source)); err == nil {
 					denied = manifest.Policy.Deny
 				}
 			}
