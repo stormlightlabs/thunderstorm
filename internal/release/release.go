@@ -27,11 +27,21 @@ import (
 // api is where the releases are published. The repository is compiled in
 // because a binary asking a configurable host for its own replacement is a
 // supply chain nobody asked for.
-const api = "https://api.github.com/repos/stormlightlabs/thunderstorm/releases/latest"
+//
+// latest excludes prereleases, and every release so far is one, so a 404 there
+// falls through to the list, newest first.
+const (
+	latestAPI = "https://api.github.com/repos/stormlightlabs/thunderstorm/releases/latest"
+	listAPI   = "https://api.github.com/repos/stormlightlabs/thunderstorm/releases?per_page=10"
+)
 
-// cacheFor is how long a lookup stands. An update run twice in a morning asks
-// GitHub once.
-const cacheFor = 24 * time.Hour
+// cacheFor is how long an answer stands, and cacheFailureFor how long a
+// failure does. An update run twice in a morning asks GitHub once; one run
+// while the network was down asks again after an hour rather than tomorrow.
+const (
+	cacheFor        = 24 * time.Hour
+	cacheFailureFor = time.Hour
+)
 
 // timeout keeps a slow network from holding up a report that is a remark.
 const timeout = 3 * time.Second
@@ -170,26 +180,45 @@ func unpack(archive []byte) ([]byte, error) {
 	}
 }
 
+type published struct {
+	Tag    string `json:"tag_name"`
+	Draft  bool   `json:"draft"`
+	Assets []struct {
+		Name string `json:"name"`
+		URL  string `json:"browser_download_url"`
+	} `json:"assets"`
+}
+
 func fetch() (Release, error) {
-	body, err := get(api)
+	if body, err := get(latestAPI); err == nil {
+		var one published
+		if err := json.Unmarshal(body, &one); err == nil && one.Tag != "" {
+			return release(one), nil
+		}
+	}
+
+	body, err := get(listAPI)
 	if err != nil {
 		return Release{}, err
 	}
-	var payload struct {
-		Tag    string `json:"tag_name"`
-		Assets []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.Unmarshal(body, &payload); err != nil {
+	var all []published
+	if err := json.Unmarshal(body, &all); err != nil {
 		return Release{}, err
 	}
-	found := Release{Tag: payload.Tag, Assets: map[string]string{}, Read: time.Now()}
-	for _, a := range payload.Assets {
+	for _, one := range all {
+		if !one.Draft && one.Tag != "" {
+			return release(one), nil
+		}
+	}
+	return Release{}, fmt.Errorf("no release is published")
+}
+
+func release(p published) Release {
+	found := Release{Tag: p.Tag, Assets: map[string]string{}, Read: time.Now()}
+	for _, a := range p.Assets {
 		found.Assets[a.Name] = a.URL
 	}
-	return found, nil
+	return found
 }
 
 func get(url string) ([]byte, error) {
@@ -225,6 +254,9 @@ func cached() (Release, bool) {
 	var held Release
 	if err := json.Unmarshal(raw, &held); err != nil {
 		return Release{}, false
+	}
+	if held.Tag == "" {
+		return held, time.Since(held.Read) < cacheFailureFor
 	}
 	return held, time.Since(held.Read) < cacheFor
 }
