@@ -223,3 +223,63 @@ func TestAMutedRuleInTOMLRejectsATable(t *testing.T) {
 		t.Errorf("the error does not name the setting: %v", err)
 	}
 }
+
+// Converting a repository starts with a file that holds nothing yet. The first
+// file found is the only one read, so an empty one that loaded would take the
+// settings of the .tstorm.json beside it with no sign it had.
+func TestAnEmptyFileDoesNotShadowTheOneBesideIt(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".tstorm.json", `{"documents":"docs","board":{"owner":"acme","number":7}}`)
+	write(t, root, Name, "")
+
+	_, err := Load(root)
+	if err == nil {
+		t.Fatal("an empty file loaded and hid the settings beside it")
+	}
+	if !strings.Contains(err.Error(), Name) {
+		t.Errorf("the error does not name the empty file: %v", err)
+	}
+
+	// A file carrying only the comments somebody started with says as little.
+	write(t, root, Name, "# the board lives on 13\n")
+	if _, err := Load(root); err == nil {
+		t.Error("a file of nothing but comments loaded")
+	}
+}
+
+// A repository still on .tstorm.json is not helped by being told to set a
+// value in a file it does not have.
+func TestADiagnosticNamesTheFileThatWasRead(t *testing.T) {
+	root := t.TempDir()
+	write(t, root, ".tstorm.json", `{"board":{"owner":"acme","number":7}}`)
+
+	settings, err := Load(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.File() != ".tstorm.json" {
+		t.Errorf("File() is %q, want .tstorm.json", settings.File())
+	}
+	err = settings.Board.Validate()
+	if err == nil {
+		t.Fatal("an incomplete board validated")
+	}
+	if !strings.Contains(err.Error(), ".tstorm.json") {
+		t.Errorf("the error names a file this repository does not have: %v", err)
+	}
+}
+
+// With no file anywhere there is nothing to name, so a message asking for a
+// setting names the file a repository should write.
+func TestWithNoFileTheDiagnosticNamesTheOneToWrite(t *testing.T) {
+	settings, err := Load(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if settings.File() != Name {
+		t.Errorf("File() is %q, want %q", settings.File(), Name)
+	}
+	if err := settings.Board.Validate(); err == nil || !strings.Contains(err.Error(), Name) {
+		t.Errorf("the error does not name %s: %v", Name, err)
+	}
+}

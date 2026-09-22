@@ -292,6 +292,11 @@ directory holding either one wins. Both names take the same settings, so a
 repository that installed the loop when JSON was the only format keeps working
 until somebody converts the dozen lines by hand.
 
+The first file found is the only one read; two files do not merge. A file that
+names no settings is an error rather than an empty answer, so a `.tstorm.toml`
+created and not yet filled in says so instead of shadowing the `.tstorm.json`
+beside it.
+
 ### Deny rules
 
 Claude Code carries a settings file for the repository to merge. Codex loads a
