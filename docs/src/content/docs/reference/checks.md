@@ -18,9 +18,12 @@ to communicate status.
 
 `0` is nothing found, `1` is something found, and `2` is a check that could
 not run. A caller reading only "non-zero" cannot tell a bad commit message
-from an unreadable file, and the two need different answers. `--warn` reports
-everything and exits `0`, which is what CI wants for the checks that cannot be
-certain.
+from an unreadable file, and the two need different answers.
+
+`check prose` takes `--warn`, which reports everything and exits `0`. It is
+the one gate whose findings are a reader's judgement rather than a fact, so it
+is the one CI runs without letting it fail a build. No other check takes the
+flag.
 
 ## What runs on its own
 

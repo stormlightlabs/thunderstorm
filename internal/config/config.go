@@ -252,6 +252,11 @@ func (c Config) DocumentsDir() string {
 // Validate reports every board setting that is missing, in one error. A
 // repository configuring the board for the first time has usually left out
 // more than one, and learning about them one run at a time is three runs.
+//
+// b.file is empty only when Load found no settings file at all: Load sets it
+// on every Config it reads from disk, and leaves it unset on the zero Config
+// it returns for a directory with nothing in it. That is the signal used
+// here to tell "nothing to edit yet" from "this file needs more in it".
 func (b Board) Validate() error {
 	var missing []string
 	for _, setting := range []struct {
@@ -273,9 +278,8 @@ func (b Board) Validate() error {
 	if len(missing) == 0 {
 		return nil
 	}
-	file := b.file
-	if file == "" {
-		file = Name
+	if b.file == "" {
+		return errors.New("no config found; run tstorm install --board <owner>/<number> --documents <dir> to write one")
 	}
-	return fmt.Errorf("%s names no %s", file, strings.Join(missing, ", "))
+	return fmt.Errorf("%s names no %s", b.file, strings.Join(missing, ", "))
 }

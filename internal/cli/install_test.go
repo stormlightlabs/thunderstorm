@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -122,6 +123,55 @@ func TestTheConfigHoldsWhatTheFlagsSaid(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "docs", "internal")); err != nil {
 		t.Errorf("the documents tree was not created: %v", err)
+	}
+}
+
+// --track writes groupField as Track unless --group-field names another
+// field, so install and the docs agree on what a shared board's key is
+// called.
+func TestTrackWritesTheGroupField(t *testing.T) {
+	for name, tc := range map[string][]string{
+		"default":      nil,
+		"custom field": {"--group-field", "Repository"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			args := append([]string{"install", "--dir", dir, "--board", "stormlightlabs/13",
+				"--track", "Tropius"}, tc...)
+			if _, _, err := run(t, args...); err != nil {
+				t.Fatalf("install: %v", err)
+			}
+
+			raw, err := os.ReadFile(filepath.Join(dir, ".tstorm.toml"))
+			if err != nil {
+				t.Fatalf("read the config: %v", err)
+			}
+			field := "Track"
+			if len(tc) > 0 {
+				field = tc[1]
+			}
+			want := fmt.Sprintf("groupField = %q", field)
+			if !strings.Contains(string(raw), want) {
+				t.Errorf("the config does not hold %s:\n%s", want, raw)
+			}
+		})
+	}
+}
+
+// A --dir that is not there is refused rather than created, so a typo in the
+// path does not become the directory install installs into.
+func TestDirMustAlreadyExist(t *testing.T) {
+	parent := t.TempDir()
+	missing := filepath.Join(parent, "nope")
+	_, _, err := run(t, "install", "--dir", missing)
+	if err == nil {
+		t.Fatal("a --dir that does not exist was accepted")
+	}
+	if !strings.Contains(err.Error(), missing) {
+		t.Errorf("the error does not name the path: %v", err)
+	}
+	if _, err := os.Stat(missing); !os.IsNotExist(err) {
+		t.Errorf("install created the directory it was refusing: %v", err)
 	}
 }
 

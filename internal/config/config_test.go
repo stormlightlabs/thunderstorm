@@ -64,7 +64,9 @@ func TestAMalformedFileIsAnError(t *testing.T) {
 // A repository configuring the board for the first time has usually left out
 // more than one setting. One error names them all.
 func TestMissingBoardSettingsAreNamedTogether(t *testing.T) {
-	err := Board{Owner: "stormlightlabs", Number: 13}.Validate()
+	b := Board{Owner: "stormlightlabs", Number: 13}
+	b.file = Name
+	err := b.Validate()
 	if err == nil {
 		t.Fatal("a board with no status field validated")
 	}
@@ -269,9 +271,10 @@ func TestADiagnosticNamesTheFileThatWasRead(t *testing.T) {
 	}
 }
 
-// With no file anywhere there is nothing to name, so a message asking for a
-// setting names the file a repository should write.
-func TestWithNoFileTheDiagnosticNamesTheOneToWrite(t *testing.T) {
+// With no file anywhere there is no file to name, so a message asking for a
+// board setting names the command that writes one instead of six keys a
+// reader has to map back to the docs on their own.
+func TestWithNoFileTheDiagnosticNamesInstall(t *testing.T) {
 	settings, err := Load(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
@@ -279,8 +282,15 @@ func TestWithNoFileTheDiagnosticNamesTheOneToWrite(t *testing.T) {
 	if settings.File() != Name {
 		t.Errorf("File() is %q, want %q", settings.File(), Name)
 	}
-	if err := settings.Board.Validate(); err == nil || !strings.Contains(err.Error(), Name) {
-		t.Errorf("the error does not name %s: %v", Name, err)
+	err = settings.Board.Validate()
+	if err == nil {
+		t.Fatal("an incomplete board with no file validated")
+	}
+	if !strings.Contains(err.Error(), "tstorm install") {
+		t.Errorf("the error does not name install: %v", err)
+	}
+	if strings.Contains(err.Error(), "board.owner") {
+		t.Errorf("the error lists keys instead of the command that writes them: %v", err)
 	}
 }
 

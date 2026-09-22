@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -35,6 +36,7 @@ type install struct {
 	board      string
 	statusFld  string
 	track      string
+	groupFld   string
 	dictionary string
 }
 
@@ -82,6 +84,7 @@ func installCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd.Flags().StringVar(&in.board, "board", "", "GitHub Projects board as owner/number")
 	cmd.Flags().StringVar(&in.statusFld, "status-field", "Status", "field on that board carrying status")
 	cmd.Flags().StringVar(&in.track, "track", "", "value separating this repository's work on a shared board")
+	cmd.Flags().StringVar(&in.groupFld, "group-field", "Track", "field --track narrows to, on a board carrying several repositories")
 	cmd.Flags().StringVar(&in.dictionary, "prose", "", "project dictionary the prose gate reads")
 	return cmd
 }
@@ -100,11 +103,16 @@ func (in install) run(cmd *cobra.Command, p *ui.Printer) error {
 	}
 	// Every flag that can be rejected is read here, before the first write:
 	// a caller reading a non-zero exit has to find the repository exactly as
-	// it was, --check included.
+	// it was, --check included. --dir is checked here too, so a typo in the
+	// path is refused rather than becoming the directory it creates.
+	if err := in.dirExists(); err != nil {
+		return err
+	}
 	c, err := in.starter()
 	if err != nil {
 		return err
 	}
+	warnIfNotARepository(cmd, p, in.dir)
 	from := workflowSource(in.source)
 	manifest, err := render.Load(from)
 	if err != nil {
@@ -246,6 +254,38 @@ func (in install) config(cmd *cobra.Command, p *ui.Printer, c *config.Config) (i
 	return 0, nil
 }
 
+// dirExists refuses a --dir that is not there. A rendered file's parent
+// directories are created as the payload is written, and without this check
+// that reaches --dir itself: a typo in the path would install into a new
+// directory nobody asked for instead of failing.
+func (in install) dirExists() error {
+	held, err := os.Stat(in.dir)
+	switch {
+	case os.IsNotExist(err):
+		return fmt.Errorf("%s does not exist; install does not create it", in.dir)
+	case err != nil:
+		return err
+	case !held.IsDir():
+		return fmt.Errorf("%s is not a directory", in.dir)
+	}
+	return nil
+}
+
+// warnIfNotARepository tells a driver when dir carries no git repository. The
+// loop works on branches and pull requests, so that is worth a driver's
+// attention, but running git init is the repository's own call rather than
+// something install should make for it.
+func warnIfNotARepository(cmd *cobra.Command, p *ui.Printer, dir string) {
+	// git answers this, so a machine without git gets no answer rather than
+	// the wrong one.
+	if _, err := exec.LookPath("git"); err != nil {
+		return
+	}
+	if exec.Command("git", "-C", dir, "rev-parse", "--is-inside-work-tree").Run() != nil {
+		fmt.Fprintln(cmd.OutOrStdout(), p.Subtle.Render("warning: "+dir+" is not a git repository; the loop needs branches and pull requests"))
+	}
+}
+
 // starter reads the config flags, and returns nil when none of them was given.
 func (in install) starter() (*config.Config, error) {
 	if in.documents == "" && in.board == "" && in.dictionary == "" {
@@ -266,7 +306,7 @@ func (in install) starter() (*config.Config, error) {
 		c.Board.StatusField = in.statusFld
 		c.Board.Status = config.Status{Todo: "Todo", InProgress: "In Progress", Done: "Done"}
 		if in.track != "" {
-			c.Board.GroupField, c.Board.GroupValue = "Track", in.track
+			c.Board.GroupField, c.Board.GroupValue = in.groupFld, in.track
 		}
 	}
 	return &c, nil

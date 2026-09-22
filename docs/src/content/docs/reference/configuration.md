@@ -107,15 +107,18 @@ done = "Done"
 ```
 
 The three option names are whatever the board calls the states an issue moves
-between. A project carrying several repositories' work adds
-`groupField` and `groupValue` to separate them; a project that is this
-repository's alone leaves both out. Reads are filtered to the repository the
-command runs in, taken from its `origin` remote unless `repository` names one.
+between. A project carrying several repositories' work adds `groupField` and
+`groupValue` to separate them; a project that is this repository's alone
+leaves both out. `tstorm install --track <value>` writes `groupValue`, and
+`groupField` under the name `Track` unless `--group-field` names the field
+your board uses instead. Reads are filtered to the repository the command
+runs in, taken from its `origin` remote unless `repository` names one.
 
-A repository that configures none of this gets an error naming every setting
-it left out. Reading and writing a project also needs the `project` scope on
-the token: `gh auth status` lists the scopes, `gh auth refresh -s project`
-adds it.
+A repository with no `.tstorm.toml` at all gets an error naming the `install`
+command that writes one. A repository whose file is missing some of this gets
+an error naming each setting it left out. Reading and writing a project also
+needs the `project` scope on the token: `gh auth status` lists the scopes,
+`gh auth refresh -s project` adds it.
 
 ## Model assignments
 
