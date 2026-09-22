@@ -49,9 +49,9 @@ find. Ask of each change:
 - Could a check replace the care this asks of the next person to touch it?
 
 Report complexity the way you report a defect: what it costs, and what to do
-instead. "Simpler would be better" without a concrete alternative is not a
-finding. A change that is merely longer than you would have written it is not
-either.
+instead. Without a concrete alternative, "simpler would be better" fails that
+bar, and so does a change that is merely longer than you would have written
+it.
 
 ## Gather context first
 

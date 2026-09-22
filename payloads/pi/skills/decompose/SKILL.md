@@ -44,14 +44,20 @@ reports its own progress.
 
 ## The issue a run takes
 
-One per body of work that fits a run. Leave it off the board: it is not
-claimable, so a status on it is a copy of its sub-issues' state with somewhere
-to drift.
+One per body of work that fits a run. Leave it off the board. Nothing claims
+it, so a status on it is a copy of its sub-issues' state with somewhere to
+drift.
 
-`.github/ISSUE_TEMPLATE/issue-with-sub-issues.yml` holds the fields: the goal, the stop rule,
-the planned sub-issues, the source, and what it must not absorb. The form
-renders in the web UI and nowhere else, so filing through `github-board` means
-reproducing those five as headings in the body.
+`.github/ISSUE_TEMPLATE/issue-with-sub-issues.yml` holds the fields:
+
+- the goal
+- the stop rule
+- the planned sub-issues
+- the source
+- what it must not absorb
+
+The form renders in the web UI and nowhere else, so filing through
+`github-board` means reproducing those five as headings in the body.
 
 The stop rule is its own, not a restatement of "every sub-issue is done": that
 is already implied, and a stop rule that adds nothing tells a run nothing about
@@ -84,9 +90,9 @@ in the body, where a reader gets them in prose rather than off a label.
 
 Each carries:
 
-- **Problem**, with evidence. What is wrong now, and how you know.
-- **Done when**, checkable without judgment.
-- **Not in this issue**, so the next worker knows what is deliberately absent.
+- Problem, with evidence. What is wrong now, and how you know.
+- Done when, checkable without judgment.
+- Not in this issue, so the next worker knows what is deliberately absent.
 
 Cite the identifier of the idea or spec it came from. A reader who finds the
 issue should reach the reasoning, and a reader who finds the document should

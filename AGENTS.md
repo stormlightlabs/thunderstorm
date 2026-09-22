@@ -84,10 +84,12 @@ hook that blocks on its own absence teaches an operator to turn hooks off. Set
 `core.hooksPath` only when you mean to: it replaces `.git/hooks` wholesale, so
 every hook you already had stops firing.
 
+<!-- trps-ignore-start sentence_structure.tricolon_abuse -- the four things it checks, named once -->
 It checks the type, the 60-character subject, the blank line, and the 72-column
 body, and exempts fenced blocks, trailers, and URLs from the column limit. The
 `commits-and-prs` skill under `workflow/skills/` holds the rest, including the
 pull request targets that become the squash commit.
+<!-- trps-ignore-end -->
 
 ## Closing an issue
 
@@ -122,10 +124,9 @@ catalogue and check the draft against it before committing, opening, or
 posting. The pass is not optional because the text is short, internal, or
 written by an agent.
 
-`tstorm check commit-message` does not do this. It checks the type, the
-subject length, the blank line, and the column limit, and it will pass a
-message full of tells; a clean run from it means the shape is right and
-nothing more.
+`tstorm check commit-message` does not do this. It reads the shape and nothing
+else, and will pass a message full of tells; a clean run from it means the
+shape is right and no more than that.
 
 What the pass looks for, in the catalogue's terms: bold-first bullets used as a
 template, ceremonial endings, the same point restated at three levels, a

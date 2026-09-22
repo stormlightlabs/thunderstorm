@@ -5,7 +5,7 @@ description: Think through a design, feature, or problem in conversation before 
 
 # Rubber duck
 
-Design discussion. No implementation, no branch, no pull request.
+Design discussion, with nothing implemented and nothing filed.
 
 ## How to talk
 

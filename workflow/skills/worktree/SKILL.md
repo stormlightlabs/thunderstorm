@@ -12,8 +12,8 @@ in CI.
 
 ## Who gets one
 
-What a worktree separates is one writer from the next, so the question is
-whether this work has a next writer.
+A worktree separates one writer from the next. Ask whether this work has a
+next writer.
 
 | Writer                    | Tree                                          |
 | ------------------------- | --------------------------------------------- |

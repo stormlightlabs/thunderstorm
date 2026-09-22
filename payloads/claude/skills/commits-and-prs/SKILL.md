@@ -99,8 +99,8 @@ defect is a question a reader of the thread asks.
 ## Pull request bodies
 
 A reviewer wants to know what to look at and whether it works. Say that, and
-stop. The body is scaffolding for one review; it is not a record, because it
-never reaches `git log`.
+stop. The body is scaffolding for one review, and it never reaches `git log`,
+so nothing in it is a record.
 
 Most changes need only this:
 
@@ -118,8 +118,8 @@ There is no second, longer form. A body with headings reaches `git log` with
 its `##` characters intact, and four headings over a six-line body is a form
 rather than a description: a reviewer reads the headings, finds a sentence
 under each, and learns less than the one paragraph would have told them. A
-change too large to describe in twenty lines wants a document in `internal/`
-and a link to it.
+change too large to describe in twenty lines needs a document in the
+repository's documents tree, and a link to it.
 
 Requirements:
 

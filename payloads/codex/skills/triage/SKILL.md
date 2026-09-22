@@ -111,17 +111,17 @@ Apply these to the claimable bucket in order, each one breaking the ties the
 one above it leaves. State which rule placed the top few, so a reader who
 disagrees knows which rule to argue with.
 
-1. **What it unblocks.** The count of open issues in its `blocking` set,
+1. What it unblocks. The count of open issues in its `blocking` set,
    highest first. Work that nothing waits on scores zero and sorts below work
    that holds something up.
-2. **A fix ahead of the rest.** An issue whose body names behavior that is
+2. A fix ahead of the rest. An issue whose body names behavior that is
    wrong now outranks one adding behavior: everything else builds on it.
-3. **The issue nearest finishing.** Its parent's `sub_issues_summary`, by
+3. The issue nearest finishing. Its parent's `sub_issues_summary`, by
    `completed` against `total`, highest first. A sub-issue whose siblings have
    mostly landed outranks one under an issue nothing has started: finishing one
    retires its coordination cost, and starting another adds one. Work under no
    parent scores zero here and is broken out of by rule 4.
-4. **Oldest first.** A stable tiebreaker. The oldest queued issue has already
+4. Oldest first. A stable tiebreaker. The oldest queued issue has already
    lost every ordering before this one.
 
 Risk does not enter the rank. It decides lanes instead, below.
@@ -148,7 +148,7 @@ Name it, then decide on files.
 
 Two issues never share a fan-out:
 
-- Either touches released behavior, data, or security. That wants a thread
+- Either touches released behavior, data, or security. That needs a thread
   and a review sequence to itself.
 - Either has sub-issues. `implement` refuses an issue with children, so it is
   something `/thunderstorm` takes, not a lane entry.

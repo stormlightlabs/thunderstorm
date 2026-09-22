@@ -1,5 +1,5 @@
 claude
-version 0.1.0-rc.4
+version 0.1.0-rc.5
 .claude-plugin/plugin.json
 agents/adversarial-reviewer.md
 agents/implementer.md

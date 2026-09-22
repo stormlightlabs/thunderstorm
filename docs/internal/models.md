@@ -61,8 +61,8 @@ role on it.
 
 ## Picking within a row
 
-Take the cheaper option first. Move up when the work has one of these
-properties, not because the change feels important:
+Take the cheaper option first, and move up when the work has one of these
+properties. How important the change feels is none of them:
 
 - The failure is ambiguous and the cause is not yet located.
 - The change crosses a module boundary or alters released behavior.

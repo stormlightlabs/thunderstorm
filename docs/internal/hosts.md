@@ -80,7 +80,7 @@ the marketplace install does not depend on it.
 
 Each harness expresses review dispatch differently.
 
-**Codex has a real multi-agent system**, stable and enabled by default: the
+Codex has a real multi-agent system, stable and enabled by default: the
 `multi_agent` feature is on, and the model is told it is `/root` in a team. The
 tools are `spawn_agent`, `followup_task`, `send_message`, `wait_agent`,
 `interrupt_agent`, and `list_agents`, and a sub-agent may spawn its own. Two
@@ -160,6 +160,7 @@ terminals, but it has no reason to: `spawn_agent` is the better route there.
 
 ## Hooks
 
+<!-- trps-ignore-start sentence_structure.tricolon_abuse -- the wire contract, named as it arrives -->
 Codex's hook contract is close enough to Claude Code's to share one
 implementation. The events are `PreToolUse`, `PostToolUse`, `UserPromptSubmit`,
 `Stop`, `SessionStart`, `PreCompact`, `PostCompact`, `PermissionRequest`,
@@ -168,6 +169,7 @@ implementation. The events are `PreToolUse`, `PostToolUse`, `UserPromptSubmit`,
 `permission_mode`, and `agent_type`; a hook replies with `hookSpecificOutput`
 carrying `hookEventName`, `additionalContext`, `permissionDecision`, and
 `permissionDecisionReason`. Those are Claude Code's names.
+<!-- trps-ignore-end -->
 
 So the deslop gate is one script behind two thin adapters, not three
 implementations. Pi is the exception: its only equivalent is an extension in

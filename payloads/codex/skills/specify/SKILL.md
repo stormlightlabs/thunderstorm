@@ -61,12 +61,12 @@ the trail reads from either end.
 
 ## What a spec holds
 
-- **The decision.** What was chosen, and what it rules out. This is the reason
-  the document exists.
-- **The shape.** How the pieces fit: boundaries, ownership, the vocabulary the
+- The decision. What was chosen, and what it rules out. This is the reason the
+  document exists.
+- The shape. How the pieces fit: boundaries, ownership, the vocabulary the
   issues will use. Enough that two people cutting issues from it cut the same
   ones.
-- **What it does not cover.** Scope the work must not absorb, so a worker who
+- What it does not cover. Scope the work must not absorb, so a worker who
   finds adjacent work knows it is adjacent.
 
 ## What a spec does not hold

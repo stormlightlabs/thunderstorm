@@ -9,9 +9,9 @@ Resolve paths that start with `../../` from the directory containing this `SKILL
 One run covers one issue and the sub-issues declared under it. A human starts
 every run. Nothing here runs on a schedule.
 
-A milestone is not that issue. It groups several of them and holds what
-crosses them, and it is not an issue at all, so there is nothing there to
-dispatch. Take the issues in a milestone one run each.
+A milestone sits above those issues. It groups several and holds what crosses
+them, and being no issue itself it offers nothing to dispatch. Take the issues
+under a milestone one run each.
 
 This skill dispatches and reports. It writes no code and edits no files; the
 one thing it does in the checkout is create and remove the worktrees it hands

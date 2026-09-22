@@ -147,9 +147,10 @@ blocked by #28 and #29 at the same time. Recording the second one is what stops
 a run dispatching a harness before the thing it starts exists, and GitHub
 enforces it by refusing to close an issue whose blockers are open.
 
-A dependency is an ordering known when the issues are filed. It is not a block,
-which stops a run and belongs to something discovered while working. An issue
-waiting on a sibling stays `todo` and keeps its place in the dispatch order.
+A dependency is an ordering known when the issues are filed. A block is the
+other thing: it stops a run, and it belongs to something discovered while
+working. An issue waiting on a sibling stays `todo` and keeps its place in the
+dispatch order.
 
 ```sh
 tstorm board blocked-by add <blocked> <blocker>
@@ -194,7 +195,7 @@ reads the board, and the repair is a status write a human authorizes.
 - Do not close an issue to express any state other than dropping it. `done` is
   set once the merged change is confirmed on `main`.
 - Do not edit an issue body written by a human. Add a comment instead.
-- Labels carry no board state. A run that wants a label the repository does not
+- Labels carry no board state. A run that needs a label the repository does not
   have says which one is missing and stops; a label invented mid-run splits the
   board in two.
 - Keep the issue and the board agreeing. An assignee with `todo`, or

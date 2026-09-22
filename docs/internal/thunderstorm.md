@@ -77,7 +77,7 @@ them. Two of those differences decide whether a write lands at all:
   running `.claude/scripts/sync-labels.py` locally, or by dispatching
   `.github/workflows/labels.yml`, which runs that same script on a runner with
   `issues: write`, the narrowest scope GitHub offers for labels. A run that
-  wants a label the manifest does not define is still blocked; the manifest
+  needs a label the manifest does not define is still blocked; the manifest
   changes first.
 
 A cloud container starts with no dependency caches, which
@@ -120,8 +120,9 @@ Status is a label. One status label per issue.
 for more than 7 days surfaces in the next `/triage` report. Nothing closes
 automatically.
 
-An issue with sub-issues carries no status and no risk. It is not work, so there is nothing to claim and no blast radius to size, and
-duplicating a child's state on a parent gives that copy somewhere to drift.
+An issue with sub-issues carries no status and no risk. Nothing claims it,
+nothing sizes a blast radius for it, and duplicating a child's state on a
+parent gives that copy somewhere to drift.
 
 The full label set — `status:*`, `blocked:*`, `type:*`, `area:*`, `risk:*` —
 lives in `.github/labels.yml`. There is no `kind:`: grouping is a milestone. Its `retired:`
@@ -197,7 +198,7 @@ What crosses two issues is no longer that case: it belongs in their
 milestone's description, which both runs read.
 
 The ranked list goes to chat and is derived again the next time it is asked
-for. It is not a document, for the reason under [File
+for. Nothing writes it down, for the reason under [File
 conventions](#file-conventions): a list of pending work is wrong as soon as one
 issue closes, and a wrong copy on disk gets read in place of the board.
 
@@ -234,7 +235,9 @@ Second standard pass on #12 at 4f2a91c · claude-opus-5 · high
 ```
 
 A comment is budgeted in words, not lines, because GitHub soft-wraps: 200 for a
-review, 150 for a reply. The `review` and `revise` skills hold those, the
+review, 150 for a reply.
+<!-- trps-ignore-next-line sentence_structure.tricolon_abuse -- what the two skills hold, listed -->
+The `review` and `revise` skills hold those, the
 one-line finding format, the severity table, and the edit pass's stop rules.
 Either stop is an escalation.
 
