@@ -70,7 +70,7 @@ func installCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&in.target, "target", "claude", "harness to install for: "+render.TargetNames())
+	cmd.Flags().StringVar(&in.target, "target", "claude", "harness to install for: "+render.InstallableTargetNames())
 	cmd.Flags().StringVar(&in.dir, "dir", ".", "repository to install into")
 	cmd.Flags().StringVar(&in.source, "source", "", "workflow source directory (default: the one this binary carries)")
 	cmd.Flags().BoolVar(&in.check, "check", false, "report what installing would do, and write nothing")
@@ -95,6 +95,13 @@ func (in install) merging(t *render.Target) bool {
 
 func (in install) run(cmd *cobra.Command, p *ui.Printer) error {
 	t, err := render.Lookup(in.target)
+	if err != nil {
+		return err
+	}
+	// Every flag that can be rejected is read here, before the first write:
+	// a caller reading a non-zero exit has to find the repository exactly as
+	// it was, --check included.
+	c, err := in.starter()
 	if err != nil {
 		return err
 	}
@@ -123,7 +130,7 @@ func (in install) run(cmd *cobra.Command, p *ui.Printer) error {
 		return err
 	}
 	pending += waiting
-	waiting, err = in.config(cmd, p)
+	waiting, err = in.config(cmd, p, c)
 	if err != nil {
 		return err
 	}
@@ -211,15 +218,12 @@ func (in install) settings(cmd *cobra.Command, p *ui.Printer, m render.Manifest,
 	return 0, change.Apply()
 }
 
-// config writes the settings a repository cannot be asked to guess at.
-func (in install) config(cmd *cobra.Command, p *ui.Printer) (int, error) {
+// config writes the settings a repository cannot be asked to guess at. c is
+// what in.starter() read from the flags, validated by run before any write.
+func (in install) config(cmd *cobra.Command, p *ui.Printer, c *config.Config) (int, error) {
 	w := cmd.OutOrStdout()
 	if in.noConfig {
 		return 0, nil
-	}
-	c, err := in.starter()
-	if err != nil {
-		return 0, err
 	}
 	file := filepath.Join(in.dir, config.Name)
 	if c == nil {

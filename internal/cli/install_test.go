@@ -125,14 +125,29 @@ func TestTheConfigHoldsWhatTheFlagsSaid(t *testing.T) {
 	}
 }
 
+// A malformed --board has to be caught before install writes anything: a
+// caller reading the non-zero exit has to find the repository untouched, not
+// half-configured by a payload and a settings merge that already landed.
+// --check reads the same flags, so it has to refuse the same way.
 func TestAMalformedBoardIsRefused(t *testing.T) {
-	dir := t.TempDir()
-	_, _, err := run(t, "install", "--dir", dir, "--board", "stormlightlabs")
-	if err == nil {
-		t.Fatal("a board with no number was accepted")
-	}
-	if !strings.Contains(err.Error(), "owner/number") {
-		t.Errorf("the error does not say the shape: %v", err)
+	for name, extra := range map[string][]string{
+		"install": nil,
+		"check":   {"--check"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			args := append([]string{"install", "--dir", dir, "--board", "stormlightlabs"}, extra...)
+			_, _, err := run(t, args...)
+			if err == nil {
+				t.Fatal("a board with no number was accepted")
+			}
+			if !strings.Contains(err.Error(), "owner/number") {
+				t.Errorf("the error does not say the shape: %v", err)
+			}
+			if _, err := os.Stat(filepath.Join(dir, ".claude")); !os.IsNotExist(err) {
+				t.Errorf("install wrote a payload before validating --board: %v", err)
+			}
+		})
 	}
 }
 
@@ -165,5 +180,26 @@ func TestCheckOnAnEmptyRepositoryReportsWork(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, ".claude")); !os.IsNotExist(err) {
 		t.Errorf("check wrote a payload: %v", err)
+	}
+}
+
+// cursor is advertised nowhere to install, since every render for it fails on
+// an unmet capability; render keeps naming the gap, which is how someone
+// closing #13 sees what is missing.
+func TestInstallOffersNoUnsupportedTarget(t *testing.T) {
+	stdout, _, err := run(t, "install", "--help")
+	if err != nil {
+		t.Fatalf("install --help: %v", err)
+	}
+	if strings.Contains(stdout, "cursor") {
+		t.Errorf("install --help offers cursor:\n%s", stdout)
+	}
+
+	_, _, err = run(t, "render", "--target", "cursor", "--source", "../../workflow", "--out", t.TempDir())
+	if err == nil {
+		t.Fatal("render --target cursor did not report its gap")
+	}
+	if !strings.Contains(err.Error(), "#13") {
+		t.Errorf("render --target cursor error does not cite the issue: %v", err)
 	}
 }

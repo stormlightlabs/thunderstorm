@@ -75,6 +75,30 @@ func TargetNames() string {
 	return out
 }
 
+// Installable reports whether a target provides anywhere a payload could
+// land. cursorTarget is the one target with an empty provides map: its host
+// contract is unverified, so every capability and kind carries the same "see
+// #13" reason rather than a place.
+func (t *Target) Installable() bool { return len(t.provides) > 0 }
+
+// InstallableTargetNames lists the targets a payload can actually be
+// installed into, for install's own flag help. render.TargetNames keeps
+// listing every target, cursor included, because `render --target cursor`
+// stays the way its gap is seen.
+func InstallableTargetNames() string {
+	out := ""
+	for _, t := range Targets() {
+		if !t.Installable() {
+			continue
+		}
+		if out != "" {
+			out += ", "
+		}
+		out += t.Name
+	}
+	return out
+}
+
 // claudePluginRoot is what Claude Code expands to the installed payload's
 // directory, in a hook command and in rendered prose alike.
 const claudePluginRoot = "${CLAUDE_PLUGIN_ROOT}"
