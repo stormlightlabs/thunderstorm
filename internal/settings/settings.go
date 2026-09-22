@@ -19,6 +19,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+
+	"github.com/stormlightlabs/thunderstorm/internal/jsonc"
 )
 
 // schema is what an editor reads the file against. It is written only into a
@@ -58,7 +60,7 @@ func Plan(file string, deny []string, hooks []Hook) (Change, error) {
 	case err != nil:
 		return c, fmt.Errorf("read %s: %w", file, err)
 	default:
-		if err := json.Unmarshal(raw, &c.body); err != nil {
+		if err := json.Unmarshal(jsonc.Strip(raw), &c.body); err != nil {
 			return c, fmt.Errorf("parse %s: %w", file, err)
 		}
 		if c.body == nil {
@@ -103,7 +105,9 @@ func (c Change) Created() bool { return c.created }
 //
 // The file is rewritten rather than patched, so a key's position may move. Its
 // content does not: what a repository put there is decoded and re-encoded, and
-// only the deny list and the hook registrations gain entries.
+// only the deny list and the hook registrations gain entries. Plan reads a
+// comment through jsonc.Strip, but the decoded body carries no memory of one,
+// so a comment in the file does not survive this rewrite.
 func (c Change) Apply() error {
 	if c.Empty() {
 		return nil

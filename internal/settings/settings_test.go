@@ -154,3 +154,19 @@ func TestUnreadableSettingsStopTheMerge(t *testing.T) {
 		t.Error("a truncated file was accepted")
 	}
 }
+
+// A hand-edited settings file carries the comments encoding/json cannot read.
+// The merge has to work rather than abort install with the payload already
+// landed.
+func TestACommentInSettingsMergesRatherThanAborting(t *testing.T) {
+	path := file(t, `{
+  // kept from a rebuild that broke the deploy
+  "permissions": {"deny": ["Bash(git push:*)"]}
+}`)
+	merge(t, path, []string{"Bash(git push:*)", "Bash(git merge:*)"}, []Hook{gate})
+
+	deny := read(t, path)["permissions"].(map[string]any)["deny"].([]any)
+	if len(deny) != 2 {
+		t.Errorf("deny holds %v, want the held rule and the missing one", deny)
+	}
+}
