@@ -14,9 +14,11 @@ person starts every run, and a person merges it.
 
 ## `tstorm`
 
-The skills describe each stage and the commands start them. `tstorm` is the
-small app that renders the payloads, runs the gates, answers the harness
-hooks, reads and writes the board, and starts a session per role. The
+The skills describe each stage and nine commands start them, from
+`/rubber-duck` to `/revise`. [First run](/start/first-run/) lists them and
+walks through one. `tstorm` is the small app that renders the payloads, runs
+the gates, answers the harness hooks, reads and writes the board, and starts a
+session per role. The
 [checks reference](/reference/checks/) says what each check reads and what its
 exit code means, and the [harness reference](/reference/harnesses/) says what
 each agent gets.
