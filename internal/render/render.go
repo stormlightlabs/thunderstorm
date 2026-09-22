@@ -52,6 +52,11 @@ type File struct {
 type Payload struct {
 	Target *Target
 	Files  []File
+
+	// Version is the manifest version this payload was built from, recorded
+	// in the marker so an installed payload can say what it is and update
+	// can say what it moved from.
+	Version string
 	// Limits is what this harness does not get, where the render went ahead
 	// anyway: an unmet artifact stops a render, a missing permission
 	// mechanism does not. The render report is where an operator meets it.
@@ -103,7 +108,7 @@ func (u *Unmet) Error() string {
 // Plan builds the payload for one target from a source tree. It returns an
 // *Unmet when the target cannot carry every artifact.
 func Plan(m Manifest, t *Target, src Source) (*Payload, error) {
-	p := &Payload{Target: t, counts: map[Kind]int{}}
+	p := &Payload{Target: t, Version: m.Version, counts: map[Kind]int{}}
 
 	// Every gap is collected before anything is rendered, so a target that
 	// cannot carry the workflow says so once, in full, rather than failing on
@@ -157,12 +162,22 @@ func Plan(m Manifest, t *Target, src Source) (*Payload, error) {
 	return p, nil
 }
 
-// markerBody is the target and everything the render writes, one per line.
-// Paths in skip were not written and are left out.
+// versionLine prefixes the version in the marker's header, so a reader can
+// tell it from the paths under it and an older one can ignore it.
+const versionLine = "version "
+
+// markerBody is the target, the version that wrote the payload, and every file
+// the render writes, one per line. Paths in skip were not written and are left
+// out.
 func (p *Payload) markerBody(skip map[string]bool) []byte {
 	var b strings.Builder
 	b.WriteString(p.Target.Name)
 	b.WriteString("\n")
+	if p.Version != "" {
+		b.WriteString(versionLine)
+		b.WriteString(p.Version)
+		b.WriteString("\n")
+	}
 	for _, f := range p.Files {
 		if f.Path != marker && !skip[f.Path] {
 			b.WriteString(f.Path)
@@ -399,13 +414,13 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 	case err != nil:
 		return "", nil, fmt.Errorf("%s holds files tstorm did not render; render it with --adopt, or choose another --out", dir)
 	default:
-		lines := strings.Split(strings.TrimSpace(string(held)), "\n")
-		if name := strings.TrimSpace(lines[0]); name != p.Target.Name {
+		name, _, paths := parseMarker(held)
+		if name != p.Target.Name {
 			return "", nil, fmt.Errorf("%s holds the %s payload, not %s; choose another --out", dir, name, p.Target.Name)
 		}
 		owned = map[string]bool{marker: true}
-		for _, path := range lines[1:] {
-			owned[strings.TrimSpace(path)] = true
+		for _, path := range paths {
+			owned[path] = true
 		}
 	}
 
@@ -579,10 +594,54 @@ func rendered(dir string) (map[string]bool, error) {
 		return nil, err
 	}
 	owned := map[string]bool{marker: true}
-	for _, line := range strings.Split(strings.TrimSpace(string(held)), "\n")[1:] {
-		owned[strings.TrimSpace(line)] = true
+	_, _, paths := parseMarker(held)
+	for _, path := range paths {
+		owned[path] = true
 	}
 	return owned, nil
+}
+
+// parseMarker reads a marker into the target that wrote it, the version it
+// wrote, and the paths it owns.
+//
+// A marker written before the version line carries none, and reads as an
+// unknown version rather than an error: every payload installed until now is
+// one of those.
+func parseMarker(body []byte) (target, version string, paths []string) {
+	lines := strings.Split(strings.TrimSpace(string(body)), "\n")
+	target = strings.TrimSpace(lines[0])
+	rest := lines[1:]
+	if len(rest) > 0 && strings.HasPrefix(rest[0], versionLine) {
+		version = strings.TrimSpace(strings.TrimPrefix(rest[0], versionLine))
+		rest = rest[1:]
+	}
+	for _, line := range rest {
+		if path := strings.TrimSpace(line); path != "" {
+			paths = append(paths, path)
+		}
+	}
+	return target, version, paths
+}
+
+// Installed is the payload a directory holds.
+type Installed struct {
+	Target  string
+	Version string
+	Files   []string
+}
+
+// Read reports what the payload at dir says about itself. A directory holding
+// no marker is not a payload, and reports so through ok.
+func Read(dir string) (in Installed, ok bool, err error) {
+	held, err := os.ReadFile(filepath.Join(dir, marker))
+	if errors.Is(err, fs.ErrNotExist) {
+		return in, false, nil
+	}
+	if err != nil {
+		return in, false, err
+	}
+	in.Target, in.Version, in.Files = parseMarker(held)
+	return in, true, nil
 }
 
 func plural(word string, n int) string {
