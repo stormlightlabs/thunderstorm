@@ -28,10 +28,10 @@ import (
 // names when a setting it needed is missing.
 const Name = ".tstorm.toml"
 
-// Names are the files tstorm reads, in the order it looks for them in each
+// names are the files tstorm reads, in the order it looks for them in each
 // directory. A repository that installed the loop before TOML already has a
 // .tstorm.json, which keeps being read under the same setting names.
-var Names = []string{Name, ".tstorm.json"}
+var names = []string{Name, ".tstorm.json"}
 
 // Config is what a repository tells tstorm about itself.
 type Config struct {
@@ -52,6 +52,21 @@ type Config struct {
 	// dir is the directory the file was read from, so a relative setting
 	// resolves against the file rather than the caller's working directory.
 	dir string
+
+	// file is the name it was read under, so a diagnostic names the file the
+	// repository has rather than the one it would have written today.
+	file string
+}
+
+// File is the settings file that was read, or the file a repository should
+// write when none was found. A message telling somebody to set a value says
+// where to set it, and a repository still on .tstorm.json is not helped by
+// the name of a file it does not have.
+func (c Config) File() string {
+	if c.file == "" {
+		return Name
+	}
+	return c.file
 }
 
 // Board names the project the loop reads and writes, and what this repository
@@ -78,6 +93,10 @@ type Board struct {
 	// repository's work. A board that carries one leaves both empty.
 	GroupField string `json:"groupField" toml:"groupField"`
 	GroupValue string `json:"groupValue" toml:"groupValue"`
+
+	// file is the settings file this board was read from. A Board travels to
+	// the board client on its own, so it carries the name its error needs.
+	file string
 }
 
 // Prose configures the gate that runs tropius over a repository's writing.
@@ -153,8 +172,8 @@ type Status struct {
 }
 
 // Load reads the settings that apply to dir, walking up until it finds a file
-// or runs out of parents. The nearest directory holding one of Names wins, and
-// within a directory the order of Names decides. A repository that has
+// or runs out of parents. The nearest directory holding one of names wins, and
+// within a directory the order of names decides. A repository that has
 // configured nothing gets an empty Config and no error: a missing file is a
 // repository that has not asked for these checks, which is not the same as a
 // broken one.
@@ -164,7 +183,7 @@ func Load(dir string) (Config, error) {
 		return Config{}, err
 	}
 	for {
-		for _, name := range Names {
+		for _, name := range names {
 			path := filepath.Join(dir, name)
 			body, err := os.ReadFile(path)
 			if errors.Is(err, fs.ErrNotExist) {
@@ -178,6 +197,8 @@ func Load(dir string) (Config, error) {
 				return Config{}, fmt.Errorf("%s: %w", path, err)
 			}
 			c.dir = dir
+			c.file = name
+			c.Board.file = name
 			return c, nil
 		}
 		parent := filepath.Dir(dir)
@@ -190,12 +211,29 @@ func Load(dir string) (Config, error) {
 
 // parse decodes one settings file by its extension. Which format a repository
 // chose stops here: everything above reads the same Config.
+//
+// A file holding no settings is refused rather than returned empty. The first
+// file found is the only one read, so an empty .tstorm.toml left by a
+// conversion that got as far as touch would otherwise hide a .tstorm.json
+// beside it and take every setting with it. An empty .tstorm.json has always
+// been an error, and this is the same answer.
 func parse(name string, body []byte) (Config, error) {
 	var c Config
-	if filepath.Ext(name) == ".json" {
+	switch ext := filepath.Ext(name); ext {
+	case ".json":
 		return c, json.Unmarshal(body, &c)
+	case ".toml":
+		meta, err := toml.Decode(string(body), &c)
+		if err != nil {
+			return Config{}, err
+		}
+		if len(meta.Keys()) == 0 {
+			return Config{}, errors.New("names no settings: fill it in, or remove it")
+		}
+		return c, nil
+	default:
+		return Config{}, fmt.Errorf("no decoder for %s", ext)
 	}
-	return c, toml.Unmarshal(body, &c)
 }
 
 // DocumentsDir is the configured tree as a path the caller can open, or an
@@ -234,5 +272,9 @@ func (b Board) Validate() error {
 	if len(missing) == 0 {
 		return nil
 	}
-	return fmt.Errorf("%s names no %s", Name, strings.Join(missing, ", "))
+	file := b.file
+	if file == "" {
+		file = Name
+	}
+	return fmt.Errorf("%s names no %s", file, strings.Join(missing, ", "))
 }

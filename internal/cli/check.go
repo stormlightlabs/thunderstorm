@@ -159,7 +159,7 @@ func proseCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				paths = settings.ProsePaths()
 			}
 			if len(paths) == 0 {
-				return failed("name a file or a tree, or set \"prose.paths\" in %s", config.Name)
+				return failed("name a file or a tree, or set \"prose.paths\" in %s", settings.File())
 			}
 
 			found, err := check.Prose(paths, settings.Rules())
@@ -371,13 +371,13 @@ func frontmatterCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			p := printer(cmd)
-			root, err := documentsRoot(args)
+			root, settingsFile, err := documentsRoot(args)
 			if err != nil {
 				return err
 			}
 			if root == "" {
 				fmt.Fprintf(cmd.OutOrStdout(), "no documents tree to check: name one, or set "+
-					"\"documents\" in %s\n", config.Name)
+					"\"documents\" in %s\n", settingsFile)
 				return nil
 			}
 			if info, err := os.Stat(root); err != nil || !info.IsDir() {
@@ -419,20 +419,22 @@ func frontmatterCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 }
 
 // documentsRoot is the tree to walk: the one named on the command line, else
-// the one the repository configured, else nothing at all.
-func documentsRoot(args []string) (string, error) {
+// the one the repository configured, else nothing at all. It returns the
+// settings file alongside, so a message asking for the setting names the file
+// this repository has rather than the one it would write today.
+func documentsRoot(args []string) (string, string, error) {
 	if len(args) == 1 {
-		return args[0], nil
+		return args[0], config.Name, nil
 	}
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", failed("%v", err)
+		return "", "", failed("%v", err)
 	}
 	settings, err := config.Load(cwd)
 	if err != nil {
-		return "", failed("%v", err)
+		return "", "", failed("%v", err)
 	}
-	return settings.DocumentsDir(), nil
+	return settings.DocumentsDir(), settings.File(), nil
 }
 
 func isolationCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
