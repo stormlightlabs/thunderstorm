@@ -41,8 +41,8 @@ type File struct {
 	Body []byte
 	Mode fs.FileMode
 	// Seed is written where the destination has no such file and left alone
-	// where it does. settings.json is the only one: its permissions block is
-	// merged by hand.
+	// where it does. settings.json is the only one: what it needs from the
+	// payload is merged into whatever the repository already keeps there.
 	Seed bool
 }
 
@@ -233,6 +233,23 @@ func (p *Payload) destination(a Artifact, dir, src string) string {
 // whole of what git stores and therefore the whole of what a payload promises.
 // A zero mode is a file the renderer generated, which is never executable.
 func executable(mode fs.FileMode) bool { return mode&0o111 != 0 }
+
+// DropSeeds removes the files the payload would only seed, for a caller that
+// writes them itself.
+//
+// install merges the deny rules and the hook registrations into the settings
+// file rather than seeding one, and a payload that also wrote that file would
+// claim it: the marker would list a path the merge then edits, and every later
+// check would report it stale.
+func (p *Payload) DropSeeds() {
+	kept := p.Files[:0]
+	for _, f := range p.Files {
+		if !f.Seed {
+			kept = append(kept, f)
+		}
+	}
+	p.Files = kept
+}
 
 // Write puts the payload at dir and reports the files it left alone.
 //

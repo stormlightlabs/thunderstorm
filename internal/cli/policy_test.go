@@ -7,8 +7,8 @@ import (
 	"testing"
 )
 
-// settings writes a permissions file holding the rules it is given.
-func settings(t *testing.T, deny ...string) string {
+// settingsHolding writes a permissions file carrying the rules it is given.
+func settingsHolding(t *testing.T, deny ...string) string {
 	t.Helper()
 	quoted := make([]string, 0, len(deny))
 	for _, rule := range deny {
@@ -26,7 +26,7 @@ func settings(t *testing.T, deny ...string) string {
 const payloadSettings = "../../payloads/claude/settings.json"
 
 func TestSettingsCarryingEveryDeniedCommandPass(t *testing.T) {
-	file := settings(t,
+	file := settingsHolding(t,
 		"Bash(gh pr merge:*)", "Bash(gh pr review:*)", "Bash(git push:*)", "Bash(git merge:*)")
 	stdout, _, err := run(t, "check", "policy", "--expected", payloadSettings, file)
 	if err != nil {
@@ -39,7 +39,7 @@ func TestSettingsCarryingEveryDeniedCommandPass(t *testing.T) {
 
 // A rule added to the workflow reaches no repository's settings on its own.
 func TestAMissingDenyRuleIsNamedWithWhatToAdd(t *testing.T) {
-	file := settings(t, "Bash(gh pr merge:*)", "Bash(gh pr review:*)", "Bash(git merge:*)")
+	file := settingsHolding(t, "Bash(gh pr merge:*)", "Bash(gh pr review:*)", "Bash(git merge:*)")
 	_, stderr, err := run(t, "check", "policy", "--expected", payloadSettings, file)
 	if code := ExitCode(err); code != 1 {
 		t.Fatalf("exit %d, want 1: %v", code, err)

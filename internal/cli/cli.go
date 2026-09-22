@@ -50,6 +50,7 @@ func Root(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(checkCmd(printer))
 	root.AddCommand(dispatchCmd(printer))
 	root.AddCommand(hookCmd(printer))
+	root.AddCommand(installCmd(printer))
 	root.AddCommand(pushCmd(printer))
 	root.AddCommand(renderCmd(printer))
 	root.AddCommand(ulidCmd(printer))

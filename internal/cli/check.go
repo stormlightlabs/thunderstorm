@@ -101,7 +101,7 @@ func policyCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				denied, err = check.PolicyOf(expected)
 			} else {
 				var manifest render.Manifest
-				if manifest, err = render.Load(render.Dir(source)); err == nil {
+				if manifest, err = render.Load(workflowSource(source)); err == nil {
 					denied = manifest.Policy.Deny
 				}
 			}
@@ -130,7 +130,7 @@ func policyCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&source, "source", "workflow", "workflow source directory holding the manifest")
+	cmd.Flags().StringVar(&source, "source", "", "workflow source directory (default: the one this binary carries)")
 	cmd.Flags().StringVar(&expected, "expected", "", "rendered payload settings.json to read the deny list from instead")
 	return cmd
 }
