@@ -138,7 +138,20 @@ func (c Change) Apply() error {
 
 // write puts the body in place through a temporary file beside it, so an
 // interrupted write cannot leave a repository with half a settings file.
+//
+// The temporary file lands at the mode the settings file already had, not at
+// a fixed one: a repository may have set it to 0600, since it can carry `env`
+// values, and a merge must not widen that on its way past. A file this
+// package is creating rather than merging has no previous mode to keep, so it
+// lands at 0644.
 func write(file string, body []byte) error {
+	mode := os.FileMode(0o644)
+	if info, err := os.Stat(file); err == nil {
+		mode = info.Mode().Perm()
+	} else if !os.IsNotExist(err) {
+		return err
+	}
+
 	tmp, err := os.CreateTemp(filepath.Dir(file), "."+filepath.Base(file)+".tstorm-*")
 	if err != nil {
 		return err
@@ -152,7 +165,7 @@ func write(file string, body []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(name, 0o644); err != nil {
+	if err := os.Chmod(name, mode); err != nil {
 		return err
 	}
 	return os.Rename(name, file)

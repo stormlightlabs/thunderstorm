@@ -61,16 +61,16 @@ func updateCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 func updateSelf(cmd *cobra.Command, p *ui.Printer, check bool) error {
 	w := cmd.OutOrStdout()
 	running := buildinfo.Release()
-	latest, ok := release.Latest()
-	if !ok {
-		return failed("no release answered; try again, or take a build from GitHub by hand")
+	current, err := release.Current()
+	if err != nil {
+		return failed("no release answered: %v", err)
 	}
-	if !release.Newer(running.Version, latest.Tag) {
-		fmt.Fprintln(w, p.OK.Render("up to date"), p.Subtle.Render(running.String()+" is not behind "+latest.Tag))
+	if !release.Newer(running.Version, current.Tag) {
+		fmt.Fprintln(w, p.OK.Render("up to date"), p.Subtle.Render(running.String()+" is not behind "+current.Tag))
 		return nil
 	}
 	if check {
-		fmt.Fprintln(w, p.Bold.Render("would replace"), p.Subtle.Render(running.String()+" with "+latest.Tag))
+		fmt.Fprintln(w, p.Bold.Render("would replace"), p.Subtle.Render(running.String()+" with "+current.Tag))
 		return nil
 	}
 

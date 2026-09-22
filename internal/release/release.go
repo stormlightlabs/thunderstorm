@@ -84,6 +84,12 @@ func Latest() (Release, bool) {
 	return found, found.Tag != ""
 }
 
+// Current reads the release from the API, past the cache in both directions:
+// a failure cached an hour ago does not answer for it, and it caches nothing
+// itself. A caller that asked for an install needs the answer rather than the
+// remark Latest makes at the end of an ordinary update.
+func Current() (Release, error) { return fetch() }
+
 // Newer reports whether tag is a later version than the build that is running.
 func Newer(running, tag string) bool { return compare(running, tag) < 0 }
 

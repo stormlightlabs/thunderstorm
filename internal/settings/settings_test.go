@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -168,5 +169,41 @@ func TestACommentInSettingsMergesRatherThanAborting(t *testing.T) {
 	deny := read(t, path)["permissions"].(map[string]any)["deny"].([]any)
 	if len(deny) != 2 {
 		t.Errorf("deny holds %v, want the held rule and the missing one", deny)
+	}
+}
+
+// A repository may have set settings.json to 0600, since it can carry `env`
+// values, and a merge that rewrites the file through a fresh temporary file
+// must not widen that to 0644 on its way past. A file this package creates
+// rather than merges has no previous mode to keep.
+func TestAMergeKeepsTheFilesMode(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("unix permission bits")
+	}
+	for name, tc := range map[string]struct {
+		existing bool
+		mode     os.FileMode
+		want     os.FileMode
+	}{
+		"a file already at 0600 keeps 0600":         {existing: true, mode: 0o600, want: 0o600},
+		"a file this package creates lands at 0644": {want: 0o644},
+	} {
+		t.Run(name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "settings.json")
+			if tc.existing {
+				if err := os.WriteFile(path, []byte(`{"permissions": {}}`), tc.mode); err != nil {
+					t.Fatal(err)
+				}
+			}
+			merge(t, path, []string{"Bash(git push:*)"}, nil)
+
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := info.Mode().Perm(); got != tc.want {
+				t.Errorf("mode is %o, want %o", got, tc.want)
+			}
+		})
 	}
 }
