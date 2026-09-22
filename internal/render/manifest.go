@@ -17,6 +17,8 @@ import (
 	"path"
 	"slices"
 	"strings"
+
+	"github.com/stormlightlabs/thunderstorm/internal/jsonc"
 )
 
 // Kind is what an artifact is, which decides where a target puts it.
@@ -124,7 +126,7 @@ func Load(src Source) (Manifest, error) {
 	if err != nil {
 		return m, fmt.Errorf("read manifest from %s: %w", src.Name, err)
 	}
-	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec := json.NewDecoder(bytes.NewReader(jsonc.Strip(raw)))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&m); err != nil {
 		return m, fmt.Errorf("parse manifest: %w", err)

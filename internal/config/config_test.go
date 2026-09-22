@@ -283,3 +283,27 @@ func TestWithNoFileTheDiagnosticNamesTheOneToWrite(t *testing.T) {
 		t.Errorf("the error does not name %s: %v", Name, err)
 	}
 }
+
+// A repository that has not moved to TOML keeps its JSON, and can put the
+// reason for a setting beside it.
+func TestACommentedJSONConfigIsRead(t *testing.T) {
+	root := t.TempDir()
+	body := `{
+  // the tree an issue cites a document by
+  "documents": "docs/internal",
+  "board": {
+    "owner": "stormlightlabs",
+    "number": 13, // project 13 carries several repositories
+  },
+}`
+	if err := os.WriteFile(filepath.Join(root, ".tstorm.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	settings, err := Load(root)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if settings.Documents != "docs/internal" || settings.Board.Number != 13 {
+		t.Errorf("read %+v", settings)
+	}
+}

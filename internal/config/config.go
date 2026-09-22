@@ -22,6 +22,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/stormlightlabs/thunderstorm/internal/check"
+	"github.com/stormlightlabs/thunderstorm/internal/jsonc"
 )
 
 // Name is the file a repository writes its settings in, and the one a command
@@ -221,7 +222,7 @@ func parse(name string, body []byte) (Config, error) {
 	var c Config
 	switch ext := filepath.Ext(name); ext {
 	case ".json":
-		return c, json.Unmarshal(body, &c)
+		return c, json.Unmarshal(jsonc.Strip(body), &c)
 	case ".toml":
 		meta, err := toml.Decode(string(body), &c)
 		if err != nil {

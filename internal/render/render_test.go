@@ -1015,3 +1015,36 @@ func TestClaudeReportsNoHookLimit(t *testing.T) {
 		}
 	}
 }
+
+// The manifest is edited by a person, so an artifact can carry the reason it
+// is there.
+func TestACommentedManifestLoads(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "commands"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "commands", "revise.md"), []byte("---\ndescription: x\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	body := `{
+  "name": "thunderstorm",
+  "version": "0.1.0",
+  "description": "a loop",
+  "author": {"name": "Stormlight Labs"},
+  "policy": {"deny": ["git merge"]},
+  "artifacts": [
+    // the only stage a harness with no subagents can still run
+    {"kind": "command", "name": "revise", "source": "commands/revise.md", "requires": ["commands"]},
+  ],
+}`
+	if err := os.WriteFile(filepath.Join(root, "manifest.json"), []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	m, err := Load(Dir(root))
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(m.Artifacts) != 1 || m.Artifacts[0].Name != "revise" {
+		t.Errorf("read %+v", m.Artifacts)
+	}
+}
