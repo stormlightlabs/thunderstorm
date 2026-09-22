@@ -17,7 +17,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./cmd/tstorm check version --tag ${{ github.ref_name }}
+      - run: go install ./cmd/tstorm
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: tstorm check version --tag ${{ github.ref_name }}
       - uses: goreleaser/goreleaser-action@v6
         with:
           version: "~> v2"

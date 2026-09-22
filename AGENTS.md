@@ -18,20 +18,34 @@ go test ./...
 CI runs all of that, plus the Python suites and the site's Playwright tests,
 on every pull request and every push to `main` and `edge`.
 
+The gates and the loop's own commands run from the installed binary, not
+through `go run`, so what answers is the build a hook and another repository
+would get:
+
+```sh
+go install ./cmd/tstorm
+tstorm version        # v0.1.0-rc.1+g1969674, the tag and the commit under it
+```
+
+Reinstall after changing anything under `cmd/` or `internal/`.
+
 A change under `workflow/` is not done until the payload is rendered again:
 
 ```sh
-go run ./cmd/tstorm render --target claude --out payloads/claude
-go run ./cmd/tstorm render --target claude --out payloads/claude --check
+tstorm render --target claude --out payloads/claude
+tstorm render --target claude --out payloads/claude --check
 ```
 
 `payloads/` is generated. Edit `workflow/` and re-render; a hand edit there is
 lost at the next render, and `--check` is what catches it. Bump `version` in
 `workflow/manifest.json` with the render: a harness caches an installed plugin
 by version and reports it current while that string is unchanged.
-`tstorm check version` fails a payload that changed without one. `--out` is not
-optional here: a bare `render --target claude` writes into `.claude`, which is
-where a repository installs the loop rather than where this one builds it.
+`tstorm check version` fails a payload that changed without one, and it reads
+`BaseVersion` in `internal/buildinfo` as well, so a tag moves both.
+
+`render` builds the payloads this repository publishes, which is why `--out` is
+not optional here. Putting the loop in a repository is `tstorm install`, which
+renders from the workflow the binary carries and needs no checkout at all.
 
 ## The board
 
@@ -60,14 +74,15 @@ those literal characters.
 Check the shape before committing:
 
 ```sh
-go run ./cmd/tstorm check commit-message <file>
+tstorm check commit-message <file>
 git config core.hooksPath .githooks   # once, to have git run it for you
 ```
 
-`.githooks/commit-msg` runs the same check, using the installed `tstorm` when
-there is one and building from the tree when there is not. Set `core.hooksPath`
-only when you mean to: it replaces `.git/hooks` wholesale, so every hook you
-already had stops firing.
+`.githooks/commit-msg` runs the same check against `TSTORM_BIN`, then whatever
+is on `PATH`. With neither it says so and lets the commit through, because a
+hook that blocks on its own absence teaches an operator to turn hooks off. Set
+`core.hooksPath` only when you mean to: it replaces `.git/hooks` wholesale, so
+every hook you already had stops firing.
 
 It checks the type, the 60-character subject, the blank line, and the 72-column
 body, and exempts fenced blocks, trailers, and URLs from the column limit. The

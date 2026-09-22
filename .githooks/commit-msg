@@ -2,10 +2,18 @@
 # Check a commit message's shape before it lands. Enable with:
 #   git config core.hooksPath .githooks
 #
-# tstorm has no release yet, so this builds it from the tree when the binary is
-# not installed. Once it is on PATH the build is skipped.
+# Resolution order is the one every caller is told: TSTORM_BIN, then PATH. A
+# missing binary lets the commit through and says so, because a hook that
+# blocks on its own absence teaches an operator to turn hooks off.
+set -eu
+
+if [ -n "${TSTORM_BIN:-}" ] && [ -x "$TSTORM_BIN" ]; then
+  exec "$TSTORM_BIN" check commit-message "$1"
+fi
+
 if command -v tstorm >/dev/null 2>&1; then
   exec tstorm check commit-message "$1"
 fi
-cd "$(git rev-parse --show-toplevel)" || exit 2
-exec go run ./cmd/tstorm check commit-message "$1"
+
+echo "tstorm is not on PATH, so the message was not checked." >&2
+echo "Install it with: go install ./cmd/tstorm" >&2

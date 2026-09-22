@@ -28,7 +28,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./cmd/tstorm render --target claude --out payloads/claude --check
+      - run: go install ./cmd/tstorm
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: tstorm render --target claude --out payloads/claude --check
+      - run: tstorm render --target codex --out payloads/codex --check
+      - run: tstorm render --target pi --out payloads/pi --check
 
   release:
     runs-on: ubuntu-latest
@@ -48,13 +52,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
-      - run: go run ./cmd/tstorm check isolation workflow
-      - run: go run ./cmd/tstorm check frontmatter
-      - run: go run ./cmd/tstorm check policy
-      - run: go run ./cmd/tstorm check version
+      - run: go install ./cmd/tstorm
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: tstorm check isolation workflow
+      - run: tstorm check frontmatter
+      - run: tstorm check policy
+      - run: tstorm check version
 
   prose:
     runs-on: ubuntu-latest
@@ -64,7 +72,9 @@ jobs:
         with:
           go-version-file: go.mod
       - run: cargo install --git https://github.com/stormlightlabs/trps --rev 5e9333be101bb2c2e4150de419494bd9d65f6ae4 trps-cli
-      - run: go run ./cmd/tstorm check prose --warn
+      - run: go install ./cmd/tstorm
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: tstorm check prose --warn
 
   site:
     runs-on: ubuntu-latest
