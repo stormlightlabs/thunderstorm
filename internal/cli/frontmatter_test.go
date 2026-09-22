@@ -160,6 +160,32 @@ func TestANestedDocumentWithNoBlockFails(t *testing.T) {
 	}
 }
 
+// Joining a path cannot make a name unique on its own: a dash in a filename
+// and a directory separator fold to the same character, so the tree is what
+// answers for uniqueness.
+func TestTwoDocumentsUnderOneNameFail(t *testing.T) {
+	for name, files := range map[string]map[string]string{
+		"separator against a dash": {
+			"features/mcp-plan.md": block("features-mcp-plan"),
+			"features/mcp/plan.md": blockWith("features-mcp-plan", alsoGoodID, "2026-09-17"),
+		},
+		"separator against an underscore": {
+			"a_b/plan.md": block("a-b-plan"),
+			"a/b/plan.md": blockWith("a-b-plan", alsoGoodID, "2026-09-17"),
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, stderr, err := frontmatter(t, files)
+			if code := ExitCode(err); code != 1 {
+				t.Fatalf("exit %d, want 1: %v %q", code, err, stderr)
+			}
+			if !strings.Contains(stderr, "name is also on") {
+				t.Errorf("did not report the collision: %q", stderr)
+			}
+		})
+	}
+}
+
 func TestOneRunReportsEveryFailingFile(t *testing.T) {
 	_, stderr, err := frontmatter(t, map[string]string{"a.md": "# A\n", "b.md": "# B\n", "c.md": "# C\n"})
 	if code := ExitCode(err); code != 1 {

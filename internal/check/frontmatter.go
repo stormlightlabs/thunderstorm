@@ -48,6 +48,7 @@ func Frontmatter(root string) (int, []string, error) {
 
 	var failures []string
 	seen := map[string]string{}
+	named := map[string]string{}
 	checked := 0
 
 	for _, path := range documents {
@@ -68,6 +69,17 @@ func Frontmatter(root string) (int, []string, error) {
 		expected := expectedName(relative, root)
 		if ok && name != "" && name != expected {
 			failures = append(failures, fmt.Sprintf("%s: name is %q, expected %q", relative, name, expected))
+		}
+
+		// Joining the path does not make the name unique on its own: a dash
+		// in a filename and a directory separator reach the same character,
+		// so features/mcp-plan.md and features/mcp/plan.md both ask for
+		// features-mcp-plan. The tree is what answers for uniqueness, the
+		// same way it does for an identifier.
+		if first, taken := named[expected]; taken {
+			failures = append(failures, fmt.Sprintf("%s: name is also on %s", relative, first))
+		} else {
+			named[expected] = relative
 		}
 
 		if id, ok := fields["id"]; ok && ulidPattern.MatchString(id) {

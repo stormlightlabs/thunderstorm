@@ -52,7 +52,8 @@ id: <ULID>
 The name is the document's path with the extension dropped and the slashes
 turned to dashes, so `features/mcp/plan.md` is named `features-mcp-plan` and
 two plans under two feature directories have two names. A `README.md` takes
-the name of the directory holding it.
+the name of the directory holding it. Where two paths do fold to one name, the
+check names both and fails; rename one.
 
 Generate the identifier with `tstorm ulid`. The idea the spec came
 from cites its own identifier, and issues cut from the spec cite the spec's, so
