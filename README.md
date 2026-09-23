@@ -32,6 +32,7 @@ tstorm install --target pi --dir ../other-repo
 tstorm install --board stormlightlabs/13 --documents docs/internal
 tstorm install --check      # says what it would do, writes nothing
 tstorm update               # moves a payload to what the binary carries
+tstorm uninstall            # takes it back out, leaving what was yours
 ```
 
 Claude Code can install it as a plugin instead, which keeps the payload in the

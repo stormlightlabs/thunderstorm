@@ -20,6 +20,15 @@ Nothing is released yet, and no version is tagged. Everything below is on
   gate hook against the same settings file, and writes a `.tstorm.toml` from
   what the flags name. `--check` reports every step and writes nothing ([#36],
   [#35]).
+- An install into a repository that already uses Claude Code needs no flag: it
+  writes its own files, leaves every other file alone, and stops only on a
+  path the payload itself writes, naming each one. `--replace` overwrites
+  those and names what it replaced. `--adopt`, which took a directory over and
+  reported a count, is gone.
+- `tstorm uninstall` takes the loop back out: the files the marker says the
+  payload owns, and the deny rules and gate registrations out of the settings
+  file. A file the repository put in the payload directory stays, a directory
+  goes only once nothing is left in it, and `.tstorm.toml` is left alone.
 - `tstorm update` moves an installed payload to what the binary carries,
   naming the version it moves from, and merges the settings again so a newly
   reserved command reaches a repository that installed months ago. It ends by

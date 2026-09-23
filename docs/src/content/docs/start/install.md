@@ -45,40 +45,60 @@ tstorm install --board stormlightlabs/13 --track Tropius   # a shared board
 `--no-settings` and `--no-config` turn off a step whose file you keep yourself.
 
 The install writes its own files and leaves every other file in the directory
-alone, so a settings file, a hook and a worktrees directory beside the payload
-survive it. `.tstorm-payload` records which files the render owns and which
-version wrote them. The next install replaces those and removes the ones the
-source stopped producing. A path the repository owns and the payload also
-wants stops the install and names the file.
+alone, so your settings file, a hook of your own and a worktrees directory
+beside the payload all survive it. A repository already using Claude Code
+needs no flag for that. `.tstorm-payload` records which files the payload owns
+and which version wrote them, and the next install replaces those and removes
+the ones the source stopped producing.
 
-A directory from an older copy carries no marker, which is every repository
-that installed the workflow before `tstorm render` existed. `--adopt` takes
-one over:
+What stops an install is a file the payload itself writes. It names every one
+of them and writes nothing:
 
-```sh
-tstorm install --adopt --check   # says what it would do
-tstorm install --adopt
+```text
+.claude holds 1 path this payload also writes:
+  skills/implement/SKILL.md
+
+Run again with --replace to overwrite them, or move them aside.
 ```
 
-It replaces the files the payload writes, leaves the rest, and writes the
-marker so no later install needs the flag. What it leaves includes the older
-payload's own files, listed by path: an install removes only what it wrote, and
-a directory with no marker has no record of that. Read that list and delete
-what the workflow replaced.
+`--replace` overwrites exactly those paths, names each one it replaced, and
+leaves the rest of the directory as it was. That is also how a repository
+carrying an older hand-copied payload moves to a rendered one: every file the
+new payload writes collides, the list says which, and `--replace` takes them
+over.
+
+## tstorm uninstall
+
+```sh
+tstorm uninstall            # every payload under the current directory
+tstorm uninstall --check    # says what it would remove
+```
+
+The marker says what the payload owns, so uninstall removes those files and
+leaves everything else, including a file of yours inside the payload
+directory. A directory goes only once nothing is left in it. The deny rules
+and the gate registrations come back out of the settings file, and the rest of
+that file is untouched, so a hook you registered yourself on the same event
+stays. `--keep-settings` leaves the rules in place for a repository that wants
+to keep the decision without the loop.
+
+`.tstorm.toml` is left where it is. Your board and documents tree outlive the
+loop that read them.
 
 ## tstorm update
 
 ```sh
-tstorm update            # the payload under the current directory
+tstorm update            # every payload under the current directory
 tstorm update --check    # says what it would move, writes nothing
 tstorm update --dir ../other-repo
 ```
 
-Update finds the payload by its marker, names the version that wrote it and
+Update finds each payload by its marker, names the version that wrote it and
 the one this binary carries, re-renders, and merges the settings again, so a
 command the workflow newly reserves reaches a repository that installed months
-ago. A payload installed before the marker carried a version reports an
-unknown one and updates anyway.
+ago. A repository working two harnesses carries two payloads, and both move. A
+payload installed before the marker carried a version reports an unknown one
+and updates anyway.
 
 Your config is left alone. A repository's board and documents tree are its own
 after the first install.

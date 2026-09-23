@@ -9,7 +9,9 @@
 // skipped once and then missing for a year.
 //
 // Everything here is idempotent: an install and an update run the same merge,
-// and a second run adds nothing.
+// and a second run adds nothing. Plan and Change add what a payload needs;
+// PlanRemoval and Removal take exactly that back out, for a repository that
+// uninstalls the loop.
 package settings
 
 import (
@@ -136,6 +138,98 @@ func (c Change) Apply() error {
 	return write(c.File, buf.Bytes())
 }
 
+// Removal is what taking a payload's deny rules and hook registrations back
+// out would do to one settings file. Reading and removing are separate for
+// the same reason as Plan and Change: a caller can report the removal before
+// making it.
+type Removal struct {
+	File  string
+	Deny  []string
+	Hooks []Hook
+
+	body map[string]any
+}
+
+// PlanRemoval reads a settings file and works out which of the given deny
+// rules and hook registrations it still holds. A file that is not there holds
+// none of them, so PlanRemoval reports an empty Removal rather than an error:
+// there is nothing to remove from a settings file that was never merged, or
+// that a repository has already deleted.
+func PlanRemoval(file string, deny []string, hooks []Hook) (Removal, error) {
+	r := Removal{File: file}
+
+	raw, err := os.ReadFile(file)
+	switch {
+	case os.IsNotExist(err):
+		return r, nil
+	case err != nil:
+		return r, fmt.Errorf("read %s: %w", file, err)
+	}
+	if err := json.Unmarshal(jsonc.Strip(raw), &r.body); err != nil {
+		return r, fmt.Errorf("parse %s: %w", file, err)
+	}
+	if r.body == nil {
+		return r, nil
+	}
+
+	held := heldDeny(r.body)
+	for _, rule := range deny {
+		if slices.Contains(held, rule) {
+			r.Deny = append(r.Deny, rule)
+		}
+	}
+	for _, h := range hooks {
+		if registered(r.body, h) {
+			r.Hooks = append(r.Hooks, h)
+		}
+	}
+	return r, nil
+}
+
+// Empty reports whether the file already holds none of what Removal was
+// asked to take out.
+func (r Removal) Empty() bool { return len(r.Deny) == 0 && len(r.Hooks) == 0 }
+
+// Summary says what the removal takes out, one line each.
+func (r Removal) Summary() []string {
+	var out []string
+	for _, rule := range r.Deny {
+		out = append(out, "no longer denies "+rule)
+	}
+	for _, h := range r.Hooks {
+		out = append(out, fmt.Sprintf("no longer runs the gate on %s %s", h.Event, h.Matcher))
+	}
+	return out
+}
+
+// Apply writes the file with exactly the deny rules and hook registrations
+// Plan found taken out, leaving every other rule, registration and key as it
+// found them. An event or matcher left with nothing registered is dropped
+// rather than left as an empty list, and a permissions or hooks object left
+// with nothing in it is dropped rather than left behind.
+func (r Removal) Apply() error {
+	if r.Empty() {
+		return nil
+	}
+	body := r.body
+
+	if len(r.Deny) > 0 {
+		removeDeny(body, r.Deny)
+	}
+	for _, h := range r.Hooks {
+		unregister(body, h)
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(body); err != nil {
+		return fmt.Errorf("encode %s: %w", r.File, err)
+	}
+	return write(r.File, buf.Bytes())
+}
+
 // write puts the body in place through a temporary file beside it, so an
 // interrupted write cannot leave a repository with half a settings file.
 //
@@ -257,6 +351,82 @@ func register(body map[string]any, h Hook) {
 	}
 	hooks[h.Event] = append(entries, held)
 	body["hooks"] = hooks
+}
+
+// removeDeny takes the given rules out of permissions.deny, then drops deny
+// and permissions themselves once nothing is left in them.
+func removeDeny(body map[string]any, rules []string) {
+	permissions, ok := body["permissions"].(map[string]any)
+	if !ok {
+		return
+	}
+	var kept []any
+	for _, rule := range heldDeny(body) {
+		if !slices.Contains(rules, rule) {
+			kept = append(kept, rule)
+		}
+	}
+	if len(kept) == 0 {
+		delete(permissions, "deny")
+	} else {
+		permissions["deny"] = kept
+	}
+	if len(permissions) == 0 {
+		delete(body, "permissions")
+	} else {
+		body["permissions"] = permissions
+	}
+}
+
+// unregister takes one hook's command out of its matcher's entry, then drops
+// the matcher, the event and hooks itself once nothing is left in them.
+func unregister(body map[string]any, h Hook) {
+	hooks, ok := body["hooks"].(map[string]any)
+	if !ok {
+		return
+	}
+	entries, ok := hooks[h.Event].([]any)
+	if !ok {
+		return
+	}
+	var kept []any
+	for _, entry := range entries {
+		e, ok := entry.(map[string]any)
+		if !ok {
+			kept = append(kept, entry)
+			continue
+		}
+		if matcher, _ := e["matcher"].(string); matcher != h.Matcher {
+			kept = append(kept, entry)
+			continue
+		}
+		inner, _ := e["hooks"].([]any)
+		var innerKept []any
+		for _, one := range inner {
+			o, ok := one.(map[string]any)
+			if ok {
+				if command, _ := o["command"].(string); command == h.Command {
+					continue
+				}
+			}
+			innerKept = append(innerKept, one)
+		}
+		if len(innerKept) == 0 {
+			continue
+		}
+		e["hooks"] = innerKept
+		kept = append(kept, e)
+	}
+	if len(kept) == 0 {
+		delete(hooks, h.Event)
+	} else {
+		hooks[h.Event] = kept
+	}
+	if len(hooks) == 0 {
+		delete(body, "hooks")
+	} else {
+		body["hooks"] = hooks
+	}
 }
 
 // object returns the map at key, replacing whatever is there when it is not

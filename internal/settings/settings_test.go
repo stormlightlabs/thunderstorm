@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"testing"
 )
 
 var gate = Hook{Event: "PreToolUse", Matcher: "Bash", Command: "$CLAUDE_PROJECT_DIR/.claude/hooks/gate.sh", Timeout: 10}
+
+var posttool = Hook{Event: "PostToolUse", Matcher: "Write|Edit", Command: gate.Command, Timeout: 10}
 
 func file(t *testing.T, body string) string {
 	t.Helper()
@@ -44,6 +47,18 @@ func merge(t *testing.T, path string, deny []string, hooks []Hook) Change {
 		t.Fatalf("apply: %v", err)
 	}
 	return c
+}
+
+func remove(t *testing.T, path string, deny []string, hooks []Hook) Removal {
+	t.Helper()
+	r, err := PlanRemoval(path, deny, hooks)
+	if err != nil {
+		t.Fatalf("plan removal: %v", err)
+	}
+	if err := r.Apply(); err != nil {
+		t.Fatalf("apply removal: %v", err)
+	}
+	return r
 }
 
 // What a repository put in the file is what the merge has to give back. A
@@ -205,5 +220,124 @@ func TestAMergeKeepsTheFilesMode(t *testing.T) {
 				t.Errorf("mode is %o, want %o", got, tc.want)
 			}
 		})
+	}
+}
+
+// An uninstall has to give a repository back what it had before the loop was
+// installed, not a settings file merely missing the payload's rules.
+func TestARemovalUndoesTheMerge(t *testing.T) {
+	path := file(t, `{"model": "opus"}`)
+	deny := []string{"Bash(git push:*)", "Bash(git merge:*)", "Bash(git reset:*)", "Bash(git clean:*)"}
+	hooks := []Hook{gate, posttool}
+	before := read(t, path)
+
+	merge(t, path, deny, hooks)
+	remove(t, path, deny, hooks)
+
+	if after := read(t, path); !reflect.DeepEqual(before, after) {
+		t.Errorf("removal left %v, want %v", after, before)
+	}
+}
+
+// A repository's own deny rule, its own hook on the same event as the gate,
+// and an unrelated key are not the payload's to take out.
+func TestARemovalLeavesWhatTheRepositoryPutThere(t *testing.T) {
+	path := file(t, `{
+  "permissions": {"deny": ["Bash(git push:*)"]},
+  "model": "opus",
+  "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "./audit.sh"}]}]}
+}`)
+	deny := []string{"Bash(git merge:*)"}
+	merge(t, path, deny, []Hook{gate})
+	remove(t, path, deny, []Hook{gate})
+
+	body := read(t, path)
+	if body["model"] != "opus" {
+		t.Errorf("an unrelated key did not survive: %v", body["model"])
+	}
+	held := body["permissions"].(map[string]any)["deny"].([]any)
+	if len(held) != 1 || held[0] != "Bash(git push:*)" {
+		t.Errorf("the repository's own deny rule did not survive: %v", held)
+	}
+	entries := body["hooks"].(map[string]any)["PreToolUse"].([]any)
+	if len(entries) != 1 {
+		t.Fatalf("the matcher entry was dropped rather than emptied of the gate: %v", entries)
+	}
+	inner := entries[0].(map[string]any)["hooks"].([]any)
+	if len(inner) != 1 {
+		t.Fatalf("the event runs %d commands, want only the repository's", len(inner))
+	}
+	if command, _ := inner[0].(map[string]any)["command"].(string); command != "./audit.sh" {
+		t.Errorf("the repository's own hook did not survive: %v", inner[0])
+	}
+}
+
+// An event whose last registration was the gate's must not be left as an
+// empty list, and permissions or hooks must not be left behind empty either.
+func TestARemovalLeavesNoEmptyObjects(t *testing.T) {
+	path := file(t, "")
+	deny := []string{"Bash(git push:*)"}
+	hooks := []Hook{gate}
+	merge(t, path, deny, hooks)
+	remove(t, path, deny, hooks)
+
+	body := read(t, path)
+	if _, ok := body["permissions"]; ok {
+		t.Errorf("permissions was left behind: %v", body["permissions"])
+	}
+	if _, ok := body["hooks"]; ok {
+		t.Errorf("hooks was left behind: %v", body["hooks"])
+	}
+}
+
+// An uninstall may run twice - the second pass has to find nothing rather
+// than erroring on rules already gone, and must not rewrite the file.
+func TestASecondRemovalFindsNothingToDo(t *testing.T) {
+	path := file(t, "")
+	deny := []string{"Bash(git push:*)"}
+	hooks := []Hook{gate}
+	merge(t, path, deny, hooks)
+	remove(t, path, deny, hooks)
+
+	before, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	second, err := PlanRemoval(path, deny, hooks)
+	if err != nil {
+		t.Fatalf("plan removal: %v", err)
+	}
+	if !second.Empty() {
+		t.Errorf("a second removal would remove %v", second.Summary())
+	}
+	if err := second.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	after, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(before) != string(after) {
+		t.Error("a removal with nothing to remove rewrote the file")
+	}
+}
+
+// A repository that never installed the loop, or already deleted the
+// settings file, must not fail an uninstall.
+func TestARemovalOfAMissingFileIsNotAnError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "settings.json")
+	r, err := PlanRemoval(path, []string{"Bash(git push:*)"}, []Hook{gate})
+	if err != nil {
+		t.Fatalf("plan removal: %v", err)
+	}
+	if !r.Empty() {
+		t.Errorf("a missing file has nothing to remove, got %v", r.Summary())
+	}
+	if err := r.Apply(); err != nil {
+		t.Fatalf("apply: %v", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Error("a removal on a missing file created one")
 	}
 }

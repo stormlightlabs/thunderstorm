@@ -91,60 +91,83 @@ func updateSelf(cmd *cobra.Command, p *ui.Printer, check bool) error {
 
 // updatePayload re-renders whichever payload the repository holds.
 func updatePayload(cmd *cobra.Command, p *ui.Printer, dir, source string, check bool) error {
-	held, root, err := installedUnder(dir)
+	found, err := installedUnder(dir)
 	if err != nil {
 		return err
 	}
-
-	in := install{target: held.Target, dir: dir, source: source, check: check, noConfig: true}
-	t, err := render.Lookup(held.Target)
-	if err != nil {
-		return fmt.Errorf("%s was installed for %s, which this binary does not know", root, held.Target)
+	pending := 0
+	for _, one := range found {
+		waiting, err := updateOne(cmd, p, one, dir, source, check)
+		if err != nil {
+			return err
+		}
+		pending += waiting
 	}
-	from := workflowSource(source)
-	manifest, err := render.Load(from)
-	if err != nil {
-		return err
-	}
-	payload, err := render.Plan(manifest, t, from)
-	if err != nil {
-		return err
-	}
-	if in.merging(t) {
-		payload.DropSeeds()
-	}
-
-	fmt.Fprintln(cmd.OutOrStdout(), p.Bold.Render(versionMove(held.Version, manifest.Version)), p.Subtle.Render(root))
-
-	pending, err := in.payload(cmd, p, payload, root)
-	if err != nil {
-		return err
-	}
-	waiting, err := in.settings(cmd, p, manifest, t)
-	if err != nil {
-		return err
-	}
-	if pending += waiting; check && pending > 0 {
+	if check && pending > 0 {
 		return findings("%d %s waiting", pending, plural("change", pending))
 	}
 	return nil
 }
 
-// installedUnder finds the payload in a repository. Every target roots its own
-// directory, so the marker is what says which one is there rather than the
-// caller having to name it.
-func installedUnder(dir string) (render.Installed, string, error) {
+// updateOne moves one payload to what this binary carries.
+func updateOne(cmd *cobra.Command, p *ui.Printer, one held, dir, source string, check bool) (int, error) {
+	in := install{target: one.Target, dir: dir, source: source, check: check, noConfig: true}
+	t, err := render.Lookup(one.Target)
+	if err != nil {
+		return 0, fmt.Errorf("%s was installed for %s, which this binary does not know", one.Root, one.Target)
+	}
+	from := workflowSource(source)
+	manifest, err := render.Load(from)
+	if err != nil {
+		return 0, err
+	}
+	payload, err := render.Plan(manifest, t, from)
+	if err != nil {
+		return 0, err
+	}
+	if in.merging(t) {
+		payload.DropSeeds()
+	}
+
+	fmt.Fprintln(cmd.OutOrStdout(), p.Bold.Render(versionMove(one.Version, manifest.Version)), p.Subtle.Render(one.Root))
+
+	pending, err := in.payload(cmd, p, payload, one.Root)
+	if err != nil {
+		return 0, err
+	}
+	waiting, err := in.settings(cmd, p, manifest, t)
+	if err != nil {
+		return 0, err
+	}
+	return pending + waiting, nil
+}
+
+// held is one payload a repository carries, and where it sits.
+type held struct {
+	render.Installed
+	Root string
+}
+
+// installedUnder finds every payload in a repository. Each target roots its
+// own directory, so a repository working two harnesses carries two, and an
+// update or an uninstall that moved only the first would leave the other on a
+// version nobody chose.
+func installedUnder(dir string) ([]held, error) {
+	var found []held
 	for _, t := range render.Targets() {
 		root := filepath.Join(dir, t.Root)
-		held, ok, err := render.Read(root)
+		in, ok, err := render.Read(root)
 		if err != nil {
-			return held, root, err
+			return nil, err
 		}
 		if ok {
-			return held, root, nil
+			found = append(found, held{Installed: in, Root: root})
 		}
 	}
-	return render.Installed{}, "", fmt.Errorf("%s holds no payload; tstorm install puts one there", dir)
+	if len(found) == 0 {
+		return nil, fmt.Errorf("%s holds no payload; tstorm install puts one there", dir)
+	}
+	return found, nil
 }
 
 // versionMove says what the update is between. A payload installed before the

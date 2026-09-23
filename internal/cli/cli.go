@@ -54,6 +54,7 @@ func Root(stdin io.Reader, stdout, stderr io.Writer) *cobra.Command {
 	root.AddCommand(pushCmd(printer))
 	root.AddCommand(renderCmd(printer))
 	root.AddCommand(ulidCmd(printer))
+	root.AddCommand(uninstallCmd(printer))
 	root.AddCommand(updateCmd(printer))
 	root.AddCommand(versionCmd(printer))
 	return root
