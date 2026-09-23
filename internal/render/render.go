@@ -266,17 +266,18 @@ func (p *Payload) DropSeeds() {
 	p.Files = kept
 }
 
-// Write puts the payload at dir and reports the files it left alone.
+// Write puts the payload at dir and reports the files it left alone and the
+// ones replace overwrote.
 //
 // It builds the whole tree beside dir and swaps it in, so a render either
 // replaces the payload or leaves the previous one untouched. Nothing is
 // deleted file by file: an earlier version of this wrote each file in place
 // and then removed whatever it had not written, which deleted a git
 // repository that happened to hold a marker file.
-func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
-	dir, kept, err := p.claim(dir, adopt)
+func (p *Payload) Write(dir string, replace bool) (kept, replaced []string, err error) {
+	dir, kept, replaced, err = p.claim(dir, replace)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// A sibling of the destination, so the rename that swaps it in stays on
@@ -289,7 +290,7 @@ func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
 
 	staging, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-staging-")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	defer os.RemoveAll(staging)
 
@@ -308,46 +309,46 @@ func (p *Payload) Write(dir string, adopt bool) ([]string, error) {
 		}
 		dest := filepath.Join(staging, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		mode := f.Mode
 		if mode == 0 {
 			mode = 0o644
 		}
 		if err := os.WriteFile(dest, f.Body, mode); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		// WriteFile applies the mode only when it creates the file, and a
 		// staged file is always new, but an inherited umask still narrows it.
 		if err := os.Chmod(dest, mode); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 
 	previous, err := os.MkdirTemp(filepath.Dir(dir), "."+filepath.Base(dir)+".tstorm-previous-")
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	// MkdirTemp made the directory; rename needs the name free.
 	if err := os.Remove(previous); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	swapped := false
 	if err := os.Rename(dir, previous); err == nil {
 		swapped = true
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
+		return nil, nil, err
 	}
 	if err := os.Rename(staging, dir); err != nil {
 		if swapped {
 			os.Rename(previous, dir)
 		}
-		return nil, err
+		return nil, nil, err
 	}
 	if err := carry(previous, dir, kept); err != nil {
-		return nil, fmt.Errorf("%w; the files this render did not write are in %s", err, previous)
+		return nil, nil, fmt.Errorf("%w; the files this render did not write are in %s", err, previous)
 	}
-	return kept, os.RemoveAll(previous)
+	return kept, replaced, os.RemoveAll(previous)
 }
 
 // carry moves the files the render does not own from the replaced directory
@@ -366,29 +367,32 @@ func carry(from, to string, paths []string) error {
 	return nil
 }
 
-// claim decides whether dir may be replaced, and returns the path to replace
-// along with the files in it this render does not own.
+// claim decides whether dir may be replaced, and returns the path to
+// replace, the files in it the payload does not write, and the ones a
+// collision lets replace overwrite.
 //
-// The marker decides ownership: a file it lists is tstorm's to replace and to
-// delete once the source stops producing it, and every other file is the
-// repository's. A directory carrying no marker is refused unless adopt is
-// set, which takes over the paths this payload writes and leaves the rest.
-func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
+// A marker in dir says which files a previous render of this payload wrote;
+// every other file there is the repository's, whether or not a marker is
+// present at all. A path the payload wants to write that dir already holds,
+// and the marker does not own, is a collision: refused unless replace is
+// set, in which case it is treated like the marker's own files and
+// overwritten.
+func (p *Payload) claim(dir string, replace bool) (string, []string, []string, error) {
 	resolved, err := filepath.EvalSymlinks(dir)
 	if err == nil {
 		dir = resolved
 	} else if !errors.Is(err, fs.ErrNotExist) {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 
 	entries, err := os.ReadDir(dir)
 	switch {
 	case errors.Is(err, fs.ErrNotExist):
-		return dir, nil, os.MkdirAll(dir, 0o755)
+		return dir, nil, nil, os.MkdirAll(dir, 0o755)
 	case err != nil:
-		return "", nil, err
+		return "", nil, nil, err
 	case len(entries) == 0:
-		return dir, nil, nil
+		return dir, nil, nil, nil
 	}
 
 	writing := map[string]bool{}
@@ -408,32 +412,23 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 		}
 	}
 
-	var owned map[string]bool
+	owned := map[string]bool{}
 	held, err := os.ReadFile(filepath.Join(dir, marker))
 	switch {
-	case err != nil && adopt:
-		// An unmarked directory has no record of its payload, so the paths
-		// this one writes are what adoption takes over. Seeds stay the
-		// repository's.
-		owned = map[string]bool{}
-		for path := range writing {
-			owned[path] = !seeds[path]
-		}
-	case err != nil:
-		return "", nil, fmt.Errorf("%s holds files tstorm did not render; take them over with --adopt, or write the payload somewhere else", dir)
-	default:
+	case err == nil:
 		name, _, paths := parseMarker(held)
 		if name != p.Target.Name {
-			return "", nil, fmt.Errorf("%s holds the %s payload, not %s; write this one somewhere else", dir, name, p.Target.Name)
+			return "", nil, nil, fmt.Errorf("%s holds the %s payload, not %s; write this one somewhere else", dir, name, p.Target.Name)
 		}
-		owned = map[string]bool{marker: true}
+		owned[marker] = true
 		for _, path := range paths {
 			owned[path] = true
 		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return "", nil, nil, err
 	}
 
-	var kept []string
-	var collision string
+	var kept, collisions []string
 	err = filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -444,41 +439,67 @@ func (p *Payload) claim(dir string, adopt bool) (string, []string, error) {
 		}
 		slash := filepath.ToSlash(rel)
 		if d.IsDir() {
+			if owned[slash] {
+				return nil
+			}
 			// A directory sitting where the payload writes a plain file
 			// blocks that write the same way a plain file below blocks a
 			// directory: caught here, or carry finds out only after the
 			// swap, trying to rename a kept path onto what the new payload
-			// just created there.
-			if writing[slash] && collision == "" {
-				collision = slash
+			// just created there. Its contents are never carried: they sit
+			// under a path the payload is about to replace outright.
+			if writing[slash] {
+				collisions = append(collisions, slash)
+				return fs.SkipDir
 			}
 			return nil
 		}
 		if owned[slash] || slash == marker {
 			return nil
 		}
+		switch {
 		// A symlink or a plain file where the payload needs a directory to
 		// hold nested paths is the mirror case: WalkDir does not descend
 		// into it, so it would otherwise be carried back whole, onto a real
 		// directory the swap just put in its place.
-		if dirs[slash] && collision == "" {
-			collision = slash
+		case dirs[slash]:
+			collisions = append(collisions, slash)
+		case writing[slash] && !seeds[slash]:
+			collisions = append(collisions, slash)
+		default:
+			kept = append(kept, slash)
 		}
-		if writing[slash] && !seeds[slash] && collision == "" {
-			collision = slash
-		}
-		kept = append(kept, slash)
 		return nil
 	})
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
-	if collision != "" {
-		return "", nil, fmt.Errorf("%s holds %s, which this render also writes; move it aside, or write the payload somewhere else",
-			dir, collision)
+	slices.Sort(collisions)
+	if len(collisions) > 0 && !replace {
+		return "", nil, nil, claimError(dir, collisions)
 	}
 	slices.Sort(kept)
-	return dir, kept, nil
+	return dir, kept, collisions, nil
+}
+
+// claimError names every path the payload writes that dir already holds
+// without owning, capped so a very long list still fits a terminal.
+func claimError(dir string, paths []string) error {
+	const shown = 10
+	list, more := paths, 0
+	if len(list) > shown {
+		list, more = list[:shown], len(list)-shown
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "%s holds %d %s this payload also writes:\n", dir, len(paths), plural("path", len(paths)))
+	for _, path := range list {
+		fmt.Fprintf(&b, "  %s\n", path)
+	}
+	if more > 0 {
+		fmt.Fprintf(&b, "  … and %d more\n", more)
+	}
+	b.WriteString("\nRun again with --replace to overwrite them, or move them aside.")
+	return errors.New(b.String())
 }
 
 // Diff reports how the payload at dir differs from this one, so a check can
@@ -564,51 +585,6 @@ func (p *Payload) Diff(dir string) (diff, left []string, err error) {
 	return out, left, nil
 }
 
-// Adoption is what a render would do to a directory carrying no marker.
-// Leave is where an older payload's files show up: a render removes only what
-// it wrote, so they survive it and are the operator's to delete.
-type Adoption struct {
-	Replace []string
-	Leave   []string
-}
-
-// Adopt reports what adopting dir would do, and writes nothing.
-func (p *Payload) Adopt(dir string) (*Adoption, error) {
-	writing := map[string]bool{}
-	seeds := map[string]bool{}
-	for _, f := range p.Files {
-		writing[f.Path] = true
-		if f.Seed {
-			seeds[f.Path] = true
-		}
-	}
-	a := &Adoption{}
-	err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		rel, err := filepath.Rel(dir, path)
-		if err != nil {
-			return err
-		}
-		slash := filepath.ToSlash(rel)
-		switch {
-		case slash == marker:
-		case writing[slash] && !seeds[slash]:
-			a.Replace = append(a.Replace, slash)
-		default:
-			a.Leave = append(a.Leave, slash)
-		}
-		return nil
-	})
-	if err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return nil, err
-	}
-	slices.Sort(a.Replace)
-	slices.Sort(a.Leave)
-	return a, nil
-}
-
 // rendered reads the marker at dir and reports the paths it lists, the marker
 // included, or nil where there is no marker.
 func rendered(dir string) (map[string]bool, error) {
@@ -654,6 +630,63 @@ type Installed struct {
 	Target  string
 	Version string
 	Files   []string
+}
+
+// Remove deletes the files the payload at dir owns, and reports what it
+// removed.
+//
+// The marker is the record of ownership, so a file the repository put in the
+// payload directory is left where it is, and a directory is removed only once
+// nothing is left in it. A payload file the repository has since edited is
+// still the payload's, and goes: what a repository wants to keep belongs
+// outside a directory a render owns.
+func Remove(dir string) ([]string, error) {
+	held, ok, err := Read(dir)
+	if err != nil || !ok {
+		return nil, err
+	}
+
+	var removed []string
+	for _, rel := range held.Files {
+		path := filepath.Join(dir, filepath.FromSlash(rel))
+		switch err := os.Remove(path); {
+		case err == nil:
+			removed = append(removed, rel)
+		case errors.Is(err, fs.ErrNotExist):
+		default:
+			return removed, err
+		}
+	}
+	if err := os.Remove(filepath.Join(dir, marker)); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return removed, err
+	}
+	slices.Sort(removed)
+	return removed, pruneEmpty(dir)
+}
+
+// pruneEmpty removes every directory under dir that the removal emptied, and
+// dir itself when nothing is left there. A repository's own file anywhere
+// inside keeps its directory, and the ones above it.
+func pruneEmpty(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() {
+			if err := pruneEmpty(filepath.Join(dir, e.Name())); err != nil {
+				return err
+			}
+		}
+	}
+	left, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	if len(left) == 0 {
+		return os.Remove(dir)
+	}
+	return nil
 }
 
 // Read reports what the payload at dir says about itself. A directory holding

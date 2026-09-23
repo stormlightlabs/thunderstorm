@@ -22,11 +22,11 @@ import (
 // flags, kept together so the steps below read as steps rather than as a
 // signature each.
 type install struct {
-	target string
-	dir    string
-	source string
-	check  bool
-	adopt  bool
+	target  string
+	dir     string
+	source  string
+	check   bool
+	replace bool
 
 	noSettings bool
 	noConfig   bool
@@ -76,7 +76,7 @@ func installCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd.Flags().StringVar(&in.dir, "dir", ".", "repository to install into")
 	cmd.Flags().StringVar(&in.source, "source", "", "workflow source directory (default: the one this binary carries)")
 	cmd.Flags().BoolVar(&in.check, "check", false, "report what installing would do, and write nothing")
-	cmd.Flags().BoolVar(&in.adopt, "adopt", false, "take over a payload directory carrying no marker")
+	cmd.Flags().BoolVar(&in.replace, "replace", false, "overwrite paths that collide with the payload, and leave the rest of the directory alone")
 	cmd.Flags().BoolVar(&in.noSettings, "no-settings", false, "leave the repository's settings file alone")
 	cmd.Flags().BoolVar(&in.noConfig, "no-config", false, "write no .tstorm.toml")
 	cmd.Flags().BoolVar(&in.force, "force", false, "replace a .tstorm.toml that is already there")
@@ -174,12 +174,7 @@ func (in install) payload(cmd *cobra.Command, p *ui.Printer, payload *render.Pay
 		return len(diff), nil
 	}
 
-	if in.adopt {
-		if err := reportAdoption(cmd, p, payload, out); err != nil {
-			return 0, err
-		}
-	}
-	kept, err := payload.Write(out, in.adopt)
+	kept, replaced, err := payload.Write(out, in.replace)
 	if err != nil {
 		return 0, err
 	}
@@ -187,6 +182,7 @@ func (in install) payload(cmd *cobra.Command, p *ui.Printer, payload *render.Pay
 	if line := leftInPlace(kept); line != "" {
 		fmt.Fprintln(w, p.Subtle.Render("  "+line))
 	}
+	printReplaced(cmd, p, replaced)
 	printLimits(cmd, p, payload)
 	return 0, nil
 }

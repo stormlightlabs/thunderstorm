@@ -64,6 +64,89 @@ func TestInstallLeavesARepositoryAbleToRunTheLoop(t *testing.T) {
 	}
 }
 
+// Any repository already using Claude Code has a .claude before install ever
+// runs. That alone used to refuse the whole install with "holds files tstorm
+// did not render".
+func TestInstallAcceptsAnAlreadyConfiguredClaudeDirectory(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, ".claude", "commands"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mine := `{"permissions":{"allow":["Bash(cargo test:*)"]}}` + "\n"
+	if err := os.WriteFile(filepath.Join(dir, ".claude", "settings.json"), []byte(mine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	deployFile := filepath.Join(dir, ".claude", "commands", "deploy.md")
+	if err := os.WriteFile(deployFile, []byte("our own command\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	stdout, _, err := run(t, "install", "--dir", dir)
+	if err != nil {
+		t.Fatalf("install: %v", err)
+	}
+	if !strings.Contains(stdout, "installed") {
+		t.Errorf("install said %q", stdout)
+	}
+
+	if got, err := os.ReadFile(deployFile); err != nil || string(got) != "our own command\n" {
+		t.Errorf("the repository's own command was touched: %q (%v)", got, err)
+	}
+	allow := settingsOf(t, dir)["permissions"].(map[string]any)["allow"].([]any)
+	if len(allow) != 1 || allow[0] != "Bash(cargo test:*)" {
+		t.Errorf("the repository's own permission did not survive the merge: %v", allow)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "commands", "revise.md")); err != nil {
+		t.Errorf("the payload did not write beside the repository's own command: %v", err)
+	}
+}
+
+// A hand-copied .claude carries the payload's own files with no marker to say
+// so. Without --replace that is refused and named; with it, only the
+// colliding path is overwritten.
+func TestInstallRefusesACollidingSkillThenReplacesIt(t *testing.T) {
+	dir := t.TempDir()
+	skill := filepath.Join(dir, ".claude", "skills", "implement")
+	if err := os.MkdirAll(skill, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	mine := "our own skill\n"
+	skillFile := filepath.Join(skill, "SKILL.md")
+	if err := os.WriteFile(skillFile, []byte(mine), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	neighbour := filepath.Join(dir, ".claude", "skills", "notes.md")
+	if err := os.WriteFile(neighbour, []byte("also mine\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, _, err := run(t, "install", "--dir", dir); err == nil {
+		t.Fatal("install overwrote a repository's own skill")
+	} else if !strings.Contains(err.Error(), "skills/implement/SKILL.md") {
+		t.Errorf("the refusal does not name the file: %v", err)
+	}
+	if got, err := os.ReadFile(skillFile); err != nil || string(got) != mine {
+		t.Errorf("the refusal touched the colliding file anyway: %q (%v)", got, err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, ".claude", "commands", "revise.md")); err == nil {
+		t.Error("the refusal still wrote other payload files")
+	}
+
+	if _, _, err := run(t, "install", "--dir", dir, "--replace"); err != nil {
+		t.Fatalf("install --replace: %v", err)
+	}
+	got, err := os.ReadFile(skillFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) == mine {
+		t.Error("--replace did not overwrite the colliding file")
+	}
+	if got, err := os.ReadFile(neighbour); err != nil || string(got) != "also mine\n" {
+		t.Errorf("--replace touched a neighbouring file the repository owns: %q (%v)", got, err)
+	}
+}
+
 // The payload must not claim the settings file: install merges into it, and a
 // marker listing a path the merge edits reports it stale forever after.
 func TestTheSettingsFileStaysTheRepositorys(t *testing.T) {

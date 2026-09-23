@@ -29,30 +29,27 @@ func leftInPlace(kept []string) string {
 	}
 }
 
-// reportAdoption says what adoption takes over and what it leaves, before
-// anything is written.
-func reportAdoption(cmd *cobra.Command, p *ui.Printer, payload *render.Payload, out string) error {
-	a, err := payload.Adopt(out)
-	if err != nil {
-		return err
+// printReplaced says what --replace overwrote, by path: a count alone is
+// exactly what an overwrite with nothing named already reported.
+func printReplaced(cmd *cobra.Command, p *ui.Printer, replaced []string) {
+	if len(replaced) == 0 {
+		return
 	}
 	w := cmd.OutOrStdout()
-	fmt.Fprintln(w, p.OK.Render("adopting"), out)
-	fmt.Fprintln(w, p.Subtle.Render(fmt.Sprintf("  replaces %d files the payload writes", len(a.Replace))))
-	fmt.Fprintln(w, p.Subtle.Render(fmt.Sprintf("  leaves %d files it does not", len(a.Leave))))
-	for _, path := range a.Leave {
+	header := fmt.Sprintf("  replaced %d %s the repository held:", len(replaced), plural("path", len(replaced)))
+	fmt.Fprintln(w, p.Subtle.Render(header))
+	for _, path := range replaced {
 		fmt.Fprintln(w, p.Subtle.Render("    "+path))
 	}
-	return nil
 }
 
 func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	var (
-		target string
-		source string
-		out    string
-		check  bool
-		adopt  bool
+		target  string
+		source  string
+		out     string
+		check   bool
+		replace bool
 	)
 
 	cmd := &cobra.Command{
@@ -66,11 +63,11 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			"The destination defaults to the harness's own directory in this\n" +
 			"repository: .claude, .codex, .pi. Building the payload this\n" +
 			"repository commits is the other case, and it names --out.\n\n" +
-			"A destination carrying no marker is refused, because a directory\n" +
-			"with no record of what wrote it may be somebody's work. --adopt\n" +
-			"says otherwise: the files this payload writes are taken over, the\n" +
-			"rest are left, and the marker is written for the next render. With\n" +
-			"--check it reports what adopting would do and writes nothing.",
+			"A file the destination already holds is left alone, whether or\n" +
+			"not tstorm wrote it, unless the payload also writes that path:\n" +
+			"that collision is refused and named. --replace overwrites\n" +
+			"exactly the paths that collided and leaves the rest of the\n" +
+			"directory as it was.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			p := printer(cmd)
@@ -89,10 +86,6 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			}
 			if out == "" {
 				out = t.Root
-			}
-
-			if check && adopt {
-				return reportAdoption(cmd, p, payload, out)
 			}
 
 			if check {
@@ -119,12 +112,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 				return nil
 			}
 
-			if adopt {
-				if err := reportAdoption(cmd, p, payload, out); err != nil {
-					return err
-				}
-			}
-			kept, err := payload.Write(out, adopt)
+			kept, replaced, err := payload.Write(out, replace)
 			if err != nil {
 				return err
 			}
@@ -132,6 +120,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 			if left := leftInPlace(kept); left != "" {
 				fmt.Fprintln(cmd.OutOrStdout(), p.Subtle.Render("  "+left))
 			}
+			printReplaced(cmd, p, replaced)
 			printLimits(cmd, p, payload)
 			return nil
 		},
@@ -141,7 +130,7 @@ func renderCmd(printer func(*cobra.Command) *ui.Printer) *cobra.Command {
 	cmd.Flags().StringVar(&source, "source", "workflow", "canonical workflow source directory")
 	cmd.Flags().StringVar(&out, "out", "", "where to write the payload (default: the harness directory, .claude for claude)")
 	cmd.Flags().BoolVar(&check, "check", false, "report whether the payload on disk matches the source, and write nothing")
-	cmd.Flags().BoolVar(&adopt, "adopt", false, "take over a directory carrying no marker, replacing the payload's own files and leaving the rest")
+	cmd.Flags().BoolVar(&replace, "replace", false, "overwrite paths that collide with the payload, and leave the rest of the directory alone")
 	if err := cmd.MarkFlagRequired("target"); err != nil {
 		panic(err)
 	}
