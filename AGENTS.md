@@ -15,8 +15,15 @@ go vet ./...
 go test ./...
 ```
 
-CI runs all of that, plus the Python suites and the site's Playwright tests,
-on every pull request and every push to `main` and `edge`.
+CI runs all of that on every pull request and every push to `main` and `edge`,
+and four jobs beside it: the three payloads against `--check`, the gates under
+`tstorm check`, a GoReleaser snapshot build, and the site's Playwright suite.
+That last one is the one a Go change cannot break and a documentation change
+can:
+
+```sh
+cd docs && pnpm test
+```
 
 The gates and the loop's own commands run from the installed binary, not
 through `go run`, so what answers is the build a hook and another repository

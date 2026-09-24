@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-const pages = ["/", "/start/introduction/", "/start/install/", "/reference/harnesses/"];
+const pages = [
+  "/",
+  "/start/introduction/",
+  "/start/install/",
+  "/start/first-run/",
+  "/reference/harnesses/",
+  "/reference/configuration/",
+];
 
 // Sideways scrolling makes a page hard to read on a phone. The tables in the
 // harness reference are the widest thing on the site, so they are what this

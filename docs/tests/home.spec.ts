@@ -28,7 +28,20 @@ test.describe("home page", () => {
 
   test("lists every stage", async ({ page }) => {
     const stages = page.locator(".stages dt");
-    await expect(stages).toHaveCount(9);
-    await expect(stages.filter({ hasText: "/forecast" })).toHaveCount(1);
+    const commands = [
+      "/rubber-duck",
+      "/specify",
+      "/decompose",
+      "/triage",
+      "/thunderstorm",
+      "/implement",
+      "/rev",
+      "/adv-rev",
+      "/revise",
+    ];
+    await expect(stages).toHaveCount(commands.length);
+    for (const command of commands) {
+      await expect(stages.filter({ hasText: command })).not.toHaveCount(0);
+    }
   });
 });
